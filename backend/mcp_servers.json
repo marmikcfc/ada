@@ -1,0 +1,13 @@
+{
+    "utilities": {
+        "command": "python",
+        "args": [
+            "mcp_servers/utilities_server.py"
+        ],
+        "transport": "stdio"
+    },
+    "weather": {
+        "url": "wss://server.smithery.ai/@turkyden/weather/ws?config={config_b64}&api_key={smithery_api_key}",
+        "transport": "websocket"
+    }
+}

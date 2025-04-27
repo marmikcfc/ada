@@ -1,0 +1,23 @@
+[project]
+name = "langgraph-backend"
+version = "0.1.0"
+description = "A basic FastAPI backend with LangGraph and MCP integration."
+authors = ["Your Name <you@example.com>"]
+
+[tool.poetry.dependencies]
+python = ">=3.8,<4.0"
+fastapi = "^0.110.0"
+uvicorn = "^0.29.0"
+langgraph = "*"
+python-dotenv = "^1.0.0"
+langgraph-checkpoint-sqlite = "*"
+mcp = "*"
+langchain-mcp-adapters = "*"
+langchain-openai = "*"
+langchain-anthropic = "*"
+
+[tool.poetry.dev-dependencies]
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api" 
