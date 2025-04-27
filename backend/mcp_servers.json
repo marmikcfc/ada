@@ -9,5 +9,9 @@
     "weather": {
         "url": "wss://server.smithery.ai/@turkyden/weather/ws?config={config_b64}&api_key={smithery_api_key}",
         "transport": "websocket"
+    },
+    "server/tools search engine": {
+        "url": "wss://server.smithery.ai/@turkyden/weather/ws?config={config_b64}&api_key={smithery_api_key}",
+        "transport": "websocket"
     }
 }
