@@ -5,37 +5,48 @@ from functools import partial
 from langgraph.graph import StateGraph, END, START
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langchain_core.language_models.chat_models import BaseChatModel
+from langchain_core.tools import BaseTool
 from langchain_core.messages import HumanMessage, SystemMessage
 
 # State definition
 from src.state.schema import AgentState
 
 # Node functions
-from src.components.planner import planner_node
+# Remove planner_node import
+# from src.components.planner import planner_node
 from src.components.analyzer import analyzer_node
 from src.components.executor import executor_node
-from src.components.evaluator import progress_evaluator_node
+from src.components.evaluator import progress_evaluator_node # Renamed from evaluator_node for clarity
 # Uncomment imports for moved nodes
 from src.components.human_intervention import human_intervention_node
-from src.components.error_handler import error_handler_node 
+from src.components.error_handler import error_handler_node
 from src.components.initializer import initialize_node
 from src.components.memory_manager import manage_memory
 
 # Utilities
 from src.tools.code_executor import RestrictedExecutor
-# Remove MCPClientManager import
-# from src.mcp.client_manager import MCPClientManager
-# Import the actual client type
+# Import the actual MCP client type and the planner tool
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from src.tools.planner_tool import PlannerTool # Import the new planner tool
 
 logger = logging.getLogger(__name__)
 
 # Conditional edge logic
 def should_continue(state: AgentState) -> Literal["analyzer", "error_handler", "human_intervention", "__end__"]:
-    """Determines the next node based on the agent's status."""
+    """Determines the next node based on the agent's status.
+    Now routes back to analyzer if execution is needed.
+    Handles 'planned' status after planner tool execution.
+    """
     status = state.get("status", "error") # Default to error if status missing
     logger.debug(f"Routing based on status: {status}")
-    if status == "executing":
+
+    # If a plan was just generated, go back to analyzer to decide the first step
+    if status == "planned":
+        logger.info("Plan generated, routing to analyzer.")
+        return "analyzer"
+    # If executing normally (or after evaluation/memory), go back to analyzer
+    elif status in ["executing", "evaluated", "memory_managed"]:
+        logger.debug(f"Status is {status}, routing to analyzer.")
         return "analyzer"
     elif status == "error":
         return "error_handler"
@@ -46,35 +57,49 @@ def should_continue(state: AgentState) -> Literal["analyzer", "error_handler", "
         return END
     else:
         logger.error(f"Unknown status encountered in should_continue: {status}")
+        # Fallback: attempt analysis or error handling
         return "error_handler" # Route to error handler for unknown states
 
+
+# --- Node Execution Logic ---
+# (Keep existing node functions from src.components.*)
+# Make sure analyzer_node's prompt is updated to consider calling "create_detailed_plan"
+# Make sure executor_node can handle invoking both MCP tools and the PlannerTool
+
 def create_agent_graph(
-    llm: BaseChatModel, 
+    llm: BaseChatModel,
     eval_llm: BaseChatModel, # Potentially different/cheaper LLM for evaluation
-    code_executor: RestrictedExecutor, 
-    mcp_client: MultiServerMCPClient, # Changed from mcp_manager
+    planner_tool: PlannerTool, # Pass the instantiated planner tool
+    code_executor: RestrictedExecutor,
+    mcp_client: MultiServerMCPClient,
     checkpointer: BaseCheckpointSaver = None
 ) -> StateGraph:
-    """Creates the LangGraph StateGraph for the Manus-like agent."""
-    logger.info("Creating agent graph...")
+    """Creates the LangGraph StateGraph for the agent with Planner as a Tool."""
+    logger.info("Creating agent graph (Planner as Tool)...")
     builder = StateGraph(AgentState)
 
-    # --- Bind external dependencies to node functions ---    
-    # Partial function application to pass instances to nodes
-    bound_planner_node = partial(planner_node, llm=llm)
-    bound_analyzer_node = partial(analyzer_node, llm=llm)
-    bound_executor_node = partial(executor_node, code_executor=code_executor, mcp_client=mcp_client) # Bind mcp_client
+    # --- Bind external dependencies to node functions ---
+    # Planner node is removed. Planning happens via planner_tool in executor.
+    bound_analyzer_node = partial(analyzer_node, llm=llm, planner_tool_name=planner_tool.name) # Pass tool name for prompt guidance
+    # Executor now needs access to both MCP client and the planner tool instance
+    bound_executor_node = partial(
+        executor_node,
+        code_executor=code_executor,
+        mcp_client=mcp_client,
+        local_tools=[planner_tool] # Pass planner tool instance here
+    )
     bound_evaluator_node = partial(progress_evaluator_node, llm=eval_llm) # Use eval_llm here
-    bound_initializer_node = partial(initialize_node, mcp_client=mcp_client) # Bind mcp_client
+    # Initializer needs to load MCP tools, but not planner tool (it's passed directly)
+    bound_initializer_node = partial(initialize_node, mcp_client=mcp_client)
     # bind human_intervention_node and error_handler_node if they need dependencies
     bound_human_node = human_intervention_node
     bound_error_node = error_handler_node
     bound_memory_node = manage_memory # If it needs dependencies, bind them
 
-    # --- Add Nodes ---    
+    # --- Add Nodes ---
     logger.debug("Adding nodes to the graph...")
     builder.add_node("initialize", bound_initializer_node)
-    builder.add_node("planner", bound_planner_node)
+    # Remove planner node: builder.add_node("planner", bound_planner_node)
     builder.add_node("analyzer", bound_analyzer_node)
     builder.add_node("executor", bound_executor_node)
     builder.add_node("progress_evaluator", bound_evaluator_node)
@@ -82,43 +107,58 @@ def create_agent_graph(
     builder.add_node("error_handler", bound_error_node)
     builder.add_node("human_intervention", bound_human_node)
 
-    # --- Define Edges ---    
+    # --- Define Edges ---
     logger.debug("Defining graph edges...")
-    # Start -> Initialize -> Plan -> Analyze -> Execute -> Evaluate -> Manage Memory -> Route
+    # Start -> Initialize -> Analyze -> Execute -> Evaluate -> Manage Memory -> Route
     builder.add_edge(START, "initialize")
-    builder.add_edge("initialize", "planner")
-    builder.add_edge("planner", "analyzer")
+    # Initialize now goes directly to Analyzer
+    builder.add_edge("initialize", "analyzer")
+    # Planner edge removed: builder.add_edge("planner", "analyzer")
     builder.add_edge("analyzer", "executor")
     builder.add_edge("executor", "progress_evaluator")
     builder.add_edge("progress_evaluator", "manage_memory") # Evaluate, then manage memory
 
     # Conditional Edges based on status after memory management
+    # Routes back to analyzer for next step decision
     builder.add_conditional_edges(
         "manage_memory", # Route AFTER memory management
         should_continue,
         {
-            "analyzer": "analyzer", # Loop back to analyzer if still executing
+            "analyzer": "analyzer", # Loop back to analyzer for next decision
             "error_handler": "error_handler",
             "human_intervention": "human_intervention",
             END: END  # Task complete
         }
     )
 
-    # Error Handling and Human Intervention Loops
-    # Error handler might try to recover and go back to analyzer, or halt
-    builder.add_edge("error_handler", "analyzer") # Simple loop back for now
-    # Human intervention provides input, then back to analyzer
-    builder.add_edge("human_intervention", "analyzer")
+    # Error Handling and Human Intervention Loops still route back to analyzer
+    builder.add_edge("error_handler", "analyzer") # Error handler attempts recovery via analyzer
+    builder.add_edge("human_intervention", "analyzer") # Human input leads back to analysis
 
-    # --- Compile the Graph ---    
+    # --- Compile the Graph ---
     logger.info("Compiling agent graph...")
     graph = builder.compile(checkpointer=checkpointer)
-    logger.info("Agent graph compiled successfully.")
+    logger.info("Agent graph compiled successfully (Planner as Tool).")
     return graph
 
-# --- Placeholder/Helper Node Implementations (to be moved) ---
 
-# These should ideally be in their own files in src/components
+# --- Placeholder/Helper Node Implementations ---
+# Remove or comment out any remaining placeholder functions if they are now
+# properly implemented in their respective component files.
+# Make sure the actual component files (analyzer, executor, etc.) are updated
+# to reflect the new logic (analyzer decides to plan, executor runs planner tool,
+# analyzer/executor use plan from state).
+
+# Example adjustment needed in analyzer_node (conceptual):
+# - Prompt should list "create_detailed_plan" as an available action/tool.
+# - Prompt should guide the LLM on *when* to choose planning vs direct action.
+# - Prompt should mention that if a plan *already exists* in the state, it should analyze the *next step* of the plan.
+
+# Example adjustment needed in executor_node (conceptual):
+# - Check if the action is for the planner_tool.name.
+# - If yes, invoke planner_tool._arun(...) and store the returned Plan in state['plan']. Update status to 'planned'.
+# - If no, proceed with MCP tool execution or code execution as before.
+# - If a plan exists in the state, the executor might need to only execute the tool corresponding to the current plan step.
 
 # def initialize_node(state: AgentState, mcp_client: MultiServerMCPClient) -> Dict:
 #      """Initializes the agent state, loads tools/resources."""

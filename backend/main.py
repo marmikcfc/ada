@@ -23,6 +23,8 @@ import logging # Add logging import
 from src.agent.orchestrator import create_agent_graph
 from src.state.schema import AgentState, Plan, WorkingMemory
 from src.tools.code_executor import RestrictedExecutor
+# Import the Planner Tool factory
+from src.tools.planner_tool import get_planner_tool
 
 # Import LLM (assuming OpenAI for now, adjust if needed)
 from langchain_openai import ChatOpenAI
@@ -73,18 +75,26 @@ async def lifespan(app: FastAPI):
         # Depending on desired behavior, you might exit or proceed without the agent graph
         app.agent_graph = None
     else:
+        # LLM for core agent logic (analyzer, evaluator)
         llm = ChatOpenAI(model=AGENT_MODEL, api_key=openai_api_key, temperature=0)
+        # Potentially a different/cheaper LLM for evaluation or planning
         eval_llm = ChatOpenAI(model=AGENT_MODEL, api_key=openai_api_key, temperature=0)
+        planner_llm = ChatOpenAI(model=AGENT_MODEL, api_key=openai_api_key, temperature=0) # Or a different model
+
+        # Instantiate the Planner Tool
+        planner_tool_instance = get_planner_tool(llm=planner_llm)
+
         # Compile the graph using the correct function and dependencies
         # Pass None for checkpointer as it's handled per-request
         app.agent_graph = create_agent_graph(
             llm=llm,
             eval_llm=eval_llm,
+            planner_tool=planner_tool_instance, # Pass the planner tool instance
             code_executor=app.code_executor,
             mcp_client=app.mcp_client,
             checkpointer=None
         )
-        print("Agent graph compiled during startup using orchestrator.")
+        print("Agent graph compiled during startup using orchestrator (Planner as Tool).")
 
 
     yield
@@ -188,10 +198,13 @@ async def agent_endpoint(agent_request: AgentRequest, fastapi_req: Request):
         try:
             # Stream events from the agent graph, configuring the checkpointer
             final_state = None
+            logger.info(f"Invoking agent graph for thread {thread_id} with input: {agent_request.message}")
             async for event in agent_graph.astream_events(initial_input, config=config, version="v1"):
                 kind = event["event"]
+                logger.debug(f"Thread {thread_id} - Event: {kind}, Data: {event['data']}") # Log events
                 # Keep track of the latest full state snapshot
                 if kind == "on_chain_end":
+                     logger.info(f"Thread {thread_id} - Chain ended.")
                      final_state = event["data"]["output"]
 
             if final_state is None:
@@ -225,4 +238,7 @@ def health_check():
 # If running directly (for testing/dev)
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000) 
+    # Configure logging for development
+    logging.basicConfig(level=logging.DEBUG) # Set to DEBUG for more verbose output
+    logger.info("Starting backend server...")
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) # Use string for reload 
