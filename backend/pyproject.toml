@@ -15,6 +15,7 @@ mcp = "*"
 langchain-mcp-adapters = "*"
 langchain-openai = "*"
 langchain-anthropic = "*"
+pipecat-ai-small-webrtc-prebuilt = "*"
 
 [tool.poetry.dev-dependencies]
 

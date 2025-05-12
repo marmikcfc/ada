@@ -5,7 +5,8 @@
 from dotenv import load_dotenv
 load_dotenv()
 
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, WebSocket, WebSocketDisconnect
+
 from pydantic import BaseModel
 import os
 import asyncio
@@ -18,6 +19,9 @@ import json
 import base64
 import uuid
 import logging # Add logging import
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
+from typing import Dict
 
 # Import the custom graph *creation function* and the placeholder
 from graph import create_graph, app_graph as compiled_custom_graph # Renamed placeholder
@@ -25,9 +29,13 @@ from graph import create_graph, app_graph as compiled_custom_graph # Renamed pla
 # Import LLM (assuming OpenAI for now, adjust if needed)
 from langchain_openai import ChatOpenAI
 
+from bot import run_bot
+from pipecat.transports.network.webrtc_connection import IceServer, SmallWebRTCConnection
+
 # Get the logger
 logger = logging.getLogger(__name__)
 logging.getLogger("uvicorn.access").setLevel(logging.INFO)
+
 
 config = {}
 config_b64 = base64.b64encode(json.dumps(config).encode())
@@ -54,6 +62,19 @@ for server in MCP_SERVERS.values():
 
 # Global variable to hold the MCP client instance
 mcp_client_instance: MultiServerMCPClient | None = None
+
+# Store connections by pc_id
+pcs_map: Dict[str, SmallWebRTCConnection] = {}
+
+# ICE server config (Google STUN)
+ice_servers = [
+    IceServer(urls="stun:stun.l.google.com:19302")
+]
+
+# WebRTC Prebuilt UI (optional, if you want to mount a frontend)
+# from pipecat_ai_small_webrtc_prebuilt.frontend import SmallWebRTCPrebuiltUI
+# app.mount("/prebuilt", SmallWebRTCPrebuiltUI)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -93,11 +114,25 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Failed to close MCP Client during shutdown: {e}", exc_info=True)
 
+    # Cleanup WebRTC connections
+    coros = [pc.close() for pc in pcs_map.values() if hasattr(pc, 'close')]
+    await asyncio.gather(*coros)
+    pcs_map.clear()
+
 app = FastAPI(lifespan=lifespan)
 
 # Define checkpointer globally for reuse (consider lifecycle management)
 # Use the environment variable for the database path
 memory = AsyncSqliteSaver.from_conn_string(f"sqlite+aiosqlite:///{AGENT_SQLITE_DB}")
+
+# Add CORS middleware for cross-origin support
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 class ChatRequest(BaseModel):
     thread_id: str
@@ -106,6 +141,11 @@ class ChatRequest(BaseModel):
 class AgentRequest(BaseModel):
     message: str
     thread_id: str | None = None
+
+from pipecat_ai_small_webrtc_prebuilt.frontend import SmallWebRTCPrebuiltUI
+app.mount("/prebuilt", SmallWebRTCPrebuiltUI)
+
+
 
 @app.get("/")
 def read_root():
@@ -192,6 +232,36 @@ async def agent_endpoint(agent_request: AgentRequest, fastapi_req: Request):
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+@app.get("/", include_in_schema=False)
+def root_redirect():
+    return RedirectResponse(url="/health")
+
+# @app.post("/api/offer")
+@app.post("/api/offer")
+async def offer(request: dict, background_tasks: BackgroundTasks):
+    pc_id = request.get("pc_id")
+    if pc_id and pc_id in pcs_map:
+        pipecat_connection = pcs_map[pc_id]
+        logger.info(f"Reusing existing connection for pc_id: {pc_id}")
+        await pipecat_connection.renegotiate(
+            sdp=request["sdp"], type=request["type"], restart_pc=request.get("restart_pc", False)
+        )
+    else:
+        pipecat_connection = SmallWebRTCConnection(ice_servers)
+        await pipecat_connection.initialize(sdp=request["sdp"], type=request["type"])
+
+
+        @pipecat_connection.event_handler("closed")
+        async def handle_disconnected(webrtc_connection: SmallWebRTCConnection):
+            logger.info(f"Discarding peer connection for pc_id: {webrtc_connection.pc_id}")
+            pcs_map.pop(webrtc_connection.pc_id, None)
+        background_tasks.add_task(run_bot, pipecat_connection)
+
+    answer = pipecat_connection.get_answer()
+    pcs_map[answer["pc_id"]] = pipecat_connection
+    
+    return answer
 
 # If running directly (for testing/dev)
 if __name__ == "__main__":
