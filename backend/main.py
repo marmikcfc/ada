@@ -22,6 +22,7 @@ import logging # Add logging import
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from typing import Dict
+import threading
 
 # Import the custom graph *creation function* and the placeholder
 from graph import create_graph, app_graph as compiled_custom_graph # Renamed placeholder
@@ -29,7 +30,7 @@ from graph import create_graph, app_graph as compiled_custom_graph # Renamed pla
 # Import LLM (assuming OpenAI for now, adjust if needed)
 from langchain_openai import ChatOpenAI
 
-from bot import run_bot
+from bot import VoiceInterfaceAgent
 from pipecat.transports.network.webrtc_connection import IceServer, SmallWebRTCConnection
 
 # Get the logger
@@ -75,6 +76,11 @@ ice_servers = [
 # from pipecat_ai_small_webrtc_prebuilt.frontend import SmallWebRTCPrebuiltUI
 # app.mount("/prebuilt", SmallWebRTCPrebuiltUI)
 
+# Global queue for LLM messages to frontend
+llm_message_queue = asyncio.Queue()
+
+async def send_llm_message_to_frontend(msg: str):
+    await llm_message_queue.put(msg)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -109,7 +115,7 @@ async def lifespan(app: FastAPI):
     if mcp_client_instance:
         try:
             logger.info("Closing MultiServerMCPClient...")
-            await mcp_client_instance.close()
+            #await mcp_client_instance.close()
             logger.info("MultiServerMCPClient closed successfully.")
         except Exception as e:
             logger.error(f"Failed to close MCP Client during shutdown: {e}", exc_info=True)
@@ -251,17 +257,30 @@ async def offer(request: dict, background_tasks: BackgroundTasks):
         pipecat_connection = SmallWebRTCConnection(ice_servers)
         await pipecat_connection.initialize(sdp=request["sdp"], type=request["type"])
 
-
         @pipecat_connection.event_handler("closed")
         async def handle_disconnected(webrtc_connection: SmallWebRTCConnection):
             logger.info(f"Discarding peer connection for pc_id: {webrtc_connection.pc_id}")
             pcs_map.pop(webrtc_connection.pc_id, None)
-        background_tasks.add_task(run_bot, pipecat_connection)
+        # Create and run the voice interface agent, passing the display queue
+        agent = VoiceInterfaceAgent(pipecat_connection, llm_message_queue)
+        background_tasks.add_task(agent.run)
 
     answer = pipecat_connection.get_answer()
     pcs_map[answer["pc_id"]] = pipecat_connection
     
     return answer
+
+@app.websocket("/ws/messages")
+async def websocket_llm_messages(websocket: WebSocket):
+    await websocket.accept()
+    try:
+        while True:
+            msg = await llm_message_queue.get()
+            await websocket.send_text(msg)
+    except WebSocketDisconnect:
+        pass
+    except Exception as e:
+        logger.error(f"WebSocket error: {e}")
 
 # If running directly (for testing/dev)
 if __name__ == "__main__":
