@@ -34,6 +34,11 @@ export default defineConfig(async () => ({
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
+      // Add this section for WebSocket proxying
+      '/ws': {
+        target: 'ws://localhost:8000',
+        ws: true,
+      },
     },
   },
 }));

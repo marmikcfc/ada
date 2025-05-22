@@ -21,13 +21,14 @@ import uuid
 import logging # Add logging import
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
-from typing import Dict
+from typing import Dict, List, Any # Added List, Any
 import threading
 
 # Import the custom graph *creation function* and the placeholder
 from graph import create_graph, app_graph as compiled_custom_graph # Renamed placeholder
 
 # Import LLM (assuming OpenAI for now, adjust if needed)
+from openai import AsyncOpenAI
 from langchain_openai import ChatOpenAI
 
 from bot import VoiceInterfaceAgent
@@ -44,6 +45,7 @@ config_b64 = base64.b64encode(json.dumps(config).encode())
 smithery_api_key = os.environ.get("SMITHERY_API_KEY")
 openai_api_key = os.environ.get("OPENAI_API_KEY")
 anthropic_api_key = os.environ.get("ANTHROPIC_API_KEY")
+thesys_api_key = os.environ.get("THESYS_API_KEY") # Added Thesys API Key
 AGENT_MODEL = os.environ.get("AGENT_MODEL", "gpt-4o-mini")
 AGENT_SQLITE_DB = os.environ.get("AGENT_SQLITE_DB", "agent_history.db")
 
@@ -64,6 +66,9 @@ for server in MCP_SERVERS.values():
 # Global variable to hold the MCP client instance
 mcp_client_instance: MultiServerMCPClient | None = None
 
+# Global variable for Thesys client
+thesys_client: AsyncOpenAI | None = None
+
 # Store connections by pc_id
 pcs_map: Dict[str, SmallWebRTCConnection] = {}
 
@@ -78,22 +83,32 @@ ice_servers = [
 
 # Global queue for LLM messages to frontend
 llm_message_queue = asyncio.Queue()
+# New queue for raw LLM output from VoiceInterfaceAgent, to be processed by Thesys
+raw_llm_output_queue = asyncio.Queue()
 
-async def send_llm_message_to_frontend(msg: str):
-    await llm_message_queue.put(msg)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize the MCP client on startup
-    global mcp_client_instance
-    # Initialize graph placeholder globally
-    global compiled_custom_graph 
+    global mcp_client_instance, compiled_custom_graph, thesys_client # Added thesys_client
     try:
         logger.info("Initializing MultiServerMCPClient...")
         mcp_client_instance = MultiServerMCPClient(MCP_SERVERS)
         app.state.mcp_client = mcp_client_instance # Store client in app state
         logger.info("MultiServerMCPClient initialized successfully.")
         
+        # --- Initialize Thesys Client ---
+        if thesys_api_key:
+            logger.info("Initializing Thesys Client...")
+            thesys_client = AsyncOpenAI(
+                api_key=thesys_api_key,
+                base_url="https://api.thesys.dev/v1/embed", # Changed from /visualize to /embed
+            )
+            logger.info("Thesys Client initialized successfully.")
+        else:
+            logger.warning("THESYS_API_KEY not found. Visualization features will be disabled.")
+            thesys_client = None
+
         # --- Initialize Graph --- 
         if mcp_client_instance:
             logger.info("Initializing custom graph...")
@@ -108,6 +123,11 @@ async def lifespan(app: FastAPI):
         logger.error(f"Failed to initialize MCP Client during startup: {e}", exc_info=True)
         mcp_client_instance = None
         app.state.mcp_client = None
+        thesys_client = None # Ensure Thesys client is also None if startup fails early
+    
+    # Start the visualization processor task
+    asyncio.create_task(visualization_processor())
+    logger.info("Visualization processor background task scheduled.")
     
     yield # Application runs here
     
@@ -262,7 +282,8 @@ async def offer(request: dict, background_tasks: BackgroundTasks):
             logger.info(f"Discarding peer connection for pc_id: {webrtc_connection.pc_id}")
             pcs_map.pop(webrtc_connection.pc_id, None)
         # Create and run the voice interface agent, passing the display queue
-        agent = VoiceInterfaceAgent(pipecat_connection, llm_message_queue)
+        # agent = VoiceInterfaceAgent(pipecat_connection, llm_message_queue) # OLD
+        agent = VoiceInterfaceAgent(pipecat_connection, raw_llm_output_queue) # NEW: Pass raw output queue
         background_tasks.add_task(agent.run)
 
     answer = pipecat_connection.get_answer()
@@ -272,20 +293,161 @@ async def offer(request: dict, background_tasks: BackgroundTasks):
 
 @app.websocket("/ws/messages")
 async def websocket_llm_messages(websocket: WebSocket):
+    print(f"DEBUG: Entering websocket_llm_messages for {websocket.client.host}:{websocket.client.port}")
     await websocket.accept()
+    logger.info(f"WebSocket /ws/messages connection accepted from {websocket.client.host}:{websocket.client.port}")
+    
     try:
+        # Send an initial test message to the client
+        await websocket.send_text(json.dumps({"type": "connection_ack", "message": "WebSocket connection established!"}))
+        logger.info(f"Sent connection_ack to {websocket.client.host}:{websocket.client.port}")
+
+        logger.info("Just beforw while")
         while True:
+            logger.info(f"WebSocket /ws/messages waiting for message from llm_message_queue for {websocket.client.host}:{websocket.client.port}")
+            print(f"DEBUG: About to await llm_message_queue.get() for {websocket.client.host}:{websocket.client.port}")
             msg = await llm_message_queue.get()
-            await websocket.send_text(msg)
+            #llm_message_queue.task_done() # Added task_done for the llm_message_queue
+            logger.info(f"WebSocket /ws/messages received message from queue: {msg} for {websocket.client.host}:{websocket.client.port}")
+            try:
+                serialized_msg = msg if isinstance(msg, str) else json.dumps(msg)
+                await websocket.send_text(serialized_msg)
+                logger.info(f"WebSocket /ws/messages successfully sent message to {websocket.client.host}:{websocket.client.port}")
+            except Exception as send_error:
+                logger.error(f"WebSocket /ws/messages error sending message to {websocket.client.host}:{websocket.client.port}: {send_error}", exc_info=True)
+                # Optionally, break or close connection if send fails critically
+                break 
     except WebSocketDisconnect:
-        pass
+        logger.info(f"WebSocket /ws/messages client {websocket.client.host}:{websocket.client.port} disconnected.")
     except Exception as e:
-        logger.error(f"WebSocket error: {e}")
+        logger.error(f"Unexpected error in WebSocket /ws/messages for {websocket.client.host}:{websocket.client.port}: {e}", exc_info=True)
+    finally:
+        logger.info(f"Closing WebSocket /ws/messages connection for {websocket.client.host}:{websocket.client.port}")
+        # Uvicorn handles actual closing, this is just a log. Ensure queue tasks are handled if needed.
+
+async def get_thesys_visualization(assistant_response: str, conversation_history: List[Dict[str, Any]] = None):
+    """
+    Calls Thesys Embed API to get a UI representation for the given text.
+    Optionally includes conversation history for better context.
+    """
+    if not thesys_client:
+        logger.error("Thesys client not initialized. Cannot visualize.")
+        return {"type": "error", "message": "Visualization service not available."}
+
+    # if not text_response:
+    #     logger.warning("Received empty text_response for visualization.")
+    #     return {"type": "text", "content": ""} # Send empty text if nothing to visualize
+
+    # User's new prompting strategy for Thesys
+    thesys_prompt_instruction = (
+        "This is what user is talking about and this is voice bot speaking. "
+        "Please create a response to user query in line with the bot answer for display. "
+        "If there's no expansion needed simply respond bot's answer."
+    )
+    
+    # # Construct the content for the final assistant message to Thesys
+    # # text_response here is the voice bot's actual spoken answer.
+    # final_assistant_content_for_thesys = f"{thesys_prompt_instruction}\n\nVoice Bot's Answer: \"{text_response}\""
+
+    messages_for_thesys = [{"role": "system", "content": thesys_prompt_instruction}]
+    if conversation_history: # conversation_history should ideally contain the user's last query for context
+        messages_for_thesys.extend(conversation_history[:-1])
+    
+    # # Add the carefully constructed assistant message to be visualized/processed by Thesys
+    final_assistant_content_for_thesys = f"For given user query {conversation_history[-1]['content']}, this is what a voice bot answered: {assistant_response}. Now create a response to user query in line with the bot answer for display."
+
+    messages_for_thesys.append({"role": "assistant", "content": final_assistant_content_for_thesys})
+
+    try:
+
+        print(f"Sending to Thesys Embed API (content: {messages_for_thesys}...")
+        
+        completion = await thesys_client.chat.completions.create(
+            messages=messages_for_thesys,
+            model="c1-nightly" # This is set during client initialization
+        )
+        
+        visualized_content = completion.choices[0].message.content
+        print(f"Received visualization from Thesys. {visualized_content}")
+        return visualized_content
+        # Thesys response is expected to be a JSON string representing the UI.
+        # We parse it into a Python dict/list.
+        # if isinstance(visualized_content, str):
+        #     try:
+        #         return json.loads(visualized_content)
+        #     except json.JSONDecodeError:
+        #         logger.error(f"Thesys response was a string but not valid JSON: {visualized_content}")
+        #         return {"type": "error", "message": "Received malformed UI data from visualization service."}
+        # elif isinstance(visualized_content, (dict, list)): # Should ideally be a dict
+        #      return visualized_content # Already a usable structure
+        # else:
+        #     logger.error(f"Unexpected Thesys response type: {type(visualized_content)}")
+        #     return {"type": "error", "message": "Received unexpected UI data format."}
+
+    except Exception as e:
+        logger.error(f"Error calling Thesys Embed API: {e}", exc_info=True)
+        return {"type": "error", "message": "Failed to generate UI due to an internal error.", "original_text": conversation_history}
+
+
+async def visualization_processor():
+    """
+    Processes raw LLM output, gets visualization from Thesys, and sends to frontend queue.
+    """
+    logger.info("Visualization processor task started.")
+    while True:
+        try:
+            item = await raw_llm_output_queue.get()
+            logger.info(f"Visualization processor: Received item from raw_llm_output_queue: {item}")
+            print(f"Visualization processor: Received item from raw_llm_output_queue: {item}")
+            text_to_visualize: str | None = item.get("text")
+            conversation_history: List[Dict[str, Any]] = item.get("history", [])
+            assistant_response: str | None = item.get("assistant_response")
+            logger.info(f"Visualization processor: Received conversation history: {conversation_history} and assistant response: {assistant_response}")
+            # if isinstance(item, str):
+            #     text_to_visualize = item
+            # elif isinstance(item, dict): # Expecting {"text": "...", "history": [...]}
+            #     # text_to_visualize = item.get("text")
+            # conversation_history = item.get("history", [])
+            
+            # if not text_to_visualize:
+            #     logger.warning("Visualization processor received empty or invalid item.")
+            #     raw_llm_output_queue.task_done()
+            #     continue
+
+            # logger.info(f"Visualization processor: Processing text '{text_to_visualize[:100]}...'")
+            visualized_ui_payload = await get_thesys_visualization(assistant_response, conversation_history)
+            
+            # Prepare message for frontend (C1Chat compatible)
+            message_for_frontend = {
+                "id": str(uuid.uuid4()),
+                "role": "assistant", # Represents assistant's UI output
+                "content": visualized_ui_payload, # This is the Thesys UI payload (dict/list or error dict)
+            }
+            
+            await llm_message_queue.put(message_for_frontend)
+            logger.info(f"Visualization processor: Sent UI payload/error to frontend queue for ID {message_for_frontend['id']}.")
+
+        except Exception as e:
+            logger.error(f"Critical error in visualization_processor loop: {e}", exc_info=True)
+            # Optionally, put an error message on llm_message_queue for the client
+            await llm_message_queue.put({
+                "id": str(uuid.uuid4()),
+                "role": "assistant",
+                "content": {"type": "error", "message": "A system error occurred while generating UI."}
+            })
+        finally:
+            logger.info("Raw LLM output queue task done")
+            #raw_llm_output_queue.task_done()
 
 # If running directly (for testing/dev)
 if __name__ == "__main__":
     import uvicorn
     # Configure logging for development
     logging.basicConfig(level=logging.DEBUG) # Set to DEBUG for more verbose output
+    # Ensure specific loggers are at desired levels
+    logging.getLogger("pipecat").setLevel(logging.INFO)
+    logging.getLogger("uvicorn").setLevel(logging.INFO)
+    logging.getLogger("uvicorn.access").setLevel(logging.INFO)
+
     logger.info("Starting backend server...")
     uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True) # Use string for reload 

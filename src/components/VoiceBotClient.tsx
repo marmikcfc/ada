@@ -10,26 +10,48 @@ const VoiceBotClient: React.FC = () => {
   const wsRef = useRef<WebSocket | null>(null);
 
   useEffect(() => {
+    console.log('Attempting to set up WebSocket for LLM messages...');
     // Set up WebSocket for LLM messages
-    const ws = new WebSocket(
+    const wsUrl = 
       window.location.protocol === 'https:'
         ? 'wss://' + window.location.host + '/ws/messages'
-        : 'ws://' + window.location.host + '/ws/messages'
-    );
+        : 'ws://' + window.location.host + '/ws/messages';
+    
+    console.log(`Connecting to WebSocket at: ${wsUrl}`);
+    const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
+
+    ws.onopen = () => {
+      console.log('Frontend WebSocket: onopen event fired.');
+      setLlmMessages((prev) => [...prev, '[WebSocket connected!]']);
+    };
+
     ws.onmessage = (event) => {
+      console.log('Frontend WebSocket: onmessage event fired.', event.data);
       setLlmMessages((prev) => [...prev, event.data]);
     };
-    ws.onerror = (e) => {
+
+    ws.onerror = (event) => {
+      console.error('Frontend WebSocket: onerror event fired:', JSON.stringify(event));
       setLlmMessages((prev) => [...prev, '[WebSocket error]']);
     };
-    ws.onclose = () => {
-      setLlmMessages((prev) => [...prev, '[WebSocket closed]']);
+
+    ws.onclose = (event) => {
+      console.log('Frontend WebSocket: onclose event fired:', event);
+      setLlmMessages((prev) => [
+        ...prev,
+        `[WebSocket closed: code=${event.code}, reason=${event.reason || 'N/A'}, clean=${event.wasClean}]`,
+      ]);
     };
+
     return () => {
-      ws.close();
+      console.log('Frontend WebSocket: useEffect cleanup - closing WebSocket.');
+      if (wsRef.current && wsRef.current.readyState !== WebSocket.CLOSED && wsRef.current.readyState !== WebSocket.CLOSING) {
+        wsRef.current.close();
+      }
+      wsRef.current = null;
     };
-  }, []);
+  }, []); // Empty dependency array, runs once on mount
 
   // Set the audio element's srcObject to the bot's audio stream
   useEffect(() => {
