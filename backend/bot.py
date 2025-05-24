@@ -45,25 +45,23 @@ You are a helpful assistant. Respond with a concise, 2-sentence answer to the us
 
 
 class VoiceInterfaceAgent:
-    def __init__(self, webrtc_connection, display_queue: asyncio.Queue):
+    def __init__(self, webrtc_connection, raw_llm_output_queue: asyncio.Queue):
         self.webrtc_connection = webrtc_connection
-        self.display_queue = display_queue  # Kept for potential future use
+        self.raw_llm_output_queue = raw_llm_output_queue
 
     async def process_downstream_display(self, assistant_response: str, history: Any):
-        logger.info(f"--- process_downstream_display ---")
-        logger.info(f"History: {history}")
-        # logger.info(f"User Input: {user_input}")
-        # logger.info(f"Assistant Response: {assistant_response}")
-        logger.info(f"------------------------------------")
-        # In the future, this function will send this pair to a display LLM.
-        # For now, it just logs the information.
-        # If needed, you could use self.display_queue.put(...) here to update UI.
+        logger.info(f"--- process_downstream_display (payload for Thesys) ---")
+        logger.info(f"History (for Thesys context): {history}")
+        logger.info(f"Assistant Spoken Response (for Thesys): {assistant_response}")
+        logger.info(f"----------------------------------------------------------")
+        
         try:
-            payload = {"assistant_response": assistant_response, "history": history}
-            await self.display_queue.put(payload)
-            logger.info(f"Enqueued to display_queue: {payload}")
+            # This payload structure is expected by the modified visualization_processor in main.py
+            payload = {"assistant_response": assistant_response.strip(), "history": history}
+            await self.raw_llm_output_queue.put(payload)
+            logger.info(f"Enqueued to raw_llm_output_queue: {payload}")
         except Exception as e:
-            logger.error(f"Error enqueuing to display_queue: {e}")
+            logger.error(f"Error enqueuing to raw_llm_output_queue: {e}")
 
     async def run(self):
         transport_params = TransportParams(

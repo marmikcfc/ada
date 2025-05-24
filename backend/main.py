@@ -370,19 +370,6 @@ async def get_thesys_visualization(assistant_response: str, conversation_history
         visualized_content = completion.choices[0].message.content
         print(f"Received visualization from Thesys. {visualized_content}")
         return visualized_content
-        # Thesys response is expected to be a JSON string representing the UI.
-        # We parse it into a Python dict/list.
-        # if isinstance(visualized_content, str):
-        #     try:
-        #         return json.loads(visualized_content)
-        #     except json.JSONDecodeError:
-        #         logger.error(f"Thesys response was a string but not valid JSON: {visualized_content}")
-        #         return {"type": "error", "message": "Received malformed UI data from visualization service."}
-        # elif isinstance(visualized_content, (dict, list)): # Should ideally be a dict
-        #      return visualized_content # Already a usable structure
-        # else:
-        #     logger.error(f"Unexpected Thesys response type: {type(visualized_content)}")
-        #     return {"type": "error", "message": "Received unexpected UI data format."}
 
     except Exception as e:
         logger.error(f"Error calling Thesys Embed API: {e}", exc_info=True)
