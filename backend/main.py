@@ -168,6 +168,12 @@ class AgentRequest(BaseModel):
     message: str
     thread_id: str | None = None
 
+# Add Thesys WebSocket Bridge request model
+class ThesysBridgeRequest(BaseModel):
+    prompt: dict  # Contains the user message in OpenAI format
+    threadId: str | None = None
+    responseId: str
+
 from pipecat_ai_small_webrtc_prebuilt.frontend import SmallWebRTCPrebuiltUI
 app.mount("/prebuilt", SmallWebRTCPrebuiltUI)
 
@@ -254,6 +260,111 @@ async def agent_endpoint(agent_request: AgentRequest, fastapi_req: Request):
         logger.error(f"Error invoking custom agent for thread_id {thread_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Error invoking custom agent: {str(e)}")
 
+@app.post("/api/websocket-bridge")
+async def websocket_bridge(request: ThesysBridgeRequest):
+    """
+    Bridge endpoint for Thesys C1Chat to send messages through WebSocket
+    and receive responses in the expected format.
+    """
+    try:
+        logger.info(f"WebSocket Bridge: Received request from Thesys C1Chat")
+        logger.info(f"Prompt: {request.prompt}")
+        logger.info(f"Thread ID: {request.threadId}")
+        logger.info(f"Response ID: {request.responseId}")
+
+        # Extract user message from prompt
+        user_message = request.prompt.get('content', '')
+        
+        # For demo purposes, send a message to the WebSocket queue
+        # In a real implementation, you'd want to:
+        # 1. Process the message through your voice bot or LLM
+        # 2. Wait for the actual response
+        # 3. Format it properly for Thesys
+        
+        # Create a demo response that shows the message was received through the bridge
+        demo_response = f"✅ **Message received through WebSocket Bridge:**\n\n{user_message}\n\n*This message was sent from Thesys C1Chat through the HTTP-to-WebSocket bridge.*"
+        
+        # Format response in Thesys XML format
+        thesys_response = format_thesys_response(demo_response)
+        
+        # Optionally, you can also broadcast this to WebSocket clients
+        websocket_message = {
+            "type": "user_message_from_chat",
+            "content": user_message,
+            "threadId": request.threadId,
+            "responseId": request.responseId,
+            "timestamp": "now"
+        }
+        
+        # Send to LLM message queue so WebSocket clients can see it
+        await llm_message_queue.put(websocket_message)
+        
+        # Return the response in the format Thesys expects
+        from fastapi.responses import StreamingResponse
+        import io
+        
+        def generate_response():
+            yield thesys_response
+            
+        return StreamingResponse(
+            generate_response(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache, no-transform",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+            }
+        )
+        
+    except Exception as e:
+        logger.error(f"WebSocket Bridge Error: {e}", exc_info=True)
+        
+        # Return error in Thesys format
+        error_response = format_thesys_error_response(str(e))
+        
+        def generate_error():
+            yield error_response
+            
+        return StreamingResponse(
+            generate_error(),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache, no-transform",
+                "Connection": "keep-alive",
+                "Access-Control-Allow-Origin": "*",
+            }
+        )
+
+def format_thesys_response(message: str) -> str:
+    """Format response in Thesys XML format with proper component structure."""
+    component = {
+        "component": "Card",
+        "props": {
+            "variant": "card",
+            "children": [{
+                "component": "TextContent", 
+                "props": {
+                    "textMarkdown": message
+                }
+            }]
+        }
+    }
+    
+    return f'<content>{json.dumps(component)}</content>'
+
+def format_thesys_error_response(error_message: str) -> str:
+    """Format error response in Thesys XML format."""
+    component = {
+        "component": "Callout",
+        "props": {
+            "variant": "warning",
+            "title": "WebSocket Bridge Error",
+            "description": error_message
+        }
+    }
+    
+    return f'<content>{json.dumps(component)}</content>'
+
 # Add health check endpoint (good practice)
 @app.get("/health")
 def health_check():
@@ -332,11 +443,15 @@ async def get_thesys_visualization(assistant_response: str, conversation_history
     """
     if not thesys_client:
         logger.error("Thesys client not initialized. Cannot visualize.")
-        return {"type": "error", "message": "Visualization service not available."}
-
-    # if not text_response:
-    #     logger.warning("Received empty text_response for visualization.")
-    #     return {"type": "text", "content": ""} # Send empty text if nothing to visualize
+        error_component = {
+            "component": "Callout",
+            "props": {
+                "variant": "warning", 
+                "title": "Visualization Error",
+                "description": "Visualization service not available."
+            }
+        }
+        return f'<content>{json.dumps(error_component)}</content>'
 
     # User's new prompting strategy for Thesys
     thesys_prompt_instruction = (
@@ -345,21 +460,16 @@ async def get_thesys_visualization(assistant_response: str, conversation_history
         "If there's no expansion needed simply respond bot's answer."
     )
     
-    # # Construct the content for the final assistant message to Thesys
-    # # text_response here is the voice bot's actual spoken answer.
-    # final_assistant_content_for_thesys = f"{thesys_prompt_instruction}\n\nVoice Bot's Answer: \"{text_response}\""
-
     messages_for_thesys = [{"role": "system", "content": thesys_prompt_instruction}]
     if conversation_history: # conversation_history should ideally contain the user's last query for context
         messages_for_thesys.extend(conversation_history[:-1])
     
-    # # Add the carefully constructed assistant message to be visualized/processed by Thesys
+    # Add the carefully constructed assistant message to be visualized/processed by Thesys
     final_assistant_content_for_thesys = f"For given user query {conversation_history[-1]['content']}, this is what a voice bot answered: {assistant_response}. Now create a response to user query in line with the bot answer for display."
 
     messages_for_thesys.append({"role": "assistant", "content": final_assistant_content_for_thesys})
 
     try:
-
         print(f"Sending to Thesys Embed API (content: {messages_for_thesys}...")
         
         completion = await thesys_client.chat.completions.create(
@@ -369,11 +479,66 @@ async def get_thesys_visualization(assistant_response: str, conversation_history
         
         visualized_content = completion.choices[0].message.content
         print(f"Received visualization from Thesys. {visualized_content}")
-        return visualized_content
+        
+        # Check if the content is already in proper Thesys XML format
+        if visualized_content and visualized_content.strip().startswith('<content>'):
+            return visualized_content
+        else:
+            # If not in XML format, parse as JSON and wrap appropriately
+            try:
+                # Try to parse as JSON first
+                parsed_content = json.loads(visualized_content) if isinstance(visualized_content, str) else visualized_content
+                
+                # Handle nested component structure (if Thesys returns {"component": {...}})
+                if isinstance(parsed_content, dict) and "component" in parsed_content:
+                    actual_component = parsed_content["component"]
+                    return f'<content>{json.dumps(actual_component)}</content>'
+                elif isinstance(parsed_content, dict):
+                    # Direct component structure
+                    return f'<content>{json.dumps(parsed_content)}</content>'
+                else:
+                    # Fallback: wrap in a simple text component
+                    fallback_component = {
+                        "component": "Card",
+                        "props": {
+                            "variant": "card",
+                            "children": [{
+                                "component": "TextContent",
+                                "props": {
+                                    "textMarkdown": str(visualized_content)
+                                }
+                            }]
+                        }
+                    }
+                    return f'<content>{json.dumps(fallback_component)}</content>'
+                    
+            except json.JSONDecodeError:
+                # If it's not JSON, treat as plain text
+                fallback_component = {
+                    "component": "Card",
+                    "props": {
+                        "variant": "card",
+                        "children": [{
+                            "component": "TextContent",
+                            "props": {
+                                "textMarkdown": str(visualized_content)
+                            }
+                        }]
+                    }
+                }
+                return f'<content>{json.dumps(fallback_component)}</content>'
 
     except Exception as e:
         logger.error(f"Error calling Thesys Embed API: {e}", exc_info=True)
-        return {"type": "error", "message": "Failed to generate UI due to an internal error.", "original_text": conversation_history}
+        error_component = {
+            "component": "Callout",
+            "props": {
+                "variant": "warning",
+                "title": "Visualization Error", 
+                "description": f"Failed to generate UI: {str(e)}"
+            }
+        }
+        return f'<content>{json.dumps(error_component)}</content>'
 
 
 async def visualization_processor():
