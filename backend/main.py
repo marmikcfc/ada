@@ -187,42 +187,6 @@ app.mount("/prebuilt", SmallWebRTCPrebuiltUI)
 def read_root():
     return {"message": "Hello from LangGraph MCP-enabled FastAPI backend!"}
 
-@app.post("/chat")
-async def chat(request: ChatRequest):
-    if not openai_api_key:
-        raise HTTPException(status_code=500, detail="OpenAI API key not set in environment.")
-    # Access client from app state
-    mcp_client = request.app.state.mcp_client 
-    if mcp_client is None:
-         raise HTTPException(status_code=500, detail="MCP Client not initialized.")
-
-    # Use a temporary in-memory checkpointer for this specific example endpoint
-    # Note: /agent uses the persistent DB defined earlier
-    async with AsyncSqliteSaver.from_conn_string(":memory:") as checkpointer:
-        config = {"configurable": {"thread_id": request.thread_id, "checkpoint_ns": ""}}
-
-        # Create a ReAct agent with MCP tools
-        tools = mcp_client.get_tools()
-        llm = ChatOpenAI(model=AGENT_MODEL)
-        agent_executor = create_react_agent(llm, tools, checkpointer=checkpointer)
-
-        try:
-            # Invoke the agent with the user's message
-            result = await agent_executor.ainvoke(
-                {"messages": [HumanMessage(content=request.message)]},
-                config=config
-            )
-
-            # Extract response from agent result
-            response = result["messages"][-1].content if result.get("messages") else "No response"
-
-            return {
-                "response": response,
-                "history": [m.content for m in result.get("messages", [])]
-            }
-        except Exception as e:
-            logger.error(f"Error in /chat endpoint: {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail=f"Error invoking agent: {str(e)}")
 
 @app.post("/agent")
 async def agent_endpoint(agent_request: AgentRequest, fastapi_req: Request):
@@ -267,7 +231,7 @@ async def agent_endpoint(agent_request: AgentRequest, fastapi_req: Request):
 @app.post("/api/websocket-bridge")
 async def websocket_bridge(request: ThesysBridgeRequest):
     """
-    Bridge endpoint for Thesys C1Chat to send messages through WebSocket
+    Bridge endpoint for Thesys C1Chat to send messages through LangGraph agent
     and receive responses in the expected format.
     """
     try:
@@ -279,65 +243,99 @@ async def websocket_bridge(request: ThesysBridgeRequest):
         # Extract user message from prompt
         user_message = request.prompt.get('content', '')
         
-        # For demo purposes, send a message to the WebSocket queue
-        # In a real implementation, you'd want to:
-        # 1. Process the message through your voice bot or LLM
-        # 2. Wait for the actual response
-        # 3. Format it properly for Thesys
+        if not user_message:
+            logger.warning("WebSocket Bridge: Empty user message received")
+            error_response = format_thesys_error_response("Empty message received")
+            return create_streaming_response(error_response)
         
-        # Create a demo response that shows the message was received through the bridge
-        demo_response = f"✅ **Message received through WebSocket Bridge:**\n\n{user_message}\n\n*This message was sent from Thesys C1Chat through the HTTP-to-WebSocket bridge.*"
+        # Note: We don't send user message to WebSocket queue here because 
+        # the C1Chat component already handles displaying user messages automatically
+        logger.info(f"WebSocket Bridge: Processing user message: {user_message}")
         
-        # Format response in Thesys XML format
-        thesys_response = format_thesys_response(demo_response)
+        # Step 1: Process message through LangGraph agent
+        if not compiled_custom_graph:
+            logger.error("WebSocket Bridge: LangGraph agent not available")
+            error_response = format_thesys_error_response("Agent not available")
+            return create_streaming_response(error_response)
         
-        # Optionally, you can also broadcast this to WebSocket clients
-        websocket_message = {
-            "type": "user_message_from_chat",
-            "content": user_message,
-            "threadId": request.threadId,
-            "responseId": request.responseId,
-            "timestamp": "now"
-        }
+        # Use thread ID from request or generate new one
+        thread_id = request.threadId or str(uuid.uuid4())
         
-        # Send to LLM message queue so WebSocket clients can see it
-        await llm_message_queue.put(websocket_message)
-        
-        # Return the response in the format Thesys expects
-        from fastapi.responses import StreamingResponse
-        import io
-        
-        def generate_response():
-            yield thesys_response
+        try:
+            logger.info(f"WebSocket Bridge: Processing message through LangGraph agent for thread {thread_id}")
             
-        return StreamingResponse(
-            generate_response(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache, no-transform",
-                "Connection": "keep-alive",
-                "Access-Control-Allow-Origin": "*",
-            }
-        )
+            # Configure the graph with checkpointer
+            compiled_graph_with_checkpoint = compiled_custom_graph.with_config(checkpointer=memory)
+            config = {"configurable": {"thread_id": thread_id, "checkpoint_ns": ""}}
+            
+            # Invoke the LangGraph agent
+            result = await compiled_graph_with_checkpoint.ainvoke(
+                {"messages": [HumanMessage(content=user_message)]},
+                config=config,
+            )
+            
+            # Extract the agent response
+            agent_response = result['messages'][-1].content if result.get('messages') else "No response from agent."
+            logger.info(f"WebSocket Bridge: LangGraph agent response: {agent_response[:100]}...")
+            
+            # Step 2: Process through Thesys Visualize API
+            logger.info(f"WebSocket Bridge: Sending agent response to Thesys Visualize API")
+            
+            # Get conversation history for context (last few messages from this thread)
+            conversation_history = []
+            if len(result.get('messages', [])) > 1:
+                # Convert recent messages to the format expected by Thesys
+                for msg in result['messages'][-5:]:  # Last 5 messages for context
+                    if hasattr(msg, 'content'):
+                        # Determine role based on message type
+                        if hasattr(msg, '__class__'):
+                            role = "user" if msg.__class__.__name__ == "HumanMessage" else "assistant"
+                        else:
+                            role = "assistant"  # Default to assistant
+                        conversation_history.append({
+                            "role": role,
+                            "content": msg.content
+                        })
+            
+            # Process through our visualization pipeline (LangGraph enhancement + Thesys)
+            enhanced_response = await process_with_langgraph_agent(agent_response, conversation_history)
+            visualized_content = await get_thesys_visualization(agent_response, conversation_history, enhanced_response)
+            
+            logger.info(f"WebSocket Bridge: Received visualization from Thesys")
+            
+            # Note: We don't send assistant response to WebSocket queue here because
+            # the C1Chat component already handles the response from this HTTP endpoint directly
+            logger.info(f"WebSocket Bridge: Returning response directly to C1Chat component")
+            
+            # Return the response in streaming format for Thesys C1Chat
+            return create_streaming_response(visualized_content)
+            
+        except Exception as agent_error:
+            logger.error(f"WebSocket Bridge: Error processing with LangGraph agent: {agent_error}", exc_info=True)
+            error_response = format_thesys_error_response(f"Agent processing error: {str(agent_error)}")
+            return create_streaming_response(error_response)
         
     except Exception as e:
         logger.error(f"WebSocket Bridge Error: {e}", exc_info=True)
-        
-        # Return error in Thesys format
         error_response = format_thesys_error_response(str(e))
+        return create_streaming_response(error_response)
+
+def create_streaming_response(content: str):
+    """Helper function to create streaming response for Thesys C1Chat"""
+    from fastapi.responses import StreamingResponse
+    
+    def generate_response():
+        yield content
         
-        def generate_error():
-            yield error_response
-            
-        return StreamingResponse(
-            generate_error(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache, no-transform",
-                "Connection": "keep-alive",
-                "Access-Control-Allow-Origin": "*",
-            }
-        )
+    return StreamingResponse(
+        generate_response(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+        }
+    )
 
 def format_thesys_response(message: str) -> str:
     """Format response in Thesys XML format with proper component structure."""
@@ -398,7 +396,7 @@ async def offer(request: dict, background_tasks: BackgroundTasks):
             pcs_map.pop(webrtc_connection.pc_id, None)
         # Create and run the voice interface agent, passing the display queue
         # agent = VoiceInterfaceAgent(pipecat_connection, llm_message_queue) # OLD
-        agent = VoiceInterfaceAgent(pipecat_connection, raw_llm_output_queue) # NEW: Pass raw output queue
+        agent = VoiceInterfaceAgent(pipecat_connection, raw_llm_output_queue, llm_message_queue) # NEW: Pass both queues
         background_tasks.add_task(agent.run)
 
     answer = pipecat_connection.get_answer()
@@ -560,30 +558,31 @@ Enhanced response:"""
 
 async def visualization_processor():
     """
-    Processes raw LLM output through LangGraph agent, then gets visualization from Thesys, and sends to frontend queue.
+    Processes raw LLM output from VOICE INTERFACE through LangGraph agent, then gets visualization from Thesys, and sends to frontend queue.
+    Note: This is only for voice messages. Chat messages are handled directly through the /api/websocket-bridge endpoint.
     """
-    logger.info("Visualization processor task started with new LangGraph -> Thesys Visualize flow.")
+    logger.info("Visualization processor task started for VOICE messages (LangGraph -> Thesys Visualize flow).")
     while True:
         try:
             item = await raw_llm_output_queue.get()
-            logger.info(f"Visualization processor: Received item from raw_llm_output_queue: {item}")
-            print(f"Visualization processor: Received item from raw_llm_output_queue: {item}")
+            logger.info(f"Visualization processor (VOICE): Received item from raw_llm_output_queue: {item}")
+            print(f"Visualization processor (VOICE): Received item from raw_llm_output_queue: {item}")
             
             conversation_history: List[Dict[str, Any]] = item.get("history", [])
             assistant_response: str | None = item.get("assistant_response")
             
             if not assistant_response:
-                logger.warning("Visualization processor received empty assistant response.")
+                logger.warning("Visualization processor (VOICE) received empty assistant response.")
                 continue
                 
-            logger.info(f"Visualization processor: Original voice response length: {len(assistant_response)} chars")
-            logger.info(f"Visualization processor: Processing assistant response through LangGraph agent...")
+            logger.info(f"Visualization processor (VOICE): Original voice response length: {len(assistant_response)} chars")
+            logger.info(f"Visualization processor (VOICE): Processing assistant response through LangGraph agent...")
             
             # Step 1: Process through LangGraph agent for enhancement
             enhanced_response = await process_with_langgraph_agent(assistant_response, conversation_history)
             
-            logger.info(f"Visualization processor: Enhanced response length: {len(enhanced_response)} chars")
-            logger.info(f"Visualization processor: Enhanced response received, sending to Thesys Visualize API...")
+            logger.info(f"Visualization processor (VOICE): Enhanced response length: {len(enhanced_response)} chars")
+            logger.info(f"Visualization processor (VOICE): Enhanced response received, sending to Thesys Visualize API...")
             
             # Step 2: Send enhanced response to Thesys Visualize API
             visualized_ui_payload = await get_thesys_visualization(
@@ -592,28 +591,30 @@ async def visualization_processor():
                 enhanced_response
             )
             
-            logger.info(f"Visualization processor: Received UI payload from Thesys, length: {len(str(visualized_ui_payload))} chars")
+            logger.info(f"Visualization processor (VOICE): Received UI payload from Thesys, length: {len(str(visualized_ui_payload))} chars")
             
-            # Prepare message for frontend (C1Chat compatible)
+            # Prepare message for frontend (for voice responses only)
             message_for_frontend = {
                 "id": str(uuid.uuid4()),
-                "role": "assistant", # Represents assistant's UI output
+                "role": "assistant",
+                "type": "voice_response", # Mark as voice response
                 "content": visualized_ui_payload, # This is the Thesys UI payload
             }
             
             await llm_message_queue.put(message_for_frontend)
-            logger.info(f"Visualization processor: Successfully sent UI payload to frontend queue for ID {message_for_frontend['id']}.")
+            logger.info(f"Visualization processor (VOICE): Successfully sent UI payload to frontend queue for ID {message_for_frontend['id']}.")
 
         except Exception as e:
-            logger.error(f"Critical error in visualization_processor loop: {e}", exc_info=True)
+            logger.error(f"Critical error in visualization_processor (VOICE) loop: {e}", exc_info=True)
             # Optionally, put an error message on llm_message_queue for the client
             await llm_message_queue.put({
                 "id": str(uuid.uuid4()),
                 "role": "assistant",
-                "content": {"type": "error", "message": "A system error occurred while generating UI."}
+                "type": "voice_response",
+                "content": {"type": "error", "message": "A system error occurred while generating UI for voice response."}
             })
         finally:
-            logger.info("Raw LLM output queue task done")
+            logger.info("Raw LLM output queue task done (VOICE)")
 
 # If running directly (for testing/dev)
 if __name__ == "__main__":

@@ -265,7 +265,7 @@ const VoiceBotClient: React.FC = () => {
           type: 'template' as const,
           name: 'c1',
           templateProps: {
-            content: formatAssistantMessage('🎙️ **Voice Chat Ready!** \n\nWebSocket connected successfully. Click "Connect Voice" to start speech-to-speech conversation, or type messages below.')
+            content: formatAssistantMessage('🎙️ **Chat Interface Ready!** \n\nYou can now use the chat input below to send messages to the AI assistant. Voice features are available via the "Connect Voice" button.')
           }
         }]
       };
@@ -291,23 +291,30 @@ const VoiceBotClient: React.FC = () => {
           };
         }
         
-        if (data.type === 'assistant_message' || !data.type) {
+        // Handle different message types
+        if (data.type === 'connection_ack') {
+          // Handle connection acknowledgment
+          console.log('WebSocket connection acknowledged:', data.message);
+          
+        } else if (data.type === 'voice_response') {
+          // Handle voice response messages from the visualization processor
+          console.log('Received voice response message:', data);
+          
           let messageContent;
           
           // Check if content is already in Thesys format (from visualization processor)
           if (typeof data.content === 'string' && data.content.includes('<content>')) {
             // Content is already in Thesys XML format, use as-is
             messageContent = data.content;
-            console.log('Using pre-formatted Thesys content:', messageContent);
+            console.log('Using pre-formatted Thesys content from voice response:', messageContent);
           } else {
             // Content needs formatting
-            messageContent = formatAssistantMessage(data.content || data);
-            console.log('Formatting raw content:', data.content || data);
+            messageContent = formatAssistantMessage(data.content || 'Voice response received');
+            console.log('Formatting raw voice response content:', data.content);
           }
           
-          // Create assistant message in Thesys format
-          const assistantMessage = {
-            id: crypto.randomUUID(),
+          const voiceMessage = {
+            id: data.id || crypto.randomUUID(),
             role: 'assistant' as const,
             message: [{
               type: 'template' as const,
@@ -318,18 +325,57 @@ const VoiceBotClient: React.FC = () => {
             }]
           };
           
-          console.log('Adding assistant message to thread:', assistantMessage);
           if (threadManagerRef.current) {
-            threadManagerRef.current.appendMessages(assistantMessage);
+            threadManagerRef.current.appendMessages(voiceMessage);
           }
-        } else if (data.type === 'user_message') {
-          // Handle user message from WebSocket (if needed)
-          console.log('Received user message from WebSocket:', data);
-        } else if (data.type === 'connection_ack') {
-          // Handle connection acknowledgment
-          console.log('WebSocket connection acknowledged:', data.message);
+          
+        } else if (data.type === 'user_transcription') {
+          // Handle user voice transcription messages
+          console.log('Received user transcription message:', data);
+          
+          // Assuming the transcription text is in 'data.text' or 'data.content'.
+          // Please verify and adjust this field (e.g., data.transcription) if necessary
+          // by inspecting the 'data' object logged above.
+          const transcriptionText = data.text || data.content;
+
+          if (transcriptionText && typeof transcriptionText === 'string' && threadManagerRef.current) {
+            const userMessage = {
+              id: data.id || crypto.randomUUID(), // Use server-provided ID or generate a new one
+              role: 'user' as const,
+              message: transcriptionText,
+              type: 'prompt' as const, // Explicitly set type for clarity with SDK internals
+            };
+            threadManagerRef.current.appendMessages(userMessage);
+          } else if (!transcriptionText) {
+            console.warn('User transcription received but the text is empty or not a string:', data);
+          }
+          
+        } else if (data.type === 'voice_message') {
+          // Handle other voice-related messages (for future voice integration)
+          console.log('Received voice-related message:', data);
+          
+          let messageContent = formatAssistantMessage(data.content || data.message || 'Voice message received');
+          
+          const voiceMessage = {
+            id: data.id || crypto.randomUUID(),
+            role: 'assistant' as const,
+            message: [{
+              type: 'template' as const,
+              name: 'c1',
+              templateProps: {
+                content: messageContent
+              }
+            }]
+          };
+          
+          if (threadManagerRef.current) {
+            threadManagerRef.current.appendMessages(voiceMessage);
+          }
+          
         } else {
-          console.log('Received unknown message type:', data.type);
+          console.log('Received unknown message type:', data.type, data);
+          // For debugging purposes, we can still display unknown messages
+          // but in production, you might want to just log them
         }
       } catch (error) {
         console.error('Error processing WebSocket message:', error);
@@ -477,6 +523,7 @@ const VoiceBotClient: React.FC = () => {
         theme={{
           mode: "light"
         }}
+        type='copilot'
       />
     </div>
   );

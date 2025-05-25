@@ -3,6 +3,7 @@ import os
 import sys
 import asyncio
 from typing import Any
+import uuid
 
 import cv2
 import numpy as np
@@ -10,7 +11,7 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
-from pipecat.frames.frames import Frame, InputImageRawFrame, OutputImageRawFrame, LLMTextFrame, TTSSpeakFrame, TTSTextFrame, LLMFullResponseEndFrame
+from pipecat.frames.frames import Frame, InputImageRawFrame, OutputImageRawFrame, LLMTextFrame, TTSSpeakFrame, TTSTextFrame, LLMFullResponseEndFrame, TranscriptionFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -23,6 +24,7 @@ from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.base_transport import TransportParams
 from pipecat.transports.network.small_webrtc import SmallWebRTCTransport
 from pipecat.observers.loggers.llm_log_observer import LLMLogObserver
+from pipecat.processors.transcript_processor import TranscriptProcessor
 
 load_dotenv(override=True)
 
@@ -37,9 +39,10 @@ def load_voice_agent_prompt() -> str:
         return "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."
 
 class VoiceInterfaceAgent:
-    def __init__(self, webrtc_connection, raw_llm_output_queue: asyncio.Queue):
+    def __init__(self, webrtc_connection, raw_llm_output_queue: asyncio.Queue, llm_message_queue: asyncio.Queue = None):
         self.webrtc_connection = webrtc_connection
         self.raw_llm_output_queue = raw_llm_output_queue
+        self.llm_message_queue = llm_message_queue
 
     async def process_downstream_display(self, assistant_response: str, history: Any):
         logger.info(f"--- process_downstream_display (payload for Thesys) ---")
@@ -54,6 +57,29 @@ class VoiceInterfaceAgent:
             logger.info(f"Enqueued to raw_llm_output_queue: {payload}")
         except Exception as e:
             logger.error(f"Error enqueuing to raw_llm_output_queue: {e}")
+
+    async def send_user_transcription_to_frontend(self, transcription_text: str):
+        """Send user transcription directly to the frontend message queue."""
+        logger.info(f"--- send_user_transcription_to_frontend ---")
+        logger.info(f"User transcription: {transcription_text}")
+        logger.info(f"-----------------------------------------------")
+        
+        try:
+            if self.llm_message_queue is None:
+                logger.warning("llm_message_queue not available, cannot send user transcription to frontend")
+                return
+                
+            user_message = {
+                "id": str(uuid.uuid4()),
+                "role": "user", 
+                "type": "user_transcription",
+                "content": transcription_text
+            }
+            
+            await self.llm_message_queue.put(user_message)
+            logger.info(f"User transcription sent to frontend: {user_message}")
+        except Exception as e:
+            logger.error(f"Error sending user transcription to frontend: {e}")
 
     async def run(self):
         # Load the system instruction from prompt file
@@ -81,6 +107,8 @@ class VoiceInterfaceAgent:
             api_key=os.getenv("OPENAI_API_KEY"),
             model="gpt-4o-mini"
         )
+
+        transcript = TranscriptProcessor()
 
         # Speech-to-Text using Deepgram via Pipecat
         stt = DeepgramSTTService(
@@ -113,6 +141,7 @@ class VoiceInterfaceAgent:
                 pipecat_transport.input(),
                 rtvi,
                 stt,  # Speech-To-Text
+                transcript.user(),
                 context_aggregator.user(),
                 llm,  # LLM service
                 response_aggregator, # New processor
@@ -148,6 +177,17 @@ class VoiceInterfaceAgent:
         async def on_client_closed(transport, client):
             logger.info("Pipecat Client closed")
             await task.cancel()
+
+        
+        @transcript.event_handler("on_transcript_update")
+        async def handle_transcript_update(processor, frame):
+            # Each message contains role (user/assistant), content, and timestamp
+            for message in frame.messages:
+                #print(f"[{message.timestamp}] {message.role}: {message.content}")
+                logger.info(f"Capturing transcriber logs [{message.timestamp}] {message.role}: {message.content}")
+                await self.send_user_transcription_to_frontend(message.content)
+
+
 
         runner = PipelineRunner(handle_sigint=False)
         await runner.run(task)
