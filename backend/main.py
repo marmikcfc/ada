@@ -36,7 +36,7 @@ from agent.voice_based_interaction_agent import VoiceInterfaceAgent
 from pipecat.transports.network.webrtc_connection import IceServer, SmallWebRTCConnection
 
 # Import Thesys prompt utilities
-from utils.thesys_prompts import format_thesys_messages
+from utils.thesys_prompts import format_thesys_messages, format_thesys_messages_for_visualize
 
 # Get the logger
 logger = logging.getLogger(__name__)
@@ -87,7 +87,7 @@ ice_servers = [
 
 # Global queue for LLM messages to frontend
 llm_message_queue = asyncio.Queue()
-# New queue for raw LLM output from VoiceInterfaceAgent, to be processed by Thesys
+# New queue for raw LLM output from VoiceInterfaceAgent, to be processed by LangGraph then Thesys
 raw_llm_output_queue = asyncio.Queue()
 
 
@@ -106,7 +106,7 @@ async def lifespan(app: FastAPI):
             logger.info("Initializing Thesys Client...")
             thesys_client = AsyncOpenAI(
                 api_key=thesys_api_key,
-                base_url="https://api.thesys.dev/v1/embed", # Changed from /visualize to /embed
+                base_url="https://api.thesys.dev/v1/visualize", # Changed from /embed to /visualize
             )
             logger.info("Thesys Client initialized successfully.")
         else:
@@ -440,9 +440,10 @@ async def websocket_llm_messages(websocket: WebSocket):
         logger.info(f"Closing WebSocket /ws/messages connection for {websocket.client.host}:{websocket.client.port}")
         # Uvicorn handles actual closing, this is just a log. Ensure queue tasks are handled if needed.
 
-async def get_thesys_visualization(assistant_response: str, conversation_history: List[Dict[str, Any]] = None):
+async def get_thesys_visualization(assistant_response: str, conversation_history: List[Dict[str, Any]] = None, enhanced_response: str = None):
     """
-    Calls Thesys Embed API to get a UI representation for the given text.
+    Calls Thesys Visualize API to get a UI representation for the given text.
+    Uses the enhanced_response from LangGraph agent if available, otherwise falls back to original assistant_response.
     Optionally includes conversation history for better context.
     """
     if not thesys_client:
@@ -457,70 +458,30 @@ async def get_thesys_visualization(assistant_response: str, conversation_history
         }
         return f'<content>{json.dumps(error_component)}</content>'
 
-    # Use the new prompt utilities to format messages
-    messages_for_thesys = format_thesys_messages(assistant_response, conversation_history)
+    # Use enhanced response from LangGraph agent if available, otherwise use original
+    final_response = enhanced_response if enhanced_response else assistant_response
+    
+    # Format messages for Thesys Visualize API using the new formatting function
+    messages_for_thesys = format_thesys_messages_for_visualize(final_response, conversation_history)
 
     try:
-        print(f"Sending to Thesys Embed API (content: {messages_for_thesys}...")
+        print(f"Sending to Thesys Visualize API (content: {final_response[:100]}...)...")
         
+        # Use the visualize endpoint format (similar to e-commerce example)
         completion = await thesys_client.chat.completions.create(
             messages=messages_for_thesys,
-            model="c1-nightly" # This is set during client initialization
+            model="c1-nightly",
+            stream=False  # Start with non-streaming for simplicity
         )
         
         visualized_content = completion.choices[0].message.content
-        print(f"Received visualization from Thesys. {visualized_content}")
+        print(f"Received visualization from Thesys Visualize API: {visualized_content}")
         
-        # Check if the content is already in proper Thesys XML format
-        if visualized_content and visualized_content.strip().startswith('<content>'):
-            return visualized_content
-        else:
-            # If not in XML format, parse as JSON and wrap appropriately
-            try:
-                # Try to parse as JSON first
-                parsed_content = json.loads(visualized_content) if isinstance(visualized_content, str) else visualized_content
-                
-                # Handle nested component structure (if Thesys returns {"component": {...}})
-                if isinstance(parsed_content, dict) and "component" in parsed_content:
-                    actual_component = parsed_content["component"]
-                    return f'<content>{json.dumps(actual_component)}</content>'
-                elif isinstance(parsed_content, dict):
-                    # Direct component structure
-                    return f'<content>{json.dumps(parsed_content)}</content>'
-                else:
-                    # Fallback: wrap in a simple text component
-                    fallback_component = {
-                        "component": "Card",
-                        "props": {
-                            "variant": "card",
-                            "children": [{
-                                "component": "TextContent",
-                                "props": {
-                                    "textMarkdown": str(visualized_content)
-                                }
-                            }]
-                        }
-                    }
-                    return f'<content>{json.dumps(fallback_component)}</content>'
-                    
-            except json.JSONDecodeError:
-                # If it's not JSON, treat as plain text
-                fallback_component = {
-                    "component": "Card",
-                    "props": {
-                        "variant": "card",
-                        "children": [{
-                            "component": "TextContent",
-                            "props": {
-                                "textMarkdown": str(visualized_content)
-                            }
-                        }]
-                    }
-                }
-                return f'<content>{json.dumps(fallback_component)}</content>'
+        # Return the content directly as it should already be in the proper format
+        return visualized_content
 
     except Exception as e:
-        logger.error(f"Error calling Thesys Embed API: {e}", exc_info=True)
+        logger.error(f"Error calling Thesys Visualize API: {e}", exc_info=True)
         error_component = {
             "component": "Callout",
             "props": {
@@ -532,43 +493,116 @@ async def get_thesys_visualization(assistant_response: str, conversation_history
         return f'<content>{json.dumps(error_component)}</content>'
 
 
+async def process_with_langgraph_agent(assistant_response: str, conversation_history: List[Dict[str, Any]] = None) -> str:
+    """
+    Process the voice assistant response through the LangGraph agent to potentially enhance it.
+    Returns the enhanced response or the original if processing fails.
+    """
+    if not compiled_custom_graph:
+        logger.warning("LangGraph agent not available, using original response")
+        return assistant_response
+    
+    try:
+        # Create a thread ID for this processing
+        thread_id = str(uuid.uuid4())
+        
+        # Load the voice enhancement prompt
+        try:
+            prompt_path = os.path.join(os.path.dirname(__file__), "prompts", "voice_enhancement_prompt.txt")
+            with open(prompt_path, "r") as f:
+                enhancement_system_prompt = f.read().strip()
+        except FileNotFoundError:
+            # Fallback prompt if file not found
+            enhancement_system_prompt = """You are a response enhancement assistant. Enhance voice responses for better visual display while preserving the core message and tone. Add structure and clarity when helpful for UI generation."""
+        
+        # Prepare the message for the LangGraph agent
+        enhancement_prompt = f"""Original voice assistant response: "{assistant_response}"
+
+Please enhance this response for better visual display. Consider the guidelines provided in your system prompt.
+
+Enhanced response:"""
+        
+        # Configure the graph with checkpointer
+        compiled_graph_with_checkpoint = compiled_custom_graph.with_config(checkpointer=memory)
+        config = {"configurable": {"thread_id": thread_id, "checkpoint_ns": ""}}
+        
+        # Create messages with system prompt and user request
+        messages = [
+            {"role": "system", "content": enhancement_system_prompt},
+            {"role": "user", "content": enhancement_prompt}
+        ]
+        
+        # Invoke the LangGraph agent
+        result = await compiled_graph_with_checkpoint.ainvoke(
+            {"messages": [HumanMessage(content=f"System: {enhancement_system_prompt}\n\nUser: {enhancement_prompt}")]},
+            config=config,
+        )
+        
+        # Extract the enhanced response
+        if result and result.get('messages'):
+            enhanced_response = result['messages'][-1].content
+            logger.info(f"LangGraph agent enhanced response: {enhanced_response[:100]}...")
+            
+            # Basic validation - ensure the enhanced response isn't empty or too different
+            if enhanced_response and len(enhanced_response.strip()) > 0:
+                return enhanced_response.strip()
+            else:
+                logger.warning("LangGraph agent returned empty response, using original")
+                return assistant_response
+        else:
+            logger.warning("LangGraph agent returned no response, using original")
+            return assistant_response
+            
+    except Exception as e:
+        logger.error(f"Error processing with LangGraph agent: {e}", exc_info=True)
+        return assistant_response
+
+
 async def visualization_processor():
     """
-    Processes raw LLM output, gets visualization from Thesys, and sends to frontend queue.
+    Processes raw LLM output through LangGraph agent, then gets visualization from Thesys, and sends to frontend queue.
     """
-    logger.info("Visualization processor task started.")
+    logger.info("Visualization processor task started with new LangGraph -> Thesys Visualize flow.")
     while True:
         try:
             item = await raw_llm_output_queue.get()
             logger.info(f"Visualization processor: Received item from raw_llm_output_queue: {item}")
             print(f"Visualization processor: Received item from raw_llm_output_queue: {item}")
-            text_to_visualize: str | None = item.get("text")
+            
             conversation_history: List[Dict[str, Any]] = item.get("history", [])
             assistant_response: str | None = item.get("assistant_response")
-            logger.info(f"Visualization processor: Received conversation history: {conversation_history} and assistant response: {assistant_response}")
-            # if isinstance(item, str):
-            #     text_to_visualize = item
-            # elif isinstance(item, dict): # Expecting {"text": "...", "history": [...]}
-            #     # text_to_visualize = item.get("text")
-            # conversation_history = item.get("history", [])
             
-            # if not text_to_visualize:
-            #     logger.warning("Visualization processor received empty or invalid item.")
-            #     raw_llm_output_queue.task_done()
-            #     continue
-
-            # logger.info(f"Visualization processor: Processing text '{text_to_visualize[:100]}...'")
-            visualized_ui_payload = await get_thesys_visualization(assistant_response, conversation_history)
+            if not assistant_response:
+                logger.warning("Visualization processor received empty assistant response.")
+                continue
+                
+            logger.info(f"Visualization processor: Original voice response length: {len(assistant_response)} chars")
+            logger.info(f"Visualization processor: Processing assistant response through LangGraph agent...")
+            
+            # Step 1: Process through LangGraph agent for enhancement
+            enhanced_response = await process_with_langgraph_agent(assistant_response, conversation_history)
+            
+            logger.info(f"Visualization processor: Enhanced response length: {len(enhanced_response)} chars")
+            logger.info(f"Visualization processor: Enhanced response received, sending to Thesys Visualize API...")
+            
+            # Step 2: Send enhanced response to Thesys Visualize API
+            visualized_ui_payload = await get_thesys_visualization(
+                assistant_response, 
+                conversation_history, 
+                enhanced_response
+            )
+            
+            logger.info(f"Visualization processor: Received UI payload from Thesys, length: {len(str(visualized_ui_payload))} chars")
             
             # Prepare message for frontend (C1Chat compatible)
             message_for_frontend = {
                 "id": str(uuid.uuid4()),
                 "role": "assistant", # Represents assistant's UI output
-                "content": visualized_ui_payload, # This is the Thesys UI payload (dict/list or error dict)
+                "content": visualized_ui_payload, # This is the Thesys UI payload
             }
             
             await llm_message_queue.put(message_for_frontend)
-            logger.info(f"Visualization processor: Sent UI payload/error to frontend queue for ID {message_for_frontend['id']}.")
+            logger.info(f"Visualization processor: Successfully sent UI payload to frontend queue for ID {message_for_frontend['id']}.")
 
         except Exception as e:
             logger.error(f"Critical error in visualization_processor loop: {e}", exc_info=True)
@@ -580,7 +614,6 @@ async def visualization_processor():
             })
         finally:
             logger.info("Raw LLM output queue task done")
-            #raw_llm_output_queue.task_done()
 
 # If running directly (for testing/dev)
 if __name__ == "__main__":

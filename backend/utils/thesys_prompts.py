@@ -10,29 +10,55 @@ def load_thesys_prompt(prompt_name: str) -> str:
     except FileNotFoundError:
         # Return a fallback prompt if file not found
         if prompt_name == "thesys_agent_system":
-            return "This is what user is talking about and this is voice bot speaking. Please create a response to user query in line with the bot answer for display. If there's no expansion needed simply respond bot's answer."
+            return "You are a UI generation assistant. Convert text responses into appropriate visual components for display."
         elif prompt_name == "thesys_agent_assistant":
-            return "For given user query {user_query}, this is what a voice bot answered: {voice_bot_response}. Now create a response to user query in line with the bot answer for display."
+            return "Convert the following response into appropriate UI components: {response}"
         else:
             return f"Prompt '{prompt_name}' not found."
 
-def format_thesys_messages(assistant_response: str, conversation_history: List[Dict[str, Any]] = None) -> List[Dict[str, str]]:
-    """Format messages for Thesys API using prompt templates."""
-    system_prompt = load_thesys_prompt("thesys_agent_system")
-    assistant_template = load_thesys_prompt("thesys_agent_assistant")
+def format_thesys_messages_for_visualize(enhanced_response: str, conversation_history: List[Dict[str, Any]] = None) -> List[Dict[str, str]]:
+    """
+    Format messages for Thesys Visualize API.
+    This follows the pattern from the e-commerce example where we send the conversation history
+    plus the final assistant message that we want to visualize.
+    """
+    messages_for_thesys = []
     
-    messages_for_thesys = [{"role": "system", "content": system_prompt}]
+    # Add system prompt for UI generation
+    try:
+        system_prompt_path = os.path.join(os.path.dirname(__file__), '../prompts', 'thesys_visualize_system.txt')
+        with open(system_prompt_path, 'r') as f:
+            system_prompt = f.read().strip()
+    except FileNotFoundError:
+        # Fallback system prompt
+        system_prompt = "You are a UI generation assistant. Convert voice assistant responses into appropriate visual components for web display. Use Cards, Callouts, and TextContent components as needed."
     
+    messages_for_thesys.append({
+        "role": "system",
+        "content": system_prompt
+    })
+    
+    # Add conversation history if available (excluding system messages for cleaner context)
     if conversation_history:
-        # Add conversation history (excluding the last message which we'll format specially)
-        messages_for_thesys.extend(conversation_history[:-1])
-        
-        # Format the final assistant message using the template
-        user_query = conversation_history[-1]['content'] if conversation_history else "Unknown query"
-        final_assistant_content = assistant_template.format(
-            user_query=user_query,
-            voice_bot_response=assistant_response
-        )
-        messages_for_thesys.append({"role": "assistant", "content": final_assistant_content})
+        for msg in conversation_history:
+            if msg.get("role") in ["user", "assistant"]:
+                messages_for_thesys.append({
+                    "role": msg["role"],
+                    "content": msg["content"]
+                })
     
-    return messages_for_thesys 
+    # Add the enhanced response as the final assistant message to visualize
+    messages_for_thesys.append({
+        "role": "assistant", 
+        "content": enhanced_response
+    })
+    
+    return messages_for_thesys
+
+# Keep the old function for backward compatibility but mark it as deprecated
+def format_thesys_messages(assistant_response: str, conversation_history: List[Dict[str, Any]] = None) -> List[Dict[str, str]]:
+    """
+    Legacy function for embed endpoint format. 
+    Now redirects to the visualize format.
+    """
+    return format_thesys_messages_for_visualize(assistant_response, conversation_history) 
