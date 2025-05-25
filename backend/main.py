@@ -31,8 +31,12 @@ from graph import create_graph, app_graph as compiled_custom_graph # Renamed pla
 from openai import AsyncOpenAI
 from langchain_openai import ChatOpenAI
 
-from bot import VoiceInterfaceAgent
+# Updated import for the voice agent
+from agent.voice_based_interaction_agent import VoiceInterfaceAgent
 from pipecat.transports.network.webrtc_connection import IceServer, SmallWebRTCConnection
+
+# Import Thesys prompt utilities
+from utils.thesys_prompts import format_thesys_messages
 
 # Get the logger
 logger = logging.getLogger(__name__)
@@ -453,21 +457,8 @@ async def get_thesys_visualization(assistant_response: str, conversation_history
         }
         return f'<content>{json.dumps(error_component)}</content>'
 
-    # User's new prompting strategy for Thesys
-    thesys_prompt_instruction = (
-        "This is what user is talking about and this is voice bot speaking. "
-        "Please create a response to user query in line with the bot answer for display. "
-        "If there's no expansion needed simply respond bot's answer."
-    )
-    
-    messages_for_thesys = [{"role": "system", "content": thesys_prompt_instruction}]
-    if conversation_history: # conversation_history should ideally contain the user's last query for context
-        messages_for_thesys.extend(conversation_history[:-1])
-    
-    # Add the carefully constructed assistant message to be visualized/processed by Thesys
-    final_assistant_content_for_thesys = f"For given user query {conversation_history[-1]['content']}, this is what a voice bot answered: {assistant_response}. Now create a response to user query in line with the bot answer for display."
-
-    messages_for_thesys.append({"role": "assistant", "content": final_assistant_content_for_thesys})
+    # Use the new prompt utilities to format messages
+    messages_for_thesys = format_thesys_messages(assistant_response, conversation_history)
 
     try:
         print(f"Sending to Thesys Embed API (content: {messages_for_thesys}...")

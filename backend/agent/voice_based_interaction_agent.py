@@ -24,25 +24,17 @@ from pipecat.transports.base_transport import TransportParams
 from pipecat.transports.network.small_webrtc import SmallWebRTCTransport
 from pipecat.observers.loggers.llm_log_observer import LLMLogObserver
 
-
 load_dotenv(override=True)
 
-
-
-# SpokenContentState enum can be removed as XmlSplitProcessor is being removed.
-# class SpokenContentState(enum.Enum):
-#     """
-#     Enum for the state of the spoken content.
-#     """
-#     NOT_STARTED = "NOT_STARTED"
-#     SPOKEN = "SPOKEN"
-#     PAUSED = "PAUSED"
-#     COMPLETE = "COMPLETE"
-
-SYSTEM_INSTRUCTION = f"""
-You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown.
-"""
-
+def load_voice_agent_prompt() -> str:
+    """Load the voice agent system prompt from the prompts directory."""
+    prompt_path = os.path.join(os.path.dirname(__file__), "..", "prompts", "voice_agent_system.txt")
+    try:
+        with open(prompt_path, "r") as f:
+            return f.read().strip()
+    except FileNotFoundError:
+        # Fallback to default prompt if file not found
+        return "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."
 
 class VoiceInterfaceAgent:
     def __init__(self, webrtc_connection, raw_llm_output_queue: asyncio.Queue):
@@ -64,6 +56,9 @@ class VoiceInterfaceAgent:
             logger.error(f"Error enqueuing to raw_llm_output_queue: {e}")
 
     async def run(self):
+        # Load the system instruction from prompt file
+        system_instruction = load_voice_agent_prompt()
+        
         transport_params = TransportParams(
             audio_in_enabled=True,
             audio_out_enabled=True,
@@ -79,7 +74,7 @@ class VoiceInterfaceAgent:
         #     api_key=os.getenv("GOOGLE_API_KEY"),
         #     voice_id="Puck",  # Aoede, Charon, Fenrir, Kore, Puck
         #     transcribe_user_audio=True,
-        #     system_instruction=SYSTEM_INSTRUCTION,
+        #     system_instruction=system_instruction,
         # )
 
         llm = OpenAILLMService(
@@ -99,7 +94,7 @@ class VoiceInterfaceAgent:
         )
         context = OpenAILLMContext(
             [
-                {"role": "system", "content": SYSTEM_INSTRUCTION},
+                {"role": "system", "content": system_instruction},
                 {"role": "user", "content": "Start by greeting the user warmly and introducing yourself."},
             ],
         )
@@ -202,4 +197,4 @@ class ResponseAggregatorProcessor(FrameProcessor):
             return
 
         # For all other frames not specifically handled above, pass them through.
-        await self.push_frame(frame, direction)
+        await self.push_frame(frame, direction) 
