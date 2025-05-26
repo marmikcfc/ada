@@ -1,0 +1,136 @@
+.chat-message {
+    display: flex;
+    margin-bottom: 16px;
+    animation: fadeIn 0.3s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* User Messages */
+.user-message {
+    flex-direction: row-reverse;
+}
+
+.user-message .message-content {
+    align-items: flex-end;
+}
+
+.user-message .message-text {
+    background-color: #007bff;
+    color: white;
+}
+
+/* Assistant Messages */
+.assistant-message {
+    flex-direction: row;
+}
+
+.assistant-message .message-content {
+    align-items: flex-start;
+}
+
+.assistant-message .message-text {
+    background-color: #f1f3f5;
+    color: #212529;
+}
+
+/* Avatar */
+.message-avatar {
+    flex-shrink: 0;
+    margin: 0 12px;
+}
+
+.user-avatar,
+.assistant-avatar {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.user-avatar {
+    background-color: #007bff;
+    color: white;
+}
+
+.assistant-avatar {
+    background-color: #6c757d;
+    color: white;
+}
+
+/* Message Content */
+.message-content {
+    display: flex;
+    flex-direction: column;
+    max-width: 70%;
+}
+
+.message-text {
+    padding: 12px 16px;
+    border-radius: 18px;
+    word-wrap: break-word;
+    white-space: pre-wrap;
+    line-height: 1.5;
+}
+
+/* C1Component Content */
+.message-c1-content {
+    margin-top: 8px;
+    max-width: 100%;
+}
+
+/* Timestamp */
+.message-timestamp {
+    font-size: 12px;
+    color: #6c757d;
+    margin-top: 4px;
+    padding: 0 8px;
+}
+
+/* Streaming Indicator */
+.streaming-indicator {
+    display: flex;
+    align-items: center;
+    padding: 12px 16px;
+    background-color: #f1f3f5;
+    border-radius: 18px;
+}
+
+.streaming-indicator .dot {
+    width: 6px;
+    height: 6px;
+    background-color: #6c757d;
+    border-radius: 50%;
+    margin: 0 2px;
+    animation: pulse 1.4s infinite;
+}
+
+.streaming-indicator .dot:nth-child(2) {
+    animation-delay: 0.2s;
+}
+
+.streaming-indicator .dot:nth-child(3) {
+    animation-delay: 0.4s;
+}
+
+@keyframes pulse {
+    0%, 60%, 100% {
+        opacity: 0.3;
+    }
+    30% {
+        opacity: 1;
+    }
+} 

@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { 
-  C1Chat, 
   useThreadManager, 
-  useThreadListManager 
-} from '@thesysai/genui-sdk';
+  useThreadListManager,
+} from '@thesysai/genui-sdk'; // C1Component is used internally by ChatMessageRenderer
+import GenerativeUIChat from './GenerativeUIChat'; // Import the new component
 import '@crayonai/react-ui/styles/index.css';
 
 const VoiceBotClient: React.FC = () => {
@@ -39,7 +39,7 @@ const VoiceBotClient: React.FC = () => {
         threadId: crypto.randomUUID(),
         title: 'Voice Chat Session',
         createdAt: new Date(),
-        messages: []
+        messages: [] // Initially empty, messages are appended by threadManager
       });
     }, [])
   });
@@ -49,14 +49,17 @@ const VoiceBotClient: React.FC = () => {
     threadListManager,
     loadThread: useCallback((threadId) => {
       console.log('Loading thread:', threadId);
-      return Promise.resolve([]);
+      return Promise.resolve([]); 
     }, []),
     onUpdateMessage: useCallback(({ message }) => {
       console.log('Message updated:', message);
     }, []),
-    // For now, we'll handle WebSocket communication separately
-    // In a real implementation, you'd create an API endpoint that bridges WebSocket and HTTP
-    apiUrl: '/api/websocket-bridge'
+    // apiUrl is not strictly needed if WebSocket handles all outbound messages, 
+    // but CrayonChat might use it for its own input if not overridden.
+    // For Phase 1, let's keep it as it might interact with how CrayonChat's default input works.
+    apiUrl: '/api/websocket-bridge',
+    // We are not using processMessage here as WebSocket messages are handled separately
+    // and C1Component actions will be routed via onC1ComponentAction prop.
   });
 
   // Store threadManager in ref to avoid recreating WebSocket
@@ -159,7 +162,7 @@ const VoiceBotClient: React.FC = () => {
     setVoiceStatus('disconnected');
     setAudioStream(null);
     setIsRecording(false);
-    
+    // Consider closing WebRTC connection more formally if needed
     const disconnectMessage = {
       id: crypto.randomUUID(),
       role: 'assistant' as const,
@@ -171,7 +174,6 @@ const VoiceBotClient: React.FC = () => {
         }
       }]
     };
-    
     if (threadManagerRef.current) {
       threadManagerRef.current.appendMessages(disconnectMessage);
     }
@@ -450,80 +452,59 @@ const VoiceBotClient: React.FC = () => {
     };
   }, []); // Empty dependency array - only run once
 
+  // Handler for actions coming from C1Component via GenerativeUIChat
+  const handleC1ComponentAction = useCallback((action: { llmFriendlyMessage: string, humanFriendlyMessage: string, [key: string]: any }) => {
+    console.log('Action from C1Component received in VoiceBotClient:', action);
+    // Example: Send the action's llmFriendlyMessage via WebSocket
+    // You might need to format this into your backend's expected message structure
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      // Assuming your backend expects a message of type 'user_action' or similar
+      // and the payload is the llmFriendlyMessage or the whole action object.
+      // This is an EXAMPLE, adjust to your backend's needs.
+      const actionMessageForBackend = {
+        type: 'user_action_from_dynamic_ui', // Or whatever your backend expects
+        payload: action.llmFriendlyMessage, // Or action object itself
+        // You might want to include threadId or other context here
+      };
+      wsRef.current.send(JSON.stringify(actionMessageForBackend));
+
+      // Optionally, add a user message to the chat to reflect the action taken
+      // This depends on whether the action itself should be visible as a user prompt
+      if (action.humanFriendlyMessage && threadManagerRef.current) {
+          const userActionMessage = {
+              id: crypto.randomUUID(),
+              role: 'user' as const,
+              content: action.humanFriendlyMessage, 
+          };
+          threadManagerRef.current.appendMessages(userActionMessage);
+      }
+
+    } else {
+      console.warn('WebSocket not open, cannot send C1Component action.');
+      // Potentially queue the action or notify the user
+    }
+  }, []);
+
   return (
     <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
-      {/* Voice Controls Overlay */}
-      <div style={{
-        position: 'absolute',
-        top: '20px',
-        right: '20px',
-        zIndex: 1000,
-        display: 'flex',
-        gap: '10px',
-        alignItems: 'center',
-        background: 'rgba(255, 255, 255, 0.9)',
-        padding: '10px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-      }}>
-        <span style={{ 
-          fontSize: '12px', 
-          color: voiceStatus === 'connected' ? '#16a34a' : voiceStatus === 'connecting' ? '#eab308' : '#dc2626',
-          fontWeight: 'bold'
-        }}>
-          🎤 {voiceStatus === 'connected' ? 'Voice Active' : voiceStatus === 'connecting' ? 'Connecting...' : 'Voice Disabled'}
-        </span>
-        
-        {voiceStatus === 'disconnected' && (
-          <button
-            onClick={connectVoice}
-            style={{
-              background: '#16a34a',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              fontWeight: 'bold'
-            }}
-          >
-            Connect Voice
-          </button>
-        )}
-        
-        {voiceStatus === 'connected' && (
-          <button
-            onClick={disconnectVoice}
-            style={{
-              background: '#dc2626',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              fontWeight: 'bold'
-            }}
-          >
-            Disconnect
-          </button>
-        )}
-      </div>
-
+      {/* Remove Voice Controls Overlay from here */}
       {/* Hidden audio element for voice output */}
       <audio ref={audioRef} autoPlay style={{ display: 'none' }} />
-      
-      {/* Main Thesys Chat Interface */}
-      <C1Chat
-        threadManager={threadManager}
-        threadListManager={threadListManager}
+      <GenerativeUIChat
+        threadManager={threadManager} // from @thesysai/genui-sdk
         agentName="Voice Assistant"
-        logoUrl="/favicon.ico"
-        theme={{
-          mode: "light"
+        logoUrl="/favicon.ico" // Ensure this path is correct in your public folder
+        onC1Action={handleC1ComponentAction} // Pass the handler
+        // Pass voice connect/disconnect logic and state to GenerativeUIChat
+        onToggleVoiceConnection={() => {
+          if (voiceStatus === 'connected') {
+            disconnectVoice();
+          } else if (voiceStatus === 'disconnected') {
+            connectVoice();
+          }
         }}
-        type='copilot'
+        isVoiceConnected={voiceStatus === 'connected'}
+        isVoiceConnectionLoading={voiceStatus === 'connecting'}
       />
     </div>
   );
