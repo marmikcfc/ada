@@ -133,12 +133,6 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
     return (
         <ThemeProvider theme={{}}>
             <div className="generative-ui-chat">
-                {/* Chat Header */}
-                <div className="chat-header">
-                    {logoUrl && <img src={logoUrl} alt={agentName} className="agent-logo" />}
-                    <h2 className="agent-name">{agentName}</h2>
-                </div>
-
                 {/* Messages Container */}
                 <div className="chat-messages" ref={chatContainerRef}>
                     {messages.map((message, index) => (
