@@ -555,15 +555,7 @@ async def visualization_processor():
                 logger.info(f"Visualization processor (VOICE): About to call process_with_mcp_agent with response: '{assistant_response[:100]}...'")
                 print(f"Visualization processor (VOICE): About to call process_with_mcp_agent with response: '{assistant_response[:100]}...'")
                 
-                # TEMPORARILY BYPASS MCP AGENT CALL FOR TESTING
-                logger.info(f"Visualization processor (VOICE): TEMPORARILY BYPASSING MCP AGENT CALL FOR TESTING")
-                print(f"Visualization processor (VOICE): TEMPORARILY BYPASSING MCP AGENT CALL FOR TESTING")
-                enhancement_decision = EnhancementDecision(
-                    displayEnhancement=False,
-                    displayEnhancedText=assistant_response,
-                    voiceOverText=assistant_response
-                )
-                # enhancement_decision = await process_with_mcp_agent(assistant_response, conversation_history)
+                enhancement_decision = await process_with_mcp_agent(assistant_response, conversation_history)
                 
                 logger.info(f"Visualization processor (VOICE): MCP agent call completed successfully with decision: {enhancement_decision}")
                 print(f"Visualization processor (VOICE): MCP agent call completed successfully with decision: {enhancement_decision}")
@@ -580,7 +572,7 @@ async def visualization_processor():
             
             display_enhancement = enhancement_decision.displayEnhancement
             display_text = enhancement_decision.displayEnhancedText
-            voice_text = enhancement_decision.voiceOverText
+            voice_text = enhancement_decision.voiceOverText #IDEALLY VOICE OVER TEXT SHOULD BE THERE ONLY IF WE CALL A FUNCTION
             
             logger.info(f"Visualization processor (VOICE): MCP Agent decision - Enhancement: {display_enhancement}, DisplayText: '{display_text}', VoiceText: '{voice_text}'")
             print(f"Visualization processor (VOICE): MCP Agent decision - Enhancement: {display_enhancement}")
@@ -671,29 +663,13 @@ async def process_with_mcp_agent(assistant_response: str, conversation_history: 
         # Load the enhancement decision prompt
         logger.info(f"process_with_mcp_agent: Loading enhancement prompt...")
         print(f"process_with_mcp_agent: Loading enhancement prompt...")
-        try:
-            prompt_path = os.path.join(os.path.dirname(__file__), "prompts", "voice_enhancement_prompt.txt")
-            logger.info(f"process_with_mcp_agent: Looking for prompt at: {prompt_path}")
-            print(f"process_with_mcp_agent: Looking for prompt at: {prompt_path}")
-            with open(prompt_path, "r") as f:
-                enhancement_system_prompt = f.read().strip()
-            logger.info(f"process_with_mcp_agent: Prompt loaded successfully, length: {len(enhancement_system_prompt)}")
-            print(f"process_with_mcp_agent: Prompt loaded successfully, length: {len(enhancement_system_prompt)}")
-        except FileNotFoundError as fnf_error:
-            # Fallback prompt if file not found
-            logger.warning(f"process_with_mcp_agent: Prompt file not found: {fnf_error}")
-            print(f"process_with_mcp_agent: Prompt file not found: {fnf_error}")
-            enhancement_system_prompt = """You are an AI assistant that decides whether a response should be enhanced with dynamic UI or displayed as plain text. 
-
-Analyze the assistant response and determine:
-1. If the content would benefit from visual enhancement (charts, cards, structured layouts, etc.)
-2. What enhanced text should be used for UI generation (if enhancement is needed)
-3. What text should be used for voice-over/TTS
-
-For simple conversational responses, greetings, or confirmations, set displayEnhancement to false.
-For responses with data, analysis, structured information, or complex content, set displayEnhancement to true."""
-            logger.info(f"process_with_mcp_agent: Using fallback prompt")
-            print(f"process_with_mcp_agent: Using fallback prompt")
+        prompt_path = os.path.join(os.path.dirname(__file__), "prompts", "voice_enhancement_prompt.txt")
+        logger.info(f"process_with_mcp_agent: Looking for prompt at: {prompt_path}")
+        print(f"process_with_mcp_agent: Looking for prompt at: {prompt_path}")
+        with open(prompt_path, "r") as f:
+            enhancement_system_prompt = f.read().strip()
+        logger.info(f"process_with_mcp_agent: Prompt loaded successfully, length: {len(enhancement_system_prompt)}")
+        print(f"process_with_mcp_agent: Prompt loaded successfully, length: {len(enhancement_system_prompt)}")
 
         # Create OpenAI client
         logger.info(f"process_with_mcp_agent: Creating OpenAI client...")
@@ -716,7 +692,7 @@ For responses with data, analysis, structured information, or complex content, s
 
 Original Response: "{assistant_response}"
 
-Provide your decision and the appropriate text for both display and voice-over."""}
+Provide your decision ."""}
         ]
         
         logger.info(f"process_with_mcp_agent: Prepared {len(messages)} messages for OpenAI")
@@ -789,6 +765,8 @@ Provide your decision and the appropriate text for both display and voice-over."
         logger.info(f"=== EXITING process_with_mcp_agent (error fallback) ===")
         print(f"=== EXITING process_with_mcp_agent (error fallback) ===")
         return fallback_decision
+
+
 
 # If running directly (for testing/dev)
 if __name__ == "__main__":

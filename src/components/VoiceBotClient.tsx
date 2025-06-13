@@ -82,6 +82,27 @@ const VoiceBotClient: React.FC = () => {
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
       });
 
+      // Create data channel for interim transcripts
+      const transcriptChannel = pc.createDataChannel('transcript');
+      transcriptChannel.onopen = () => {
+        console.log('WebRTC transcript channel opened');
+      };
+      transcriptChannel.onmessage = (event) => {
+        console.log('WebRTC transcript message received via data channel:', event.data);
+        let msg;
+        try {
+          msg = JSON.parse(event.data);
+        } catch (err) {
+          console.error('Error parsing transcript JSON:', err);
+          return;
+        }
+        if (msg.type === 'user_transcription') {
+          const transcriptionText = msg.text || msg.content;
+          console.log('Frontend (interim transcript log):', transcriptionText);
+          // no UI update yet – only logging interim transcripts
+        }
+      };
+
       // Add local stream
       stream.getTracks().forEach(track => {
         pc.addTrack(track, stream);

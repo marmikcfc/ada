@@ -25,6 +25,8 @@ from pipecat.transports.base_transport import TransportParams
 from pipecat.transports.network.small_webrtc import SmallWebRTCTransport
 from pipecat.observers.loggers.llm_log_observer import LLMLogObserver
 from pipecat.processors.transcript_processor import TranscriptProcessor
+from pipecat.transports.network.webrtc_connection import SmallWebRTCConnection
+import json
 
 load_dotenv(override=True)
 
@@ -39,7 +41,7 @@ def load_voice_agent_prompt() -> str:
         return "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."
 
 class VoiceInterfaceAgent:
-    def __init__(self, webrtc_connection, raw_llm_output_queue: asyncio.Queue, llm_message_queue: asyncio.Queue = None):
+    def __init__(self, webrtc_connection: SmallWebRTCConnection, raw_llm_output_queue: asyncio.Queue, llm_message_queue: asyncio.Queue = None):
         self.webrtc_connection = webrtc_connection
         self.raw_llm_output_queue = raw_llm_output_queue
         self.llm_message_queue = llm_message_queue
@@ -188,7 +190,6 @@ class VoiceInterfaceAgent:
                 await self.send_user_transcription_to_frontend(message.content)
 
 
-
         runner = PipelineRunner(handle_sigint=False)
         await runner.run(task)
 
@@ -223,6 +224,8 @@ class ResponseAggregatorProcessor(FrameProcessor):
                 #         if msg["role"] == "user":
                 #             last_user_message_content = msg["content"]
                 #             break
+
+                assistant_response=self.current_assistant_response_buffer.strip()
                 
                 await self.agent_instance.process_downstream_display(
                     # user_input=last_user_message_content,
