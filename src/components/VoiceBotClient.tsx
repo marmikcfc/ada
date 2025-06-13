@@ -327,8 +327,19 @@ const VoiceBotClient: React.FC = () => {
             }]
           };
           
+          console.log('Prepared voice message for threadManager:', voiceMessage);
+          console.log('threadManagerRef.current:', threadManagerRef.current);
+          
           if (threadManagerRef.current) {
-            threadManagerRef.current.appendMessages(voiceMessage);
+            console.log('About to call appendMessages with voice message');
+            try {
+              threadManagerRef.current.appendMessages(voiceMessage);
+              console.log('Successfully called appendMessages for voice message');
+            } catch (error) {
+              console.error('Error calling appendMessages:', error);
+            }
+          } else {
+            console.error('threadManagerRef.current is null when trying to append voice message');
           }
           
         } else if (data.type === 'user_transcription') {

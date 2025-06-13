@@ -7,7 +7,7 @@ load_dotenv()
 
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, WebSocket, WebSocketDisconnect
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import os
 import asyncio
 from langgraph.prebuilt import create_react_agent
@@ -178,6 +178,18 @@ class ThesysBridgeRequest(BaseModel):
     threadId: str | None = None
     responseId: str
 
+class EnhancementDecision(BaseModel):
+    """Pydantic model for MCP agent's enhancement decision response."""
+    displayEnhancement: bool = Field(
+        description="Whether the response should be enhanced with dynamic UI components"
+    )
+    displayEnhancedText: str = Field(
+        description="The text to use for UI generation (if enhancement is true) or plain text display (if enhancement is false)"
+    )
+    voiceOverText: str = Field(
+        description="The text to be spoken via TTS - should be natural and conversational"
+    )
+
 from pipecat_ai_small_webrtc_prebuilt.frontend import SmallWebRTCPrebuiltUI
 app.mount("/prebuilt", SmallWebRTCPrebuiltUI)
 
@@ -297,9 +309,30 @@ async def websocket_bridge(request: ThesysBridgeRequest):
                             "content": msg.content
                         })
             
-            # Process through our visualization pipeline (LangGraph enhancement + Thesys)
-            enhanced_response = await process_with_langgraph_agent(agent_response, conversation_history)
-            visualized_content = await get_thesys_visualization(agent_response, conversation_history, enhanced_response)
+            # Process through our visualization pipeline (MCP agent + conditional Thesys)
+            enhancement_decision = await process_with_mcp_agent(agent_response, conversation_history)
+            
+            display_enhancement = enhancement_decision.displayEnhancement
+            display_text = enhancement_decision.displayEnhancedText
+            
+            if display_enhancement:
+                visualized_content = await get_thesys_visualization(agent_response, conversation_history, display_text)
+            else:
+                # Create simple card for non-enhanced responses
+                simple_card = {
+                    "component": "Card",
+                    "props": {
+                        "children": [
+                            {
+                                "component": "TextContent",
+                                "props": {
+                                    "textMarkdown": display_text
+                                }
+                            }
+                        ]
+                    }
+                }
+                visualized_content = f'{json.dumps(simple_card)}'
             
             logger.info(f"WebSocket Bridge: Received visualization from Thesys")
             
@@ -491,79 +524,15 @@ async def get_thesys_visualization(assistant_response: str, conversation_history
         return f'<content>{json.dumps(error_component)}</content>'
 
 
-async def process_with_langgraph_agent(assistant_response: str, conversation_history: List[Dict[str, Any]] = None) -> str:
-    """
-    Process the voice assistant response through the LangGraph agent to potentially enhance it.
-    Returns the enhanced response or the original if processing fails.
-    """
-    if not compiled_custom_graph:
-        logger.warning("LangGraph agent not available, using original response")
-        return assistant_response
-    
-    try:
-        # Create a thread ID for this processing
-        thread_id = str(uuid.uuid4())
-        
-        # Load the voice enhancement prompt
-        try:
-            prompt_path = os.path.join(os.path.dirname(__file__), "prompts", "voice_enhancement_prompt.txt")
-            with open(prompt_path, "r") as f:
-                enhancement_system_prompt = f.read().strip()
-        except FileNotFoundError:
-            # Fallback prompt if file not found
-            enhancement_system_prompt = """You are a response enhancement assistant. Enhance voice responses for better visual display while preserving the core message and tone. Add structure and clarity when helpful for UI generation."""
-        
-        # Prepare the message for the LangGraph agent
-        enhancement_prompt = f"""Original voice assistant response: "{assistant_response}"
-
-Please enhance this response for better visual display. Consider the guidelines provided in your system prompt.
-
-Enhanced response:"""
-        
-        # Configure the graph with checkpointer
-        compiled_graph_with_checkpoint = compiled_custom_graph.with_config(checkpointer=memory)
-        config = {"configurable": {"thread_id": thread_id, "checkpoint_ns": ""}}
-        
-        # Create messages with system prompt and user request
-        messages = [
-            {"role": "system", "content": enhancement_system_prompt},
-            {"role": "user", "content": enhancement_prompt}
-        ]
-        
-        # Invoke the LangGraph agent
-        result = await compiled_graph_with_checkpoint.ainvoke(
-            {"messages": [HumanMessage(content=f"System: {enhancement_system_prompt}\n\nUser: {enhancement_prompt}")]},
-            config=config,
-        )
-        
-        # Extract the enhanced response
-        if result and result.get('messages'):
-            enhanced_response = result['messages'][-1].content
-            logger.info(f"LangGraph agent enhanced response: {enhanced_response[:100]}...")
-            
-            # Basic validation - ensure the enhanced response isn't empty or too different
-            if enhanced_response and len(enhanced_response.strip()) > 0:
-                return enhanced_response.strip()
-            else:
-                logger.warning("LangGraph agent returned empty response, using original")
-                return assistant_response
-        else:
-            logger.warning("LangGraph agent returned no response, using original")
-            return assistant_response
-            
-    except Exception as e:
-        logger.error(f"Error processing with LangGraph agent: {e}", exc_info=True)
-        return assistant_response
-
-
 async def visualization_processor():
     """
-    Processes raw LLM output from VOICE INTERFACE through LangGraph agent, then gets visualization from Thesys, and sends to frontend queue.
+    Processes raw LLM output from VOICE INTERFACE through MCP agent, conditionally gets visualization from Thesys, and sends to frontend queue.
     Note: This is only for voice messages. Chat messages are handled directly through the /api/websocket-bridge endpoint.
     """
-    logger.info("Visualization processor task started for VOICE messages (LangGraph -> Thesys Visualize flow).")
+    logger.info("Visualization processor task started for VOICE messages (MCP Agent -> Conditional Thesys Visualize flow).")
     while True:
         try:
+            logger.info("Visualization processor (VOICE): Waiting for item from raw_llm_output_queue...")
             item = await raw_llm_output_queue.get()
             logger.info(f"Visualization processor (VOICE): Received item from raw_llm_output_queue: {item}")
             print(f"Visualization processor (VOICE): Received item from raw_llm_output_queue: {item}")
@@ -571,50 +540,255 @@ async def visualization_processor():
             conversation_history: List[Dict[str, Any]] = item.get("history", [])
             assistant_response: str | None = item.get("assistant_response")
             
+            logger.info(f"Visualization processor (VOICE): Extracted assistant_response: '{assistant_response}'")
+            logger.info(f"Visualization processor (VOICE): Extracted conversation_history: {conversation_history}")
+            
             if not assistant_response:
                 logger.warning("Visualization processor (VOICE) received empty assistant response.")
                 continue
                 
             logger.info(f"Visualization processor (VOICE): Original voice response length: {len(assistant_response)} chars")
-            logger.info(f"Visualization processor (VOICE): Processing assistant response through LangGraph agent...")
+            logger.info(f"Visualization processor (VOICE): Processing assistant response through MCP agent...")
             
-            # Step 1: Process through LangGraph agent for enhancement
-            enhanced_response = await process_with_langgraph_agent(assistant_response, conversation_history)
+            # Step 1: Process through MCP agent to determine if enhancement is needed
+            try:
+                logger.info(f"Visualization processor (VOICE): About to call process_with_mcp_agent with response: '{assistant_response[:100]}...'")
+                print(f"Visualization processor (VOICE): About to call process_with_mcp_agent with response: '{assistant_response[:100]}...'")
+                
+                # TEMPORARILY BYPASS MCP AGENT CALL FOR TESTING
+                logger.info(f"Visualization processor (VOICE): TEMPORARILY BYPASSING MCP AGENT CALL FOR TESTING")
+                print(f"Visualization processor (VOICE): TEMPORARILY BYPASSING MCP AGENT CALL FOR TESTING")
+                enhancement_decision = EnhancementDecision(
+                    displayEnhancement=False,
+                    displayEnhancedText=assistant_response,
+                    voiceOverText=assistant_response
+                )
+                # enhancement_decision = await process_with_mcp_agent(assistant_response, conversation_history)
+                
+                logger.info(f"Visualization processor (VOICE): MCP agent call completed successfully with decision: {enhancement_decision}")
+                print(f"Visualization processor (VOICE): MCP agent call completed successfully with decision: {enhancement_decision}")
+            except Exception as e:
+                logger.error(f"Visualization processor (VOICE): Error in MCP agent call: {e}", exc_info=True)
+                print(f"Visualization processor (VOICE): Error in MCP agent call: {e}")
+                # Fallback decision
+                enhancement_decision = EnhancementDecision(
+                    displayEnhancement=False,
+                    displayEnhancedText=assistant_response,
+                    voiceOverText=assistant_response
+                )
+                logger.info(f"Visualization processor (VOICE): Using fallback decision: {enhancement_decision}")
             
-            logger.info(f"Visualization processor (VOICE): Enhanced response length: {len(enhanced_response)} chars")
-            logger.info(f"Visualization processor (VOICE): Enhanced response received, sending to Thesys Visualize API...")
+            display_enhancement = enhancement_decision.displayEnhancement
+            display_text = enhancement_decision.displayEnhancedText
+            voice_text = enhancement_decision.voiceOverText
             
-            # Step 2: Send enhanced response to Thesys Visualize API
-            visualized_ui_payload = await get_thesys_visualization(
-                assistant_response, 
-                conversation_history, 
-                enhanced_response
-            )
+            logger.info(f"Visualization processor (VOICE): MCP Agent decision - Enhancement: {display_enhancement}, DisplayText: '{display_text}', VoiceText: '{voice_text}'")
+            print(f"Visualization processor (VOICE): MCP Agent decision - Enhancement: {display_enhancement}")
             
-            logger.info(f"Visualization processor (VOICE): Received UI payload from Thesys, length: {len(str(visualized_ui_payload))} chars")
+            # Step 2: Conditionally process with Thesys or create simple card
+            if display_enhancement:
+                logger.info(f"Visualization processor (VOICE): Enhancement requested, sending to Thesys Visualize API...")
+                print(f"Visualization processor (VOICE): Enhancement requested, sending to Thesys Visualize API...")
+                # Send enhanced response to Thesys Visualize API
+                visualized_ui_payload = await get_thesys_visualization(
+                    assistant_response, 
+                    conversation_history, 
+                    display_text
+                )
+                logger.info(f"Visualization processor (VOICE): Received UI payload from Thesys, length: {len(str(visualized_ui_payload))} chars")
+                print(f"Visualization processor (VOICE): Received UI payload from Thesys, length: {len(str(visualized_ui_payload))} chars")
+            else:
+                logger.info(f"Visualization processor (VOICE): No enhancement needed, creating simple text card...")
+                print(f"Visualization processor (VOICE): No enhancement needed, creating simple text card...")
+                # Create a simple card with text content - using the proper Thesys format
+                simple_card = {
+                    "component": {
+                        "component": "Card",
+                        "props": {
+                            "children": [
+                                {
+                                    "component": "TextContent",
+                                    "props": {
+                                        "textMarkdown": display_text
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+                visualized_ui_payload = f'<content>{json.dumps(simple_card)}</content>'
+                logger.info(f"Visualization processor (VOICE): Created simple card payload: '{visualized_ui_payload}'")
+                print(f"Visualization processor (VOICE): Created simple card payload: '{visualized_ui_payload}'")
             
-            # Prepare message for frontend (for voice responses only)
+            # Step 3: Handle TTS if we have voice text
+            if voice_text and voice_text != display_text:
+                logger.info(f"Visualization processor (VOICE): Preparing TTS for voice text...")
+                # TODO: Integrate with Pipecat TTS processor here
+                # For now, we'll just log that TTS should be triggered
+                logger.info(f"Visualization processor (VOICE): TTS text ready: {voice_text[:100]}...")
+            
+            # Step 4: Prepare message for frontend (for voice responses only)
             message_for_frontend = {
                 "id": str(uuid.uuid4()),
                 "role": "assistant",
                 "type": "voice_response", # Mark as voice response
-                "content": visualized_ui_payload, # This is the Thesys UI payload
+                "content": visualized_ui_payload, # This is the UI payload (enhanced or simple)
+                "voiceText": voice_text if voice_text != display_text else None, # Include voice text if different
             }
             
+            logger.info(f"Visualization processor (VOICE): Prepared message for frontend: {message_for_frontend}")
+            print(f"Visualization processor (VOICE): Prepared message for frontend with ID: {message_for_frontend['id']}")
+            
             await llm_message_queue.put(message_for_frontend)
-            logger.info(f"Visualization processor (VOICE): Successfully sent UI payload to frontend queue for ID {message_for_frontend['id']}.")
+            logger.info(f"Visualization processor (VOICE): Successfully sent payload to frontend queue for ID {message_for_frontend['id']}.")
+            print(f"Visualization processor (VOICE): Successfully sent payload to frontend queue for ID {message_for_frontend['id']}.")
 
         except Exception as e:
             logger.error(f"Critical error in visualization_processor (VOICE) loop: {e}", exc_info=True)
-            # Optionally, put an error message on llm_message_queue for the client
+            print(f"Critical error in visualization_processor (VOICE) loop: {e}")
+            # Put an error message on llm_message_queue for the client
             await llm_message_queue.put({
                 "id": str(uuid.uuid4()),
                 "role": "assistant",
                 "type": "voice_response",
-                "content": {"type": "error", "message": "A system error occurred while generating UI for voice response."}
+                "content": f'<content>{json.dumps({"component": "Callout", "props": {"variant": "warning", "title": "System Error", "description": "A system error occurred while generating UI for voice response."}})}</content>'
             })
         finally:
             logger.info("Raw LLM output queue task done (VOICE)")
+            raw_llm_output_queue.task_done()
+
+async def process_with_mcp_agent(assistant_response: str, conversation_history: List[Dict[str, Any]] = None) -> EnhancementDecision:
+    """
+    Process the voice assistant response with OpenAI structured output to determine display enhancement.
+    Returns a structured response indicating whether UI enhancement is needed and what content to use.
+    """
+    logger.info(f"=== ENTERING process_with_mcp_agent ===")
+    print(f"=== ENTERING process_with_mcp_agent ===")
+    logger.info(f"process_with_mcp_agent: Starting with response: {assistant_response[:100]}...")
+    print(f"process_with_mcp_agent: Starting with response: {assistant_response[:100]}...")
+    
+    try:
+        # Load the enhancement decision prompt
+        logger.info(f"process_with_mcp_agent: Loading enhancement prompt...")
+        print(f"process_with_mcp_agent: Loading enhancement prompt...")
+        try:
+            prompt_path = os.path.join(os.path.dirname(__file__), "prompts", "voice_enhancement_prompt.txt")
+            logger.info(f"process_with_mcp_agent: Looking for prompt at: {prompt_path}")
+            print(f"process_with_mcp_agent: Looking for prompt at: {prompt_path}")
+            with open(prompt_path, "r") as f:
+                enhancement_system_prompt = f.read().strip()
+            logger.info(f"process_with_mcp_agent: Prompt loaded successfully, length: {len(enhancement_system_prompt)}")
+            print(f"process_with_mcp_agent: Prompt loaded successfully, length: {len(enhancement_system_prompt)}")
+        except FileNotFoundError as fnf_error:
+            # Fallback prompt if file not found
+            logger.warning(f"process_with_mcp_agent: Prompt file not found: {fnf_error}")
+            print(f"process_with_mcp_agent: Prompt file not found: {fnf_error}")
+            enhancement_system_prompt = """You are an AI assistant that decides whether a response should be enhanced with dynamic UI or displayed as plain text. 
+
+Analyze the assistant response and determine:
+1. If the content would benefit from visual enhancement (charts, cards, structured layouts, etc.)
+2. What enhanced text should be used for UI generation (if enhancement is needed)
+3. What text should be used for voice-over/TTS
+
+For simple conversational responses, greetings, or confirmations, set displayEnhancement to false.
+For responses with data, analysis, structured information, or complex content, set displayEnhancement to true."""
+            logger.info(f"process_with_mcp_agent: Using fallback prompt")
+            print(f"process_with_mcp_agent: Using fallback prompt")
+
+        # Create OpenAI client
+        logger.info(f"process_with_mcp_agent: Creating OpenAI client...")
+        print(f"process_with_mcp_agent: Creating OpenAI client...")
+        api_key = os.getenv("OPENAI_API_KEY")
+        if not api_key:
+            logger.error(f"process_with_mcp_agent: OPENAI_API_KEY not found in environment!")
+            print(f"process_with_mcp_agent: OPENAI_API_KEY not found in environment!")
+            raise ValueError("OPENAI_API_KEY not found in environment")
+        logger.info(f"process_with_mcp_agent: OpenAI API key found (length: {len(api_key)})")
+        print(f"process_with_mcp_agent: OpenAI API key found (length: {len(api_key)})")
+        openai_client = AsyncOpenAI(api_key=api_key)
+        
+        # Prepare the messages for OpenAI
+        logger.info(f"process_with_mcp_agent: Preparing messages for OpenAI...")
+        print(f"process_with_mcp_agent: Preparing messages for OpenAI...")
+        messages = [
+            {"role": "system", "content": enhancement_system_prompt},
+            {"role": "user", "content": f"""Analyze this assistant response and decide if it needs UI enhancement:
+
+Original Response: "{assistant_response}"
+
+Provide your decision and the appropriate text for both display and voice-over."""}
+        ]
+        
+        logger.info(f"process_with_mcp_agent: Prepared {len(messages)} messages for OpenAI")
+        print(f"process_with_mcp_agent: Prepared {len(messages)} messages for OpenAI")
+        
+        # Call OpenAI with structured output using Pydantic model
+        logger.info(f"process_with_mcp_agent: Calling OpenAI API with structured output...")
+        print(f"process_with_mcp_agent: Calling OpenAI API with structured output...")
+        try:
+            completion = await openai_client.beta.chat.completions.parse(
+                model="gpt-4o-mini",  # Use gpt-4o-mini for better availability
+                messages=messages,
+                response_format=EnhancementDecision,
+                temperature=0.3,
+                timeout=30.0  # Add timeout
+            )
+            logger.info(f"process_with_mcp_agent: OpenAI API call completed successfully")
+            print(f"process_with_mcp_agent: OpenAI API call completed successfully")
+        except Exception as api_error:
+            logger.error(f"process_with_mcp_agent: OpenAI API call failed: {api_error}")
+            print(f"process_with_mcp_agent: OpenAI API call failed: {api_error}")
+            # Fallback to non-structured call if structured output fails  
+            logger.info(f"process_with_mcp_agent: Falling back to regular completion...")
+            print(f"process_with_mcp_agent: Falling back to regular completion...")
+            regular_completion = await openai_client.chat.completions.create(
+                model="gpt-4o-mini",
+                messages=messages + [{"role": "user", "content": "Respond with JSON: {\"displayEnhancement\": boolean, \"displayEnhancedText\": \"text\", \"voiceOverText\": \"text\"}"}],
+                temperature=0.3,
+                timeout=30.0
+            )
+            # Parse JSON manually
+            import json
+            try:
+                json_response = json.loads(regular_completion.choices[0].message.content)
+                completion_data = {
+                    "displayEnhancement": json_response.get("displayEnhancement", False),
+                    "displayEnhancedText": json_response.get("displayEnhancedText", assistant_response),
+                    "voiceOverText": json_response.get("voiceOverText", assistant_response)
+                }
+                enhancement_decision = EnhancementDecision(**completion_data)
+                logger.info(f"MCP Agent decision (fallback): enhancement={enhancement_decision.displayEnhancement}")
+                print(f"MCP Agent decision (fallback): enhancement={enhancement_decision.displayEnhancement}")
+                logger.info(f"=== EXITING process_with_mcp_agent (fallback) ===")
+                print(f"=== EXITING process_with_mcp_agent (fallback) ===")
+                return enhancement_decision
+            except Exception as parse_error:
+                logger.error(f"process_with_mcp_agent: Failed to parse JSON fallback: {parse_error}")
+                print(f"process_with_mcp_agent: Failed to parse JSON fallback: {parse_error}")
+                raise api_error  # Re-raise original error
+        
+        # Get the parsed Pydantic model
+        enhancement_decision = completion.choices[0].message.parsed
+        
+        logger.info(f"MCP Agent decision: enhancement={enhancement_decision.displayEnhancement}")
+        print(f"MCP Agent decision: enhancement={enhancement_decision.displayEnhancement}")
+        logger.info(f"=== EXITING process_with_mcp_agent (success) ===")
+        print(f"=== EXITING process_with_mcp_agent (success) ===")
+        
+        return enhancement_decision
+        
+    except Exception as e:
+        logger.error(f"Error in MCP agent processing: {e}", exc_info=True)
+        print(f"Error in MCP agent processing: {e}")
+        # Fallback to simple response structure
+        fallback_decision = EnhancementDecision(
+            displayEnhancement=False,
+            displayEnhancedText=assistant_response,
+            voiceOverText=assistant_response
+        )
+        logger.info(f"=== EXITING process_with_mcp_agent (error fallback) ===")
+        print(f"=== EXITING process_with_mcp_agent (error fallback) ===")
+        return fallback_decision
 
 # If running directly (for testing/dev)
 if __name__ == "__main__":

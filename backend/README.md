@@ -32,7 +32,7 @@ The voice agent now includes an enhanced visualization pipeline:
 - **VoiceInterfaceAgent**: Handles real-time voice conversations
 - **ResponseAggregatorProcessor**: Captures and processes LLM responses
 - **visualization_processor()**: Background task that orchestrates the enhancement and visualization pipeline
-- **process_with_langgraph_agent()**: Routes voice responses through LangGraph for enhancement
+- **process_with_mcp_agent()**: Routes voice responses through OpenAI structured output to determine display enhancement
 - **get_thesys_visualization()**: Calls Thesys Visualize API for UI generation
 
 ## Prerequisites
