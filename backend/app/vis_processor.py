@@ -178,17 +178,23 @@ class VisualizationProcessor:
                     logger.info("Visualization processor: No enhancement needed or Thesys unavailable, creating simple text card...")
                     
                     # Create a simple card with text content
+                    # NOTE: The frontend expects the same nested structure that
+                    # legacy main.py produced: a top-level "component" whose value
+                    # is *another* component definition.  Keep this exact shape
+                    # to avoid empty-bubble issues.
                     simple_card = {
-                        "component": "Card",
-                        "props": {
-                            "children": [
-                                {
-                                    "component": "TextContent",
-                                    "props": {
-                                        "textMarkdown": display_text
+                        "component": {
+                            "component": "Card",
+                            "props": {
+                                "children": [
+                                    {
+                                        "component": "TextContent",
+                                        "props": {
+                                            "textMarkdown": display_text
+                                        }
                                     }
-                                }
-                            ]
+                                ]
+                            }
                         }
                     }
                     visualized_ui_payload = f'<content>{json.dumps(simple_card)}</content>'

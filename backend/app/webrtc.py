@@ -118,6 +118,11 @@ async def handle_offer(request: WebRTCOffer, background_tasks: BackgroundTasks, 
             on_closed=default_on_closed
         )
         
+        # Validate that queues are initialized before creating the agent
+        if queues.raw_llm_output_queue is None or queues.llm_message_queue is None:
+            logger.error("Queues not initialized - cannot create VoiceInterfaceAgent")
+            raise RuntimeError("Voice processing not available - queues not initialized")
+        
         # Create and run the voice interface agent
         agent = VoiceInterfaceAgent(
             pipecat_connection,

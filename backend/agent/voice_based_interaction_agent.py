@@ -53,6 +53,10 @@ class VoiceInterfaceAgent:
         logger.info(f"----------------------------------------------------------")
         
         try:
+            if self.raw_llm_output_queue is None:
+                logger.warning("raw_llm_output_queue not available, cannot send response for visualization")
+                return
+                
             # This payload structure is expected by the modified visualization_processor in main.py
             payload = {"assistant_response": assistant_response.strip(), "history": history}
             await self.raw_llm_output_queue.put(payload)

@@ -13,6 +13,8 @@ import json
 import uuid
 from typing import Dict, List, Any, Optional
 
+import asyncio  # Needed for asyncio.sleep used in WebSocket loop
+
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
@@ -253,11 +255,20 @@ async def websocket_llm_messages(websocket: WebSocket):
                 await websocket.send_text(serialized_msg)
                 logger.debug(f"WebSocket successfully sent message to {client_info}")
             except Exception as send_error:
-                logger.error(f"WebSocket error sending message to {client_info}: {send_error}", exc_info=True)
-                break
-                
-            # Mark the message as done
-            mark_llm_message_done()
+                # Network hiccups or malformed frames should not kill the
+                # whole stream – log and keep waiting for the next item.
+                logger.error(
+                    f"WebSocket error sending message to {client_info}: {send_error}",
+                    exc_info=True,
+                )
+            finally:
+                # Always mark a queue task as done so the queue does not get
+                # stuck and back-pressure stays accurate.
+                mark_llm_message_done()
+
+            # Yield control to allow other tasks to run before the next get().
+            # (Behaviour identical to the old main.py loop.)
+            await asyncio.sleep(0)
             
     except WebSocketDisconnect:
         logger.info(f"WebSocket client {client_info} disconnected.")
