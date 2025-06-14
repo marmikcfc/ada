@@ -13,7 +13,6 @@ import asyncio
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-from langchain_mcp_adapters.client import MultiServerMCPClient
 from contextlib import asynccontextmanager
 import json
 import base64
@@ -23,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from typing import Dict, List, Any # Added List, Any
 import threading
+from src.mcp.enhanced_mcp_client import EnhancedMCPClient
 
 # Import the custom graph *creation function* and the placeholder
 from graph import create_graph, app_graph as compiled_custom_graph # Renamed placeholder
@@ -55,20 +55,10 @@ AGENT_SQLITE_DB = os.environ.get("AGENT_SQLITE_DB", "agent_history.db")
 
 # Load MCP servers configuration from JSON file
 with open(os.path.join(os.path.dirname(__file__), "mcp_servers.json"), "r") as f:
-    MCP_SERVERS = json.load(f)
+    MCP_CONFIG = json.load(f)
 
-# Optionally, if you need to inject dynamic values (like config_b64 or api keys) into the config:
-for server in MCP_SERVERS.values():
-    if isinstance(server, dict):
-        for k, v in server.items():
-            if isinstance(v, str):
-                server[k] = v.format(
-                    config_b64=base64.b64encode(json.dumps(config).encode()).decode(),
-                    smithery_api_key=smithery_api_key or ""
-                )
-
-# Global variable to hold the MCP client instance
-mcp_client_instance: MultiServerMCPClient | None = None
+# Global variable to hold the enhanced MCP client
+enhanced_mcp_client: EnhancedMCPClient | None = None
 
 # Global variable for Thesys client
 thesys_client: AsyncOpenAI | None = None
@@ -94,12 +84,13 @@ raw_llm_output_queue = asyncio.Queue()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize the MCP client on startup
-    global mcp_client_instance, compiled_custom_graph, thesys_client # Added thesys_client
+    global enhanced_mcp_client, compiled_custom_graph, thesys_client # Added enhanced_mcp_client
     try:
-        logger.info("Initializing MultiServerMCPClient...")
-        mcp_client_instance = MultiServerMCPClient(MCP_SERVERS)
-        app.state.mcp_client = mcp_client_instance # Store client in app state
-        logger.info("MultiServerMCPClient initialized successfully.")
+        logger.info("Initializing Enhanced MCP Client...")
+        enhanced_mcp_client = EnhancedMCPClient(os.path.join(os.path.dirname(__file__), "mcp_servers.json"))
+        await enhanced_mcp_client.initialize()
+        app.state.enhanced_mcp_client = enhanced_mcp_client
+        logger.info("Enhanced MCP Client initialized successfully.")
         
         # --- Initialize Thesys Client ---
         if thesys_api_key:
@@ -114,9 +105,9 @@ async def lifespan(app: FastAPI):
             thesys_client = None
 
         # --- Initialize Graph --- 
-        if mcp_client_instance:
+        if enhanced_mcp_client:
             logger.info("Initializing custom graph...")
-            mcp_tools = mcp_client_instance.get_tools()
+            mcp_tools = enhanced_mcp_client.get_tools()
             compiled_custom_graph = create_graph(mcp_tools)
             logger.info("Custom graph initialized successfully.")
         else:
@@ -125,8 +116,8 @@ async def lifespan(app: FastAPI):
             
     except Exception as e:
         logger.error(f"Failed to initialize MCP Client during startup: {e}", exc_info=True)
-        mcp_client_instance = None
-        app.state.mcp_client = None
+        enhanced_mcp_client = None
+        app.state.enhanced_mcp_client = None
         thesys_client = None # Ensure Thesys client is also None if startup fails early
     
     # Start the visualization processor task
@@ -136,11 +127,11 @@ async def lifespan(app: FastAPI):
     yield # Application runs here
     
     # Clean up the MCP client on shutdown
-    if mcp_client_instance:
+    if enhanced_mcp_client:
         try:
-            logger.info("Closing MultiServerMCPClient...")
-            #await mcp_client_instance.close()
-            logger.info("MultiServerMCPClient closed successfully.")
+            logger.info("Closing Enhanced MCP Client...")
+            await enhanced_mcp_client.close()
+            logger.info("Enhanced MCP Client closed successfully.")
         except Exception as e:
             logger.error(f"Failed to close MCP Client during shutdown: {e}", exc_info=True)
 
@@ -205,11 +196,6 @@ async def agent_endpoint(agent_request: AgentRequest, fastapi_req: Request):
     if not openai_api_key:
         raise HTTPException(status_code=500, detail="OpenAI API key not set in environment.")
         
-    # Access client from app state
-    # mcp_client = fastapi_req.app.state.mcp_client # No longer needed directly here
-    # if mcp_client is None:
-    #      raise HTTPException(status_code=500, detail="MCP Client not initialized.")
-         
     # Get the compiled graph (now initialized during lifespan)
     if compiled_custom_graph is None:
         raise HTTPException(status_code=500, detail="Agent graph not initialized.")
@@ -651,111 +637,48 @@ async def visualization_processor():
 
 async def process_with_mcp_agent(assistant_response: str, conversation_history: List[Dict[str, Any]] = None) -> EnhancementDecision:
     """
-    Process the voice assistant response with OpenAI structured output to determine display enhancement.
+    Process the voice assistant response using the enhanced MCP client to determine display enhancement.
     Returns a structured response indicating whether UI enhancement is needed and what content to use.
     """
-    logger.info(f"=== ENTERING process_with_mcp_agent ===")
-    print(f"=== ENTERING process_with_mcp_agent ===")
+    logger.info(f"=== ENTERING process_with_mcp_agent (Enhanced MCP Client) ===")
+    print(f"=== ENTERING process_with_mcp_agent (Enhanced MCP Client) ===")
     logger.info(f"process_with_mcp_agent: Starting with response: {assistant_response[:100]}...")
     print(f"process_with_mcp_agent: Starting with response: {assistant_response[:100]}...")
     
     try:
-        # Load the enhancement decision prompt
-        logger.info(f"process_with_mcp_agent: Loading enhancement prompt...")
-        print(f"process_with_mcp_agent: Loading enhancement prompt...")
-        prompt_path = os.path.join(os.path.dirname(__file__), "prompts", "voice_enhancement_prompt.txt")
-        logger.info(f"process_with_mcp_agent: Looking for prompt at: {prompt_path}")
-        print(f"process_with_mcp_agent: Looking for prompt at: {prompt_path}")
-        with open(prompt_path, "r") as f:
-            enhancement_system_prompt = f.read().strip()
-        logger.info(f"process_with_mcp_agent: Prompt loaded successfully, length: {len(enhancement_system_prompt)}")
-        print(f"process_with_mcp_agent: Prompt loaded successfully, length: {len(enhancement_system_prompt)}")
-
-        # Create OpenAI client
-        logger.info(f"process_with_mcp_agent: Creating OpenAI client...")
-        print(f"process_with_mcp_agent: Creating OpenAI client...")
-        api_key = os.getenv("OPENAI_API_KEY")
-        if not api_key:
-            logger.error(f"process_with_mcp_agent: OPENAI_API_KEY not found in environment!")
-            print(f"process_with_mcp_agent: OPENAI_API_KEY not found in environment!")
-            raise ValueError("OPENAI_API_KEY not found in environment")
-        logger.info(f"process_with_mcp_agent: OpenAI API key found (length: {len(api_key)})")
-        print(f"process_with_mcp_agent: OpenAI API key found (length: {len(api_key)})")
-        openai_client = AsyncOpenAI(api_key=api_key)
-        
-        # Prepare the messages for OpenAI
-        logger.info(f"process_with_mcp_agent: Preparing messages for OpenAI...")
-        print(f"process_with_mcp_agent: Preparing messages for OpenAI...")
-        messages = [
-            {"role": "system", "content": enhancement_system_prompt},
-            {"role": "user", "content": f"""Analyze this assistant response and decide if it needs UI enhancement:
-
-Original Response: "{assistant_response}"
-
-Provide your decision ."""}
-        ]
-        
-        logger.info(f"process_with_mcp_agent: Prepared {len(messages)} messages for OpenAI")
-        print(f"process_with_mcp_agent: Prepared {len(messages)} messages for OpenAI")
-        
-        # Call OpenAI with structured output using Pydantic model
-        logger.info(f"process_with_mcp_agent: Calling OpenAI API with structured output...")
-        print(f"process_with_mcp_agent: Calling OpenAI API with structured output...")
-        try:
-            completion = await openai_client.beta.chat.completions.parse(
-                model="gpt-4o-mini",  # Use gpt-4o-mini for better availability
-                messages=messages,
-                response_format=EnhancementDecision,
-                temperature=0.3,
-                timeout=30.0  # Add timeout
+        # Get the enhanced MCP client from global state
+        global enhanced_mcp_client
+        if not enhanced_mcp_client:
+            logger.error("Enhanced MCP client not available")
+            print("Enhanced MCP client not available")
+            # Fallback to simple decision
+            return EnhancementDecision(
+                displayEnhancement=False,
+                displayEnhancedText=assistant_response,
+                voiceOverText=assistant_response
             )
-            logger.info(f"process_with_mcp_agent: OpenAI API call completed successfully")
-            print(f"process_with_mcp_agent: OpenAI API call completed successfully")
-        except Exception as api_error:
-            logger.error(f"process_with_mcp_agent: OpenAI API call failed: {api_error}")
-            print(f"process_with_mcp_agent: OpenAI API call failed: {api_error}")
-            # Fallback to non-structured call if structured output fails  
-            logger.info(f"process_with_mcp_agent: Falling back to regular completion...")
-            print(f"process_with_mcp_agent: Falling back to regular completion...")
-            regular_completion = await openai_client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=messages + [{"role": "user", "content": "Respond with JSON: {\"displayEnhancement\": boolean, \"displayEnhancedText\": \"text\", \"voiceOverText\": \"text\"}"}],
-                temperature=0.3,
-                timeout=30.0
-            )
-            # Parse JSON manually
-            import json
-            try:
-                json_response = json.loads(regular_completion.choices[0].message.content)
-                completion_data = {
-                    "displayEnhancement": json_response.get("displayEnhancement", False),
-                    "displayEnhancedText": json_response.get("displayEnhancedText", assistant_response),
-                    "voiceOverText": json_response.get("voiceOverText", assistant_response)
-                }
-                enhancement_decision = EnhancementDecision(**completion_data)
-                logger.info(f"MCP Agent decision (fallback): enhancement={enhancement_decision.displayEnhancement}")
-                print(f"MCP Agent decision (fallback): enhancement={enhancement_decision.displayEnhancement}")
-                logger.info(f"=== EXITING process_with_mcp_agent (fallback) ===")
-                print(f"=== EXITING process_with_mcp_agent (fallback) ===")
-                return enhancement_decision
-            except Exception as parse_error:
-                logger.error(f"process_with_mcp_agent: Failed to parse JSON fallback: {parse_error}")
-                print(f"process_with_mcp_agent: Failed to parse JSON fallback: {parse_error}")
-                raise api_error  # Re-raise original error
         
-        # Get the parsed Pydantic model
-        enhancement_decision = completion.choices[0].message.parsed
+        logger.info(f"process_with_mcp_agent: Using Enhanced MCP Client with {len(enhanced_mcp_client.get_available_tools())} available tools")
+        print(f"process_with_mcp_agent: Using Enhanced MCP Client with {len(enhanced_mcp_client.get_available_tools())} available tools")
         
-        logger.info(f"MCP Agent decision: enhancement={enhancement_decision.displayEnhancement}")
-        print(f"MCP Agent decision: enhancement={enhancement_decision.displayEnhancement}")
-        logger.info(f"=== EXITING process_with_mcp_agent (success) ===")
-        print(f"=== EXITING process_with_mcp_agent (success) ===")
+        # Use the enhanced MCP client to make the decision
+        enhancement_decision = await enhanced_mcp_client.make_enhancement_decision(
+            assistant_response=assistant_response,
+            conversation_history=conversation_history
+        )
+        
+        logger.info(f"Enhanced MCP Agent decision: enhancement={enhancement_decision.displayEnhancement}")
+        print(f"Enhanced MCP Agent decision: enhancement={enhancement_decision.displayEnhancement}")
+        logger.info(f"Enhanced MCP Agent display text: {enhancement_decision.displayEnhancedText[:100]}...")
+        print(f"Enhanced MCP Agent voice text: {enhancement_decision.voiceOverText[:100]}...")
+        logger.info(f"=== EXITING process_with_mcp_agent (Enhanced MCP Client) ===")
+        print(f"=== EXITING process_with_mcp_agent (Enhanced MCP Client) ===")
         
         return enhancement_decision
         
     except Exception as e:
-        logger.error(f"Error in MCP agent processing: {e}", exc_info=True)
-        print(f"Error in MCP agent processing: {e}")
+        logger.error(f"Error in Enhanced MCP agent processing: {e}", exc_info=True)
+        print(f"Error in Enhanced MCP agent processing: {e}")
         # Fallback to simple response structure
         fallback_decision = EnhancementDecision(
             displayEnhancement=False,
@@ -766,7 +689,58 @@ Provide your decision ."""}
         print(f"=== EXITING process_with_mcp_agent (error fallback) ===")
         return fallback_decision
 
+@app.get("/api/mcp/tools")
+async def list_mcp_tools(fastapi_req: Request):
+    """List all available MCP tools from the enhanced client."""
+    tools_info = {
+        "enhanced_client": []
+    }
+    
+    # Get tools from enhanced client
+    if fastapi_req.app.state.enhanced_mcp_client:
+        try:
+            enhanced_tools = fastapi_req.app.state.enhanced_mcp_client.get_available_tools()
+            tools_info["enhanced_client"] = enhanced_tools
+        except Exception as e:
+            logger.error(f"Error getting enhanced tools: {e}")
+    
+    return tools_info
 
+@app.post("/api/mcp/test-enhancement")
+async def test_enhancement_decision(request: dict, fastapi_req: Request):
+    """Test endpoint for the enhanced MCP decision making."""
+    enhanced_client = fastapi_req.app.state.enhanced_mcp_client
+    if not enhanced_client:
+        raise HTTPException(status_code=500, detail="Enhanced MCP Client not initialized.")
+    
+    assistant_response = request.get("assistant_response", "")
+    conversation_history = request.get("conversation_history", [])
+    
+    if not assistant_response:
+        raise HTTPException(status_code=400, detail="assistant_response is required")
+    
+    try:
+        logger.info(f"Testing enhancement decision for: {assistant_response[:100]}...")
+        
+        # Use the enhanced MCP client to make the decision
+        decision = await enhanced_client.make_enhancement_decision(
+            assistant_response=assistant_response,
+            conversation_history=conversation_history
+        )
+        
+        return {
+            "original_response": assistant_response,
+            "decision": {
+                "displayEnhancement": decision.displayEnhancement,
+                "displayEnhancedText": decision.displayEnhancedText,
+                "voiceOverText": decision.voiceOverText
+            },
+            "available_tools": enhanced_client.get_available_tools()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error testing enhancement decision: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error testing enhancement: {str(e)}")
 
 # If running directly (for testing/dev)
 if __name__ == "__main__":
