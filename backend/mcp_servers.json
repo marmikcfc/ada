@@ -4,25 +4,23 @@
         "openai_api_key_env": "OPENAI_API_KEY"
     },
     "servers": {
+        "weather": {
+            "url": "https://server.smithery.ai/@isdaniel/mcp_weather_server/mcp?api_key=54b8c43d-cdda-4503-bda0-29be49a2b664",
+            "transport": "http"
+        },
+        "search_engine": {
+            "url": "https://server.smithery.ai/exa/mcp?api_key=54b8c43d-cdda-4503-bda0-29be49a2b664",
+            "transport": "http"
+        }
+    },
+    "disabled_servers": {
         "utilities": {
             "command": "python",
             "args": [
                 "mcp_servers/utilities_server.py"
             ],
-            "transport": "stdio"
-        },
-        "weather": {
-            "url": "wss://server.smithery.ai/@turkyden/weather/ws?config={config_b64}&api_key={smithery_api_key}",
-            "transport": "websocket"
-        },
-        "search_engine": {
-            "url": "wss://server.smithery.ai/@turkyden/weather/ws?config={config_b64}&api_key={smithery_api_key}",
-            "transport": "websocket"
-        },
-        "calculator_http": {
-            "url": "http://localhost:3001/mcp",
-            "transport": "http",
-            "description": "HTTP-based calculator MCP server"
+            "transport": "stdio",
+            "reason": "STDIO transport not yet supported; kept for future use"
         }
     }
 }

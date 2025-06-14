@@ -1,7 +1,7 @@
 import asyncio
 import json
 import os
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 import logging
 from openai import AsyncOpenAI
@@ -49,6 +49,8 @@ class EnhancedMCPClient:
         self.openai_client: Optional[AsyncOpenAI] = None
         self.sessions: Dict[str, ClientSession] = {}
         self.available_tools: Dict[str, Any] = {}
+        # Store connection resources for proper cleanup
+        self._connection_resources: Dict[str, Tuple[Any, Any, Any]] = {}
         
     async def initialize(self):
         """Initialize the MCP client with configuration from JSON file."""
@@ -128,16 +130,28 @@ class EnhancedMCPClient:
         try:
             logger.info(f"Connecting to HTTP MCP server: {server.name} at {server.url}")
             
-            # Use streamable HTTP client for MCP
-            async with streamablehttp_client(server.url) as (read_stream, write_stream, _):
-                session = ClientSession(read_stream, write_stream)
-                await session.initialize()
+            # Don't use async with - manually create and manage the connection
+            # to prevent hanging during initialization
+            read_stream, write_stream, close_func = await streamablehttp_client(server.url)
+            
+            # Store the connection resources for later cleanup
+            self._connection_resources[server.name] = (read_stream, write_stream, close_func)
+            
+            # Create and initialize the session
+            session = ClientSession(read_stream, write_stream)
+            await session.initialize()
+            
+            # Store session
+            self.sessions[server.name] = session
+            
+            # Add a timeout to prevent hanging
+            try:
+                # Discover tools with timeout
+                tools_resp = await asyncio.wait_for(
+                    session.list_tools(),
+                    timeout=10.0  # 10 second timeout for tool discovery
+                )
                 
-                # Store session
-                self.sessions[server.name] = session
-                
-                # Discover tools
-                tools_resp = await session.list_tools()
                 for tool in tools_resp.tools:
                     tool_key = f"{server.name}:{tool.name}"
                     self.available_tools[tool_key] = {
@@ -147,7 +161,10 @@ class EnhancedMCPClient:
                     }
                 
                 logger.info(f"Connected to {server.name}, discovered {len(tools_resp.tools)} tools")
-                
+            except asyncio.TimeoutError:
+                logger.warning(f"Tool discovery for {server.name} timed out. Continuing with initialization.")
+                # We still keep the session, but no tools will be available
+            
         except Exception as e:
             logger.error(f"Failed to connect to HTTP server {server.name}: {e}")
             raise
@@ -188,12 +205,20 @@ class EnhancedMCPClient:
         
         try:
             # Initial model call with tool definitions
-            response = await self.openai_client.chat.completions.create(
-                model=self.config.model,
-                messages=messages,
-                functions=functions,
-                function_call="auto"
-            )
+            if functions:
+                # Tools available → expose them to the model
+                response = await self.openai_client.chat.completions.create(
+                    model=self.config.model,
+                    messages=messages,
+                    functions=functions,
+                    function_call="auto"
+                )
+            else:
+                # No tools → call without the functions parameter
+                response = await self.openai_client.chat.completions.create(
+                    model=self.config.model,
+                    messages=messages
+                )
             
             reply = response.choices[0].message
             
@@ -250,8 +275,11 @@ class EnhancedMCPClient:
         tool_name = tool_info['tool'].name
         
         try:
-            # Call the MCP tool
-            tool_result = await session.call_tool(tool_name, arguments=args)
+            # Call the MCP tool with timeout to prevent hanging
+            tool_result = await asyncio.wait_for(
+                session.call_tool(tool_name, arguments=args),
+                timeout=20.0  # 20 second timeout for tool calls
+            )
             
             # Extract text result
             if tool_result.isError:
@@ -259,6 +287,9 @@ class EnhancedMCPClient:
             else:
                 return tool_result.content[0].text if tool_result.content else "No result"
                 
+        except asyncio.TimeoutError:
+            logger.error(f"Tool call to {tool_key} timed out")
+            return f"Error: Tool call timed out after 20 seconds"
         except Exception as e:
             logger.error(f"Error calling tool {tool_key}: {e}")
             return f"Error calling tool: {str(e)}"
@@ -307,14 +338,25 @@ class EnhancedMCPClient:
     
     async def close(self):
         """Close all MCP sessions."""
+        # First close all sessions
         for session in self.sessions.values():
             try:
                 await session.close()
             except Exception as e:
                 logger.error(f"Error closing session: {e}")
         
+        # Then close all connection resources
+        for server_name, (_, _, close_func) in self._connection_resources.items():
+            try:
+                if close_func:
+                    await close_func()
+                    logger.debug(f"Closed connection resources for {server_name}")
+            except Exception as e:
+                logger.error(f"Error closing connection resources for {server_name}: {e}")
+        
         self.sessions.clear()
         self.available_tools.clear()
+        self._connection_resources.clear()
 
     async def make_enhancement_decision(self, assistant_response: str, conversation_history: Optional[List[Dict[str, Any]]] = None) -> EnhancementDecision:
         """
@@ -415,21 +457,25 @@ If tools would help, call them. Then provide your structured enhancement decisio
                 # Initial model call with tool definitions and structured output
                 if functions:
                     # Call with tools available
-                    response = await self.openai_client.chat.completions.create(
-                        model=self.config.model,
-                        messages=messages,
-                        functions=functions,
-                        function_call="auto",
-                        temperature=0.3,
+                    response = await asyncio.wait_for(
+                        self.openai_client.chat.completions.create(
+                            model=self.config.model,
+                            messages=messages,
+                            functions=functions,
+                            function_call="auto",
+                            temperature=0.3
+                        ),
                         timeout=30.0
                     )
                 else:
                     # No tools available, direct call
-                    response = await self.openai_client.beta.chat.completions.parse(
-                        model=self.config.model,
-                        messages=messages,
-                        response_format=EnhancementDecision,
-                        temperature=0.3,
+                    response = await asyncio.wait_for(
+                        self.openai_client.beta.chat.completions.parse(
+                            model=self.config.model,
+                            messages=messages,
+                            response_format=EnhancementDecision,
+                            temperature=0.3
+                        ),
                         timeout=30.0
                     )
                     return response.choices[0].message.parsed
@@ -474,11 +520,13 @@ If tools would help, call them. Then provide your structured enhancement decisio
                     ]
                     
                     try:
-                        final_resp = await self.openai_client.beta.chat.completions.parse(
-                            model=self.config.model,
-                            messages=final_messages,
-                            response_format=EnhancementDecision,
-                            temperature=0.3,
+                        final_resp = await asyncio.wait_for(
+                            self.openai_client.beta.chat.completions.parse(
+                                model=self.config.model,
+                                messages=final_messages,
+                                response_format=EnhancementDecision,
+                                temperature=0.3
+                            ),
                             timeout=30.0
                         )
                         
@@ -496,10 +544,12 @@ If tools would help, call them. Then provide your structured enhancement decisio
                         logger.warning(f"Structured output failed after tool use, falling back: {structured_error}")
                         
                         # Fallback to regular completion
-                        regular_completion = await self.openai_client.chat.completions.create(
-                            model=self.config.model,
-                            messages=final_messages + [{"role": "user", "content": "Respond with JSON: {\"displayEnhancement\": boolean, \"displayEnhancedText\": \"text\", \"voiceOverText\": \"text\"}"}],
-                            temperature=0.3,
+                        regular_completion = await asyncio.wait_for(
+                            self.openai_client.chat.completions.create(
+                                model=self.config.model,
+                                messages=final_messages + [{"role": "user", "content": "Respond with JSON: {\"displayEnhancement\": boolean, \"displayEnhancedText\": \"text\", \"voiceOverText\": \"text\"}"}],
+                                temperature=0.3
+                            ),
                             timeout=30.0
                         )
                         
@@ -531,11 +581,13 @@ If tools would help, call them. Then provide your structured enhancement decisio
                     ]
                     
                     try:
-                        decision_resp = await self.openai_client.beta.chat.completions.parse(
-                            model=self.config.model,
-                            messages=enhanced_messages,
-                            response_format=EnhancementDecision,
-                            temperature=0.3,
+                        decision_resp = await asyncio.wait_for(
+                            self.openai_client.beta.chat.completions.parse(
+                                model=self.config.model,
+                                messages=enhanced_messages,
+                                response_format=EnhancementDecision,
+                                temperature=0.3
+                            ),
                             timeout=30.0
                         )
                         
@@ -547,10 +599,12 @@ If tools would help, call them. Then provide your structured enhancement decisio
                         logger.warning(f"Structured output failed, falling back to regular completion: {structured_error}")
                         
                         # Fallback to regular completion
-                        regular_completion = await self.openai_client.chat.completions.create(
-                            model=self.config.model,
-                            messages=enhanced_messages + [{"role": "user", "content": "Respond with JSON: {\"displayEnhancement\": boolean, \"displayEnhancedText\": \"text\", \"voiceOverText\": \"text\"}"}],
-                            temperature=0.3,
+                        regular_completion = await asyncio.wait_for(
+                            self.openai_client.chat.completions.create(
+                                model=self.config.model,
+                                messages=enhanced_messages + [{"role": "user", "content": "Respond with JSON: {\"displayEnhancement\": boolean, \"displayEnhancedText\": \"text\", \"voiceOverText\": \"text\"}"}],
+                                temperature=0.3
+                            ),
                             timeout=30.0
                         )
                         
@@ -570,6 +624,14 @@ If tools would help, call them. Then provide your structured enhancement decisio
                             logger.error(f"Failed to parse JSON fallback: {parse_error}")
                             raise structured_error
                             
+            except asyncio.TimeoutError:
+                logger.error("Enhancement decision timed out after 30 seconds")
+                # Return fallback decision
+                return EnhancementDecision(
+                    displayEnhancement=False,
+                    displayEnhancedText=assistant_response,
+                    voiceOverText=assistant_response
+                )
             except Exception as e:
                 logger.error(f"Error in optimized enhancement decision: {e}", exc_info=True)
                 # Return fallback decision
@@ -610,4 +672,4 @@ async def example_usage():
         await client.close()
 
 if __name__ == "__main__":
-    asyncio.run(example_usage()) 
+    asyncio.run(example_usage())
