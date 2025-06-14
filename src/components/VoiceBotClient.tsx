@@ -14,7 +14,6 @@ const VoiceBotClient: React.FC = () => {
   // Voice/WebRTC state
   const [voiceStatus, setVoiceStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
-  const [isRecording, setIsRecording] = useState(false);
 
   // Thread list management with stable callbacks
   const threadListManager = useThreadListManager({
@@ -182,7 +181,6 @@ const VoiceBotClient: React.FC = () => {
   const disconnectVoice = useCallback(() => {
     setVoiceStatus('disconnected');
     setAudioStream(null);
-    setIsRecording(false);
     // Consider closing WebRTC connection more formally if needed
     const disconnectMessage = {
       id: crypto.randomUUID(),
