@@ -116,7 +116,7 @@ class EnhancedMCPClient:
                 elif server.transport == 'websocket':
                     await self._connect_websocket_server(server)
                 elif server.transport == 'stdio':
-                    logger.warning(f"STDIO transport not yet supported for server: {server.name}")
+                    await self._connect_stdio_server(server)
                 else:
                     logger.warning(f"Unknown transport type: {server.transport} for server: {server.name}")
                     
@@ -126,49 +126,88 @@ class EnhancedMCPClient:
                 continue
     
     async def _connect_http_server(self, server: MCPServerConfig):
-        """Connect to an HTTP-based MCP server."""
+        """Connect to an HTTP-based MCP server and discover tools."""
         try:
             logger.info(f"Connecting to HTTP MCP server: {server.name} at {server.url}")
             
-            # Don't use async with - manually create and manage the connection
-            # to prevent hanging during initialization
-            read_stream, write_stream, close_func = await streamablehttp_client(server.url)
-            
-            # Store the connection resources for later cleanup
-            self._connection_resources[server.name] = (read_stream, write_stream, close_func)
-            
-            # Create and initialize the session
-            session = ClientSession(read_stream, write_stream)
-            await session.initialize()
-            
-            # Store session
-            self.sessions[server.name] = session
-            
-            # Add a timeout to prevent hanging
-            try:
-                # Discover tools with timeout
-                tools_resp = await asyncio.wait_for(
-                    session.list_tools(),
-                    timeout=10.0  # 10 second timeout for tool discovery
-                )
-                
-                for tool in tools_resp.tools:
-                    tool_key = f"{server.name}:{tool.name}"
-                    self.available_tools[tool_key] = {
-                        'server': server.name,
-                        'tool': tool,
-                        'session': session
-                    }
-                
-                logger.info(f"Connected to {server.name}, discovered {len(tools_resp.tools)} tools")
-            except asyncio.TimeoutError:
-                logger.warning(f"Tool discovery for {server.name} timed out. Continuing with initialization.")
-                # We still keep the session, but no tools will be available
-            
+            # Connect and discover tools using the pattern that works
+            async with streamablehttp_client(server.url) as (read_stream, write_stream, _):
+                async with ClientSession(read_stream, write_stream) as session:
+                    await session.initialize()
+                    
+                    # Discover tools with timeout
+                    try:
+                        tools_resp = await asyncio.wait_for(
+                            session.list_tools(),
+                            timeout=10.0  # 10 second timeout for tool discovery
+                        )
+                        
+                        # Store tool information (but not the session since it will be closed)
+                        for tool in tools_resp.tools:
+                            # Use underscore instead of colon for OpenAI compatibility
+                            tool_key = f"{server.name}_{tool.name}"
+                            self.available_tools[tool_key] = {
+                                'server': server.name,
+                                'tool': tool,
+                                'server_url': server.url,  # Store URL for reconnection
+                                'session': None  # We'll reconnect for each call
+                            }
+                        
+                        logger.info(f"Connected to {server.name}, discovered {len(tools_resp.tools)} tools")
+                        
+                    except asyncio.TimeoutError:
+                        logger.warning(f"Tool discovery for {server.name} timed out. Continuing with initialization.")
+                        
         except Exception as e:
             logger.error(f"Failed to connect to HTTP server {server.name}: {e}")
-            raise
+            # Don't raise - continue with other servers
     
+    async def _connect_stdio_server(self, server: MCPServerConfig):
+        """Connect to a STDIO-based MCP server."""
+        try:
+            logger.info(f"Connecting to STDIO MCP server: {server.name}")
+            
+            from mcp.client.stdio import StdioServerParameters, stdio_client
+            
+            # Create server parameters
+            server_params = StdioServerParameters(
+                command=server.command,
+                args=server.args or []
+            )
+            
+            # Connect to the server process via stdio
+            async with stdio_client(server_params) as (read_stream, write_stream):
+                # Create and initialize the session
+                session = ClientSession(read_stream, write_stream)
+                await session.initialize()
+                
+                # Store session
+                self.sessions[server.name] = session
+                
+                # Discover tools with timeout
+                try:
+                    tools_resp = await asyncio.wait_for(
+                        session.list_tools(),
+                        timeout=10.0  # 10 second timeout for tool discovery
+                    )
+                    
+                    for tool in tools_resp.tools:
+                        # Use underscore instead of colon for OpenAI compatibility
+                        tool_key = f"{server.name}_{tool.name}"
+                        self.available_tools[tool_key] = {
+                            'server': server.name,
+                            'tool': tool,
+                            'session': session
+                        }
+                    
+                    logger.info(f"Connected to {server.name}, discovered {len(tools_resp.tools)} tools")
+                except asyncio.TimeoutError:
+                    logger.warning(f"Tool discovery for {server.name} timed out. Continuing with initialization.")
+                    
+        except Exception as e:
+            logger.error(f"Failed to connect to STDIO server {server.name}: {e}")
+            raise
+
     async def _connect_websocket_server(self, server: MCPServerConfig):
         """Connect to a WebSocket-based MCP server."""
         # This would use the existing WebSocket connection logic
@@ -198,7 +237,7 @@ class EnhancedMCPClient:
         for tool_key, tool_info in self.available_tools.items():
             tool = tool_info['tool']
             functions.append({
-                "name": tool_key,  # Use server:tool format
+                "name": tool_key,  # Use server_tool format (OpenAI compatible)
                 "description": tool.description or f"Tool from {tool_info['server']}",
                 "parameters": tool.inputSchema
             })
@@ -271,21 +310,46 @@ class EnhancedMCPClient:
             return f"Error: Tool {tool_key} not found"
         
         tool_info = self.available_tools[tool_key]
-        session = tool_info['session']
         tool_name = tool_info['tool'].name
         
         try:
-            # Call the MCP tool with timeout to prevent hanging
-            tool_result = await asyncio.wait_for(
-                session.call_tool(tool_name, arguments=args),
-                timeout=20.0  # 20 second timeout for tool calls
-            )
-            
-            # Extract text result
-            if tool_result.isError:
-                return f"Error: {tool_result.content[0].text if tool_result.content else 'Unknown error'}"
+            # If it's an HTTP server, reconnect for the tool call
+            if 'server_url' in tool_info:
+                server_url = tool_info['server_url']
+                logger.info(f"Reconnecting to HTTP server for tool call: {tool_key}")
+                
+                async with streamablehttp_client(server_url) as (read_stream, write_stream, _):
+                    async with ClientSession(read_stream, write_stream) as session:
+                        await session.initialize()
+                        
+                        # Call the MCP tool with timeout to prevent hanging
+                        tool_result = await asyncio.wait_for(
+                            session.call_tool(tool_name, arguments=args),
+                            timeout=20.0  # 20 second timeout for tool calls
+                        )
+                        
+                        # Extract text result
+                        if tool_result.isError:
+                            return f"Error: {tool_result.content[0].text if tool_result.content else 'Unknown error'}"
+                        else:
+                            return tool_result.content[0].text if tool_result.content else "No result"
             else:
-                return tool_result.content[0].text if tool_result.content else "No result"
+                # For STDIO servers, use the stored session
+                session = tool_info['session']
+                if not session:
+                    return f"Error: No session available for tool {tool_key}"
+                
+                # Call the MCP tool with timeout to prevent hanging
+                tool_result = await asyncio.wait_for(
+                    session.call_tool(tool_name, arguments=args),
+                    timeout=20.0  # 20 second timeout for tool calls
+                )
+                
+                # Extract text result
+                if tool_result.isError:
+                    return f"Error: {tool_result.content[0].text if tool_result.content else 'Unknown error'}"
+                else:
+                    return tool_result.content[0].text if tool_result.content else "No result"
                 
         except asyncio.TimeoutError:
             logger.error(f"Tool call to {tool_key} timed out")
@@ -338,14 +402,14 @@ class EnhancedMCPClient:
     
     async def close(self):
         """Close all MCP sessions."""
-        # First close all sessions
+        # Close all sessions
         for session in self.sessions.values():
             try:
                 await session.close()
             except Exception as e:
                 logger.error(f"Error closing session: {e}")
         
-        # Then close all connection resources
+        # Close all connection resources
         for server_name, (_, _, close_func) in self._connection_resources.items():
             try:
                 if close_func:
@@ -444,7 +508,7 @@ If tools would help, call them. Then provide your structured enhancement decisio
             for tool_key, tool_info in self.available_tools.items():
                 tool = tool_info['tool']
                 functions.append({
-                    "name": tool_key,  # Use server:tool format
+                    "name": tool_key,  # Use server_tool format (OpenAI compatible)
                     "description": tool.description or f"Tool from {tool_info['server']}",
                     "parameters": tool.inputSchema
                 })

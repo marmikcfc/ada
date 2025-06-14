@@ -50,6 +50,14 @@ class VoiceResponse(TypedDict):
     content: str  # UI payload
     voiceText: Optional[str]  # TTS text if different from display
 
+class TextChatResponse(TypedDict):
+    """Complete text chat response with UI payload"""
+    id: str
+    role: str  # "assistant"
+    type: str  # "text_chat_response"
+    content: str  # UI payload
+    threadId: Optional[str]  # Thread ID for conversation tracking
+
 class RawLLMOutput(TypedDict):
     """Raw output from the LLM in the fast path"""
     assistant_response: str
@@ -69,7 +77,7 @@ def initialize_queues():
     raw_llm_output_queue = asyncio.Queue(maxsize=config.queue.raw_llm_output_queue_maxsize)
     logger.info("Communication queues initialized successfully")
 
-async def enqueue_llm_message(message: Union[UserTranscription, ChatToken, C1Token, ChatDone, VoiceResponse]):
+async def enqueue_llm_message(message: Union[UserTranscription, ChatToken, C1Token, ChatDone, VoiceResponse, TextChatResponse]):
     """
     Enqueue a message to be sent to the frontend via WebSocket
     
@@ -219,4 +227,14 @@ def create_voice_response(content: str, voice_text: Optional[str] = None) -> Voi
         "type": "voice_response",
         "content": content,
         "voiceText": voice_text
+    }
+
+def create_text_chat_response(content: str, thread_id: Optional[str] = None) -> TextChatResponse:
+    """Create a text chat response message"""
+    return {
+        "id": str(uuid.uuid4()),
+        "role": "assistant",
+        "type": "text_chat_response",
+        "content": content,
+        "threadId": thread_id
     }

@@ -45,6 +45,8 @@ class VoiceInterfaceAgent:
         self.webrtc_connection = webrtc_connection
         self.raw_llm_output_queue = raw_llm_output_queue
         self.llm_message_queue = llm_message_queue
+        # Store pipeline task reference for TTS injection
+        self.pipeline_task = None
 
     async def process_downstream_display(self, assistant_response: str, history: Any):
         logger.info(f"--- process_downstream_display (payload for Thesys) ---")
@@ -86,6 +88,34 @@ class VoiceInterfaceAgent:
             logger.info(f"User transcription sent to frontend: {user_message}")
         except Exception as e:
             logger.error(f"Error sending user transcription to frontend: {e}")
+
+    async def inject_tts_voice_over(self, voice_text: str):
+        """
+        Inject voice-over text directly into the TTS pipeline using TTSSpeakFrame.
+        This is called by the visualization processor when MCP generates voice-over text.
+        """
+        logger.info(f"--- inject_tts_voice_over ---")
+        logger.info(f"Voice-over text: {voice_text}")
+        logger.info(f"--------------------------------")
+        
+        try:
+            if not self.pipeline_task:
+                logger.error("Pipeline task not initialized, cannot inject TTS voice-over")
+                return
+                
+            if not voice_text or not voice_text.strip():
+                logger.warning("Empty voice text provided, skipping TTS injection")
+                return
+                
+            # Create TTSSpeakFrame - this will cause the bot to speak the text without adding to LLM context
+            tts_frame = TTSSpeakFrame(text=voice_text.strip())
+            
+            # Queue the frame to the pipeline task
+            await self.pipeline_task.queue_frames([tts_frame])
+            logger.info(f"Successfully injected TTS voice-over frame: '{voice_text[:100]}...'")
+            
+        except Exception as e:
+            logger.error(f"Error injecting TTS voice-over: {e}")
 
     async def run(self):
         # Load the system instruction from prompt file
@@ -193,6 +223,8 @@ class VoiceInterfaceAgent:
                 logger.info(f"Capturing transcriber logs [{message.timestamp}] {message.role}: {message.content}")
                 await self.send_user_transcription_to_frontend(message.content)
 
+        # Store pipeline task reference for TTS injection
+        self.pipeline_task = task
 
         runner = PipelineRunner(handle_sigint=False)
         await runner.run(task)

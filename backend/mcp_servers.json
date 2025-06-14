@@ -4,6 +4,10 @@
         "openai_api_key_env": "OPENAI_API_KEY"
     },
     "servers": {
+        "calculator": {
+            "url": "https://server.smithery.ai/@githejie/mcp-server-calculator/mcp?api_key=54b8c43d-cdda-4503-bda0-29be49a2b664",
+            "transport": "http"
+        },
         "weather": {
             "url": "https://server.smithery.ai/@isdaniel/mcp_weather_server/mcp?api_key=54b8c43d-cdda-4503-bda0-29be49a2b664",
             "transport": "http"
@@ -21,6 +25,11 @@
             ],
             "transport": "stdio",
             "reason": "STDIO transport not yet supported; kept for future use"
+        },
+        "kite": {
+            "url": "https://server.smithery.ai/@aptro/zerodha-mcp/mcp?profile=tense-raven-Zw05Xc&api_key=54b8c43d-cdda-4503-bda0-29be49a2b664",
+            "transport": "http",
+            "reason": "Temporarily disabled - can be re-enabled if needed"
         }
     }
 }

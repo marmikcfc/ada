@@ -345,7 +345,7 @@ def create_streaming_response(content: str):
     
     def generate_response():
         yield content
-        
+    
     return StreamingResponse(
         generate_response(),
         media_type="text/event-stream",

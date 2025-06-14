@@ -24,6 +24,7 @@ from app.config import config
 # `from app.queues import …` copies the reference at import-time (when the
 # queues are still `None`) and breaks later runtime access.
 import app.queues as queues
+from app.vis_processor import register_voice_agent, unregister_voice_agent
 
 logger = logging.getLogger(__name__)
 
@@ -89,7 +90,8 @@ async def handle_offer(request: WebRTCOffer, background_tasks: BackgroundTasks, 
     This endpoint:
     1. Creates or reuses a WebRTC connection
     2. Sets up the VoiceInterfaceAgent for audio processing
-    3. Returns the SDP answer to complete the connection
+    3. Registers the agent for TTS voice-over injection
+    4. Returns the SDP answer to complete the connection
     
     Args:
         request: The WebRTC offer
@@ -111,11 +113,27 @@ async def handle_offer(request: WebRTCOffer, background_tasks: BackgroundTasks, 
             restart_pc=request.restart_pc
         )
     else:
-        # Create new connection
+        # Create new connection with custom close handler for agent cleanup
+        async def on_closed_with_agent_cleanup(webrtc_connection: SmallWebRTCConnection):
+            """Handle connection close and unregister any associated agent"""
+            logger.info(f"WebRTC connection closed for pc_id: {webrtc_connection.pc_id}")
+            
+            # Look for and unregister any associated agent
+            # Note: This is a best-effort cleanup. The WeakSet will handle most cleanup automatically
+            for agent in list(getattr(webrtc_connection, '_associated_agents', [])):
+                try:
+                    unregister_voice_agent(agent)
+                    logger.info(f"Unregistered voice agent on connection close")
+                except Exception as e:
+                    logger.error(f"Error unregistering voice agent: {e}")
+            
+            # Standard cleanup
+            await default_on_closed(webrtc_connection)
+        
         pipecat_connection = await create_webrtc_connection(
             sdp=request.sdp,
             type_=request.type,
-            on_closed=default_on_closed
+            on_closed=on_closed_with_agent_cleanup
         )
         
         # Validate that queues are initialized before creating the agent
@@ -129,6 +147,17 @@ async def handle_offer(request: WebRTCOffer, background_tasks: BackgroundTasks, 
             queues.raw_llm_output_queue,
             queues.llm_message_queue,
         )
+        
+        # Register the agent for TTS voice-over injection
+        register_voice_agent(agent)
+        logger.info(f"Registered voice agent for TTS voice-over injection")
+        
+        # Store reference for cleanup
+        if not hasattr(pipecat_connection, '_associated_agents'):
+            pipecat_connection._associated_agents = []
+        pipecat_connection._associated_agents.append(agent)
+        
+        # Run the agent
         background_tasks.add_task(agent.run)
         
         # Store the connection

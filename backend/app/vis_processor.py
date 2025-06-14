@@ -10,13 +10,15 @@ Flow:
 2. Process through MCP Enhancement Agent to determine if enhancement is needed
 3. If enhancement is needed, call Thesys Visualize API
 4. Format and enqueue the final response for the frontend
+5. NEW: Inject voice-over text into TTS pipeline using TTSSpeakFrame
 """
 
 import asyncio
 import logging
 import json
 import uuid
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any, Optional, Set
+from weakref import WeakSet
 
 from openai import AsyncOpenAI
 
@@ -25,11 +27,53 @@ from app.queues import (
     get_raw_llm_output,
     mark_raw_llm_output_done,
     enqueue_llm_message,
-    create_voice_response
+    create_voice_response,
+    create_text_chat_response
 )
 from utils.thesys_prompts import format_thesys_messages_for_visualize
 
 logger = logging.getLogger(__name__)
+
+# Global registry for active voice agents - using WeakSet for automatic cleanup
+_active_voice_agents: WeakSet = WeakSet()
+
+def register_voice_agent(agent):
+    """Register a voice agent so the visualization processor can inject TTS"""
+    _active_voice_agents.add(agent)
+    logger.info(f"Registered voice agent. Total active agents: {len(_active_voice_agents)}")
+
+def unregister_voice_agent(agent):
+    """Unregister a voice agent"""
+    _active_voice_agents.discard(agent)
+    logger.info(f"Unregistered voice agent. Total active agents: {len(_active_voice_agents)}")
+
+async def inject_voice_over_to_all_agents(voice_text: str):
+    """Inject voice-over text to all active voice agents"""
+    if not voice_text or not voice_text.strip():
+        logger.debug("No voice text to inject")
+        return
+        
+    if not _active_voice_agents:
+        logger.warning("No active voice agents to inject TTS voice-over")
+        return
+    
+    logger.info(f"Injecting voice-over text to {len(_active_voice_agents)} active voice agents")
+    
+    # Inject to all active agents
+    injection_tasks = []
+    for agent in list(_active_voice_agents):  # Create list to avoid modification during iteration
+        try:
+            injection_tasks.append(agent.inject_tts_voice_over(voice_text))
+        except Exception as e:
+            logger.error(f"Error preparing TTS injection for agent: {e}")
+    
+    if injection_tasks:
+        # Execute all injections concurrently
+        try:
+            await asyncio.gather(*injection_tasks, return_exceptions=True)
+            logger.info(f"Voice-over text injected to {len(injection_tasks)} agents")
+        except Exception as e:
+            logger.error(f"Error during concurrent TTS injection: {e}")
 
 class VisualizationProcessor:
     """
@@ -40,6 +84,7 @@ class VisualizationProcessor:
     - Determines if enhancement is needed via MCP agent
     - Conditionally calls Thesys Visualize API
     - Formats and enqueues the final response
+    - NEW: Injects voice-over text into TTS pipeline via TTSSpeakFrame
     """
     
     def __init__(self, enhanced_mcp_client, thesys_client: Optional[AsyncOpenAI] = None):
@@ -123,7 +168,7 @@ class VisualizationProcessor:
                         conversation_history=conversation_history
                     )
                     
-                    logger.info(f"Visualization processor: MCP agent decision - Enhancement: {enhancement_decision.displayEnhancement}")
+                    logger.info(f"Visualization processor: MCP agent decision - Enhancement: {enhancement_decision}")
                     
                 except Exception as e:
                     logger.error(f"Visualization processor: Error in MCP agent call: {e}", exc_info=True)
@@ -199,16 +244,39 @@ class VisualizationProcessor:
                     }
                     visualized_ui_payload = f'<content>{json.dumps(simple_card)}</content>'
                 
-                # Step 3: Prepare message for frontend
+                # Step 3: Handle TTS voice-over injection for voice interactions
                 voice_over_text = voice_text if voice_text != display_text else None
-                message_for_frontend = create_voice_response(
-                    content=visualized_ui_payload,
-                    voice_text=voice_over_text
-                )
+                source = metadata.get("source", "voice")  # Default to voice for backward compatibility
+                
+                # NEW: Inject voice-over text into TTS pipeline for voice interactions
+                if source == "voice" and voice_text and voice_text.strip():
+                    logger.info(f"Visualization processor: Injecting voice-over text into TTS pipeline...")
+                    logger.info(f"Visualization processor: Voice-over text: '{voice_text[:100]}...'")
+                    
+                    try:
+                        await inject_voice_over_to_all_agents(voice_text.strip())
+                        logger.info(f"Visualization processor: Successfully injected voice-over text to TTS pipeline")
+                    except Exception as e:
+                        logger.error(f"Visualization processor: Error injecting voice-over to TTS: {e}")
+                
+                # Step 4: Prepare message for frontend
+                if source == "text_chat":
+                    # Create text chat response for text-based interactions
+                    thread_id = metadata.get("thread_id")
+                    message_for_frontend = create_text_chat_response(
+                        content=visualized_ui_payload,
+                        thread_id=thread_id
+                    )
+                else:
+                    # Create voice response for voice-based interactions
+                    message_for_frontend = create_voice_response(
+                        content=visualized_ui_payload,
+                        voice_text=voice_over_text
+                    )
                 
                 logger.info(f"Visualization processor: Prepared message for frontend with ID: {message_for_frontend['id']}")
                 
-                # Step 4: Enqueue the message for the frontend
+                # Step 5: Enqueue the message for the frontend
                 await enqueue_llm_message(message_for_frontend)
                 logger.info(f"Visualization processor: Successfully sent payload to frontend queue")
                 
@@ -228,9 +296,18 @@ class VisualizationProcessor:
                     }
                 }
                 
-                error_message = create_voice_response(
-                    content=f'<content>{json.dumps(error_card)}</content>'
-                )
+                # Use appropriate message type based on source
+                source = item.get("metadata", {}).get("source", "voice") if item else "voice"
+                if source == "text_chat":
+                    thread_id = item.get("metadata", {}).get("thread_id") if item else None
+                    error_message = create_text_chat_response(
+                        content=f'<content>{json.dumps(error_card)}</content>',
+                        thread_id=thread_id
+                    )
+                else:
+                    error_message = create_voice_response(
+                        content=f'<content>{json.dumps(error_card)}</content>'
+                    )
                 
                 try:
                     await enqueue_llm_message(error_message)

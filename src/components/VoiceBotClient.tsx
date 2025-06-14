@@ -361,6 +361,49 @@ const VoiceBotClient: React.FC = () => {
             console.error('threadManagerRef.current is null when trying to append voice message');
           }
           
+        } else if (data.type === 'text_chat_response') {
+          // Handle text chat response messages from the visualization processor
+          console.log('Received text chat response message:', data);
+          
+          let messageContent;
+          
+          // Check if content is already in Thesys format (from visualization processor)
+          if (typeof data.content === 'string' && data.content.includes('<content>')) {
+            // Content is already in Thesys XML format, use as-is
+            messageContent = data.content;
+            console.log('Using pre-formatted Thesys content from text chat response:', messageContent);
+          } else {
+            // Content needs formatting
+            messageContent = formatAssistantMessage(data.content || 'Text response received');
+            console.log('Formatting raw text chat response content:', data.content);
+          }
+          
+          const textChatMessage = {
+            id: data.id || crypto.randomUUID(),
+            role: 'assistant' as const,
+            message: [{
+              type: 'template' as const,
+              name: 'c1',
+              templateProps: {
+                content: messageContent
+              }
+            }]
+          };
+          
+          console.log('Prepared text chat message for threadManager:', textChatMessage);
+          
+          if (threadManagerRef.current) {
+            console.log('About to call appendMessages with text chat message');
+            try {
+              threadManagerRef.current.appendMessages(textChatMessage);
+              console.log('Successfully called appendMessages for text chat message');
+            } catch (error) {
+              console.error('Error calling appendMessages:', error);
+            }
+          } else {
+            console.error('threadManagerRef.current is null when trying to append text chat message');
+          }
+          
         } else if (data.type === 'user_transcription') {
           // Handle user voice transcription messages
           console.log('Received user transcription message:', data);
@@ -515,6 +558,65 @@ const VoiceBotClient: React.FC = () => {
     }
   }, []);
 
+  // Handler for text messages sent via chat input
+  const handleSendTextMessage = useCallback(async (message: string) => {
+    console.log('=== SENDING TEXT MESSAGE ===');
+    console.log('Message:', message);
+    console.log('Thread ID:', threadListManager.selectedThreadId);
+    console.log('Endpoint: /api/chat-enhanced');
+    
+    try {
+      // Call the enhanced chat endpoint for full enhancement pipeline
+      const response = await fetch('/api/chat-enhanced', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          message: message,
+          thread_id: threadListManager.selectedThreadId
+        }),
+      });
+
+      console.log('Response status:', response.status);
+      console.log('Response ok:', response.ok);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Response error text:', errorText);
+        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+      }
+
+      const result = await response.json();
+      console.log('Text message sent successfully:', result);
+      console.log('Expected: User message and enhanced response will come via WebSocket');
+      
+      // The user message and enhanced response will come through WebSocket
+      // No need to manually add them here as they're handled by the enhancement pipeline
+      
+    } catch (error) {
+      console.error('=== ERROR SENDING TEXT MESSAGE ===');
+      console.error('Error:', error);
+      
+      // Show error message in chat
+      const errorMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant' as const,
+        message: [{
+          type: 'template' as const,
+          name: 'c1',
+          templateProps: {
+            content: createErrorMessage('Failed to send message: ' + (error instanceof Error ? error.message : String(error)))
+          }
+        }]
+      };
+      
+      if (threadManagerRef.current) {
+        threadManagerRef.current.appendMessages(errorMessage);
+      }
+    }
+  }, [threadListManager.selectedThreadId, createErrorMessage]);
+
   return (
     <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
       {/* Remove Voice Controls Overlay from here */}
@@ -524,6 +626,7 @@ const VoiceBotClient: React.FC = () => {
         threadManager={threadManager} // from @thesysai/genui-sdk
         agentName="Voice Assistant"
         logoUrl="/favicon.ico" // Ensure this path is correct in your public folder
+        onSendMessage={handleSendTextMessage} // Add text message handler
         onC1Action={handleC1ComponentAction} // Pass the handler
         // Pass voice connect/disconnect logic and state to GenerativeUIChat
         onToggleVoiceConnection={() => {

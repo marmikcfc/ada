@@ -27,7 +27,10 @@ from app.queues import (
     create_chat_token,
     create_c1_token,
     create_chat_done,
-    create_voice_response
+    create_voice_response,
+    create_user_transcription,
+    enqueue_raw_llm_output,
+    create_text_chat_response
 )
 from utils.thesys_prompts import format_thesys_messages_for_visualize
 
@@ -219,6 +222,82 @@ async def chat(request: ChatRequest, fastapi_req: Request):
         
     except Exception as e:
         logger.error(f"Chat Error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/chat-enhanced")
+async def chat_enhanced(request: ChatRequest, fastapi_req: Request):
+    """
+    Process a chat message through the full enhancement pipeline
+    
+    This endpoint:
+    1. Enqueues the user message to the WebSocket stream
+    2. Processes the message through the MCP client
+    3. Sends the response through the enhancement pipeline (like voice messages)
+    4. Returns a simple acknowledgment
+    
+    Args:
+        request: The chat request
+        fastapi_req: FastAPI request object
+        
+    Returns:
+        JSON response with thread_id and status
+    """
+    # Initialize thread_id early so it's available in error handling
+    thread_id = request.thread_id or str(uuid.uuid4())
+    
+    try:
+        # Get the enhanced MCP client from request state
+        enhanced_mcp_client = fastapi_req.app.state.enhanced_mcp_client
+        if not enhanced_mcp_client:
+            raise HTTPException(status_code=500, detail="Chat service not available")
+        
+        # Step 1: Send user message to WebSocket immediately
+        user_message_for_frontend = create_user_transcription(
+            content=request.message,
+            id=str(uuid.uuid4())
+        )
+        await enqueue_llm_message(user_message_for_frontend)
+        logger.info(f"Enqueued user message to WebSocket: {request.message}")
+        
+        # Step 2: Process the message through the MCP client
+        response = await enhanced_mcp_client.chat_with_tools(
+            user_message=request.message,
+            conversation_history=[]  # Could be extended to maintain history
+        )
+        logger.info(f"MCP client response: {response[:100]}...")
+        
+        # Step 3: Create conversation history for enhancement
+        conversation_history = [
+            {"role": "user", "content": request.message},
+            {"role": "assistant", "content": response}
+        ]
+        
+        # Step 4: Send response through enhancement pipeline (like voice messages)
+        await enqueue_raw_llm_output(
+            assistant_response=response,
+            history=conversation_history,
+            metadata={"source": "text_chat", "thread_id": thread_id}
+        )
+        logger.info(f"Enqueued response to enhancement pipeline")
+        
+        return {
+            "status": "processing",
+            "thread_id": thread_id,
+            "message": "Message sent for processing. Response will be delivered via WebSocket."
+        }
+        
+    except Exception as e:
+        logger.error(f"Enhanced Chat Error: {e}", exc_info=True)
+        # Send error message to WebSocket
+        try:
+            error_response = create_text_chat_response(
+                content=f'<content>{{"component": "Callout", "props": {{"variant": "error", "title": "Chat Error", "description": "Failed to process your message: {str(e)}"}} }}</content>',
+                thread_id=thread_id
+            )
+            await enqueue_llm_message(error_response)
+        except Exception as enqueue_error:
+            logger.error(f"Failed to enqueue error message: {enqueue_error}", exc_info=True)
+        
         raise HTTPException(status_code=500, detail=str(e))
 
 @ws_router.websocket("/ws/messages")
