@@ -7,13 +7,12 @@ load_dotenv()
 
 from fastapi import FastAPI, HTTPException, Request, BackgroundTasks, WebSocket, WebSocketDisconnect
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import os
 import asyncio
 from langgraph.prebuilt import create_react_agent
 from langchain_core.messages import HumanMessage
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
-from langchain_mcp_adapters.client import MultiServerMCPClient
 from contextlib import asynccontextmanager
 import json
 import base64
@@ -23,6 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
 from typing import Dict, List, Any # Added List, Any
 import threading
+from src.mcp.enhanced_mcp_client import EnhancedMCPClient
 
 # Import the custom graph *creation function* and the placeholder
 from graph import create_graph, app_graph as compiled_custom_graph # Renamed placeholder
@@ -31,8 +31,12 @@ from graph import create_graph, app_graph as compiled_custom_graph # Renamed pla
 from openai import AsyncOpenAI
 from langchain_openai import ChatOpenAI
 
-from bot import VoiceInterfaceAgent
+# Updated import for the voice agent
+from agent.voice_based_interaction_agent import VoiceInterfaceAgent
 from pipecat.transports.network.webrtc_connection import IceServer, SmallWebRTCConnection
+
+# Import Thesys prompt utilities
+from utils.thesys_prompts import format_thesys_messages, format_thesys_messages_for_visualize
 
 # Get the logger
 logger = logging.getLogger(__name__)
@@ -51,20 +55,10 @@ AGENT_SQLITE_DB = os.environ.get("AGENT_SQLITE_DB", "agent_history.db")
 
 # Load MCP servers configuration from JSON file
 with open(os.path.join(os.path.dirname(__file__), "mcp_servers.json"), "r") as f:
-    MCP_SERVERS = json.load(f)
+    MCP_CONFIG = json.load(f)
 
-# Optionally, if you need to inject dynamic values (like config_b64 or api keys) into the config:
-for server in MCP_SERVERS.values():
-    if isinstance(server, dict):
-        for k, v in server.items():
-            if isinstance(v, str):
-                server[k] = v.format(
-                    config_b64=base64.b64encode(json.dumps(config).encode()).decode(),
-                    smithery_api_key=smithery_api_key or ""
-                )
-
-# Global variable to hold the MCP client instance
-mcp_client_instance: MultiServerMCPClient | None = None
+# Global variable to hold the enhanced MCP client
+enhanced_mcp_client: EnhancedMCPClient | None = None
 
 # Global variable for Thesys client
 thesys_client: AsyncOpenAI | None = None
@@ -83,26 +77,27 @@ ice_servers = [
 
 # Global queue for LLM messages to frontend
 llm_message_queue = asyncio.Queue()
-# New queue for raw LLM output from VoiceInterfaceAgent, to be processed by Thesys
+# New queue for raw LLM output from VoiceInterfaceAgent, to be processed by LangGraph then Thesys
 raw_llm_output_queue = asyncio.Queue()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # Initialize the MCP client on startup
-    global mcp_client_instance, compiled_custom_graph, thesys_client # Added thesys_client
+    global enhanced_mcp_client, compiled_custom_graph, thesys_client # Added enhanced_mcp_client
     try:
-        logger.info("Initializing MultiServerMCPClient...")
-        mcp_client_instance = MultiServerMCPClient(MCP_SERVERS)
-        app.state.mcp_client = mcp_client_instance # Store client in app state
-        logger.info("MultiServerMCPClient initialized successfully.")
+        logger.info("Initializing Enhanced MCP Client...")
+        enhanced_mcp_client = EnhancedMCPClient(os.path.join(os.path.dirname(__file__), "mcp_servers.json"))
+        await enhanced_mcp_client.initialize()
+        app.state.enhanced_mcp_client = enhanced_mcp_client
+        logger.info("Enhanced MCP Client initialized successfully.")
         
         # --- Initialize Thesys Client ---
         if thesys_api_key:
             logger.info("Initializing Thesys Client...")
             thesys_client = AsyncOpenAI(
                 api_key=thesys_api_key,
-                base_url="https://api.thesys.dev/v1/embed", # Changed from /visualize to /embed
+                base_url="https://api.thesys.dev/v1/visualize", # Changed from /embed to /visualize
             )
             logger.info("Thesys Client initialized successfully.")
         else:
@@ -110,9 +105,9 @@ async def lifespan(app: FastAPI):
             thesys_client = None
 
         # --- Initialize Graph --- 
-        if mcp_client_instance:
+        if enhanced_mcp_client:
             logger.info("Initializing custom graph...")
-            mcp_tools = mcp_client_instance.get_tools()
+            mcp_tools = enhanced_mcp_client.get_tools()
             compiled_custom_graph = create_graph(mcp_tools)
             logger.info("Custom graph initialized successfully.")
         else:
@@ -121,8 +116,8 @@ async def lifespan(app: FastAPI):
             
     except Exception as e:
         logger.error(f"Failed to initialize MCP Client during startup: {e}", exc_info=True)
-        mcp_client_instance = None
-        app.state.mcp_client = None
+        enhanced_mcp_client = None
+        app.state.enhanced_mcp_client = None
         thesys_client = None # Ensure Thesys client is also None if startup fails early
     
     # Start the visualization processor task
@@ -132,11 +127,11 @@ async def lifespan(app: FastAPI):
     yield # Application runs here
     
     # Clean up the MCP client on shutdown
-    if mcp_client_instance:
+    if enhanced_mcp_client:
         try:
-            logger.info("Closing MultiServerMCPClient...")
-            #await mcp_client_instance.close()
-            logger.info("MultiServerMCPClient closed successfully.")
+            logger.info("Closing Enhanced MCP Client...")
+            await enhanced_mcp_client.close()
+            logger.info("Enhanced MCP Client closed successfully.")
         except Exception as e:
             logger.error(f"Failed to close MCP Client during shutdown: {e}", exc_info=True)
 
@@ -174,6 +169,18 @@ class ThesysBridgeRequest(BaseModel):
     threadId: str | None = None
     responseId: str
 
+class EnhancementDecision(BaseModel):
+    """Pydantic model for MCP agent's enhancement decision response."""
+    displayEnhancement: bool = Field(
+        description="Whether the response should be enhanced with dynamic UI components"
+    )
+    displayEnhancedText: str = Field(
+        description="The text to use for UI generation (if enhancement is true) or plain text display (if enhancement is false)"
+    )
+    voiceOverText: str = Field(
+        description="The text to be spoken via TTS - should be natural and conversational"
+    )
+
 from pipecat_ai_small_webrtc_prebuilt.frontend import SmallWebRTCPrebuiltUI
 app.mount("/prebuilt", SmallWebRTCPrebuiltUI)
 
@@ -183,53 +190,12 @@ app.mount("/prebuilt", SmallWebRTCPrebuiltUI)
 def read_root():
     return {"message": "Hello from LangGraph MCP-enabled FastAPI backend!"}
 
-@app.post("/chat")
-async def chat(request: ChatRequest):
-    if not openai_api_key:
-        raise HTTPException(status_code=500, detail="OpenAI API key not set in environment.")
-    # Access client from app state
-    mcp_client = request.app.state.mcp_client 
-    if mcp_client is None:
-         raise HTTPException(status_code=500, detail="MCP Client not initialized.")
-
-    # Use a temporary in-memory checkpointer for this specific example endpoint
-    # Note: /agent uses the persistent DB defined earlier
-    async with AsyncSqliteSaver.from_conn_string(":memory:") as checkpointer:
-        config = {"configurable": {"thread_id": request.thread_id, "checkpoint_ns": ""}}
-
-        # Create a ReAct agent with MCP tools
-        tools = mcp_client.get_tools()
-        llm = ChatOpenAI(model=AGENT_MODEL)
-        agent_executor = create_react_agent(llm, tools, checkpointer=checkpointer)
-
-        try:
-            # Invoke the agent with the user's message
-            result = await agent_executor.ainvoke(
-                {"messages": [HumanMessage(content=request.message)]},
-                config=config
-            )
-
-            # Extract response from agent result
-            response = result["messages"][-1].content if result.get("messages") else "No response"
-
-            return {
-                "response": response,
-                "history": [m.content for m in result.get("messages", [])]
-            }
-        except Exception as e:
-            logger.error(f"Error in /chat endpoint: {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail=f"Error invoking agent: {str(e)}")
 
 @app.post("/agent")
 async def agent_endpoint(agent_request: AgentRequest, fastapi_req: Request):
     if not openai_api_key:
         raise HTTPException(status_code=500, detail="OpenAI API key not set in environment.")
         
-    # Access client from app state
-    # mcp_client = fastapi_req.app.state.mcp_client # No longer needed directly here
-    # if mcp_client is None:
-    #      raise HTTPException(status_code=500, detail="MCP Client not initialized.")
-         
     # Get the compiled graph (now initialized during lifespan)
     if compiled_custom_graph is None:
         raise HTTPException(status_code=500, detail="Agent graph not initialized.")
@@ -263,7 +229,7 @@ async def agent_endpoint(agent_request: AgentRequest, fastapi_req: Request):
 @app.post("/api/websocket-bridge")
 async def websocket_bridge(request: ThesysBridgeRequest):
     """
-    Bridge endpoint for Thesys C1Chat to send messages through WebSocket
+    Bridge endpoint for Thesys C1Chat to send messages through LangGraph agent
     and receive responses in the expected format.
     """
     try:
@@ -275,65 +241,120 @@ async def websocket_bridge(request: ThesysBridgeRequest):
         # Extract user message from prompt
         user_message = request.prompt.get('content', '')
         
-        # For demo purposes, send a message to the WebSocket queue
-        # In a real implementation, you'd want to:
-        # 1. Process the message through your voice bot or LLM
-        # 2. Wait for the actual response
-        # 3. Format it properly for Thesys
+        if not user_message:
+            logger.warning("WebSocket Bridge: Empty user message received")
+            error_response = format_thesys_error_response("Empty message received")
+            return create_streaming_response(error_response)
         
-        # Create a demo response that shows the message was received through the bridge
-        demo_response = f"✅ **Message received through WebSocket Bridge:**\n\n{user_message}\n\n*This message was sent from Thesys C1Chat through the HTTP-to-WebSocket bridge.*"
+        # Note: We don't send user message to WebSocket queue here because 
+        # the C1Chat component already handles displaying user messages automatically
+        logger.info(f"WebSocket Bridge: Processing user message: {user_message}")
         
-        # Format response in Thesys XML format
-        thesys_response = format_thesys_response(demo_response)
+        # Step 1: Process message through LangGraph agent
+        if not compiled_custom_graph:
+            logger.error("WebSocket Bridge: LangGraph agent not available")
+            error_response = format_thesys_error_response("Agent not available")
+            return create_streaming_response(error_response)
         
-        # Optionally, you can also broadcast this to WebSocket clients
-        websocket_message = {
-            "type": "user_message_from_chat",
-            "content": user_message,
-            "threadId": request.threadId,
-            "responseId": request.responseId,
-            "timestamp": "now"
-        }
+        # Use thread ID from request or generate new one
+        thread_id = request.threadId or str(uuid.uuid4())
         
-        # Send to LLM message queue so WebSocket clients can see it
-        await llm_message_queue.put(websocket_message)
-        
-        # Return the response in the format Thesys expects
-        from fastapi.responses import StreamingResponse
-        import io
-        
-        def generate_response():
-            yield thesys_response
+        try:
+            logger.info(f"WebSocket Bridge: Processing message through LangGraph agent for thread {thread_id}")
             
-        return StreamingResponse(
-            generate_response(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache, no-transform",
-                "Connection": "keep-alive",
-                "Access-Control-Allow-Origin": "*",
-            }
-        )
+            # Configure the graph with checkpointer
+            compiled_graph_with_checkpoint = compiled_custom_graph.with_config(checkpointer=memory)
+            config = {"configurable": {"thread_id": thread_id, "checkpoint_ns": ""}}
+            
+            # Invoke the LangGraph agent
+            result = await compiled_graph_with_checkpoint.ainvoke(
+                {"messages": [HumanMessage(content=user_message)]},
+                config=config,
+            )
+            
+            # Extract the agent response
+            agent_response = result['messages'][-1].content if result.get('messages') else "No response from agent."
+            logger.info(f"WebSocket Bridge: LangGraph agent response: {agent_response[:100]}...")
+            
+            # Step 2: Process through Thesys Visualize API
+            logger.info(f"WebSocket Bridge: Sending agent response to Thesys Visualize API")
+            
+            # Get conversation history for context (last few messages from this thread)
+            conversation_history = []
+            if len(result.get('messages', [])) > 1:
+                # Convert recent messages to the format expected by Thesys
+                for msg in result['messages'][-5:]:  # Last 5 messages for context
+                    if hasattr(msg, 'content'):
+                        # Determine role based on message type
+                        if hasattr(msg, '__class__'):
+                            role = "user" if msg.__class__.__name__ == "HumanMessage" else "assistant"
+                        else:
+                            role = "assistant"  # Default to assistant
+                        conversation_history.append({
+                            "role": role,
+                            "content": msg.content
+                        })
+            
+            # Process through our visualization pipeline (MCP agent + conditional Thesys)
+            enhancement_decision = await process_with_mcp_agent(agent_response, conversation_history)
+            
+            display_enhancement = enhancement_decision.displayEnhancement
+            display_text = enhancement_decision.displayEnhancedText
+            
+            if display_enhancement:
+                visualized_content = await get_thesys_visualization(agent_response, conversation_history, display_text)
+            else:
+                # Create simple card for non-enhanced responses
+                simple_card = {
+                    "component": "Card",
+                    "props": {
+                        "children": [
+                            {
+                                "component": "TextContent",
+                                "props": {
+                                    "textMarkdown": display_text
+                                }
+                            }
+                        ]
+                    }
+                }
+                visualized_content = f'{json.dumps(simple_card)}'
+            
+            logger.info(f"WebSocket Bridge: Received visualization from Thesys")
+            
+            # Note: We don't send assistant response to WebSocket queue here because
+            # the C1Chat component already handles the response from this HTTP endpoint directly
+            logger.info(f"WebSocket Bridge: Returning response directly to C1Chat component")
+            
+            # Return the response in streaming format for Thesys C1Chat
+            return create_streaming_response(visualized_content)
+            
+        except Exception as agent_error:
+            logger.error(f"WebSocket Bridge: Error processing with LangGraph agent: {agent_error}", exc_info=True)
+            error_response = format_thesys_error_response(f"Agent processing error: {str(agent_error)}")
+            return create_streaming_response(error_response)
         
     except Exception as e:
         logger.error(f"WebSocket Bridge Error: {e}", exc_info=True)
-        
-        # Return error in Thesys format
         error_response = format_thesys_error_response(str(e))
+        return create_streaming_response(error_response)
+
+def create_streaming_response(content: str):
+    """Helper function to create streaming response for Thesys C1Chat"""
+    from fastapi.responses import StreamingResponse
+    
+    def generate_response():
+        yield content
         
-        def generate_error():
-            yield error_response
-            
-        return StreamingResponse(
-            generate_error(),
-            media_type="text/event-stream",
-            headers={
-                "Cache-Control": "no-cache, no-transform",
-                "Connection": "keep-alive",
-                "Access-Control-Allow-Origin": "*",
-            }
-        )
+    return StreamingResponse(
+        generate_response(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache, no-transform",
+            "Connection": "keep-alive",
+            "Access-Control-Allow-Origin": "*",
+        }
+    )
 
 def format_thesys_response(message: str) -> str:
     """Format response in Thesys XML format with proper component structure."""
@@ -394,7 +415,7 @@ async def offer(request: dict, background_tasks: BackgroundTasks):
             pcs_map.pop(webrtc_connection.pc_id, None)
         # Create and run the voice interface agent, passing the display queue
         # agent = VoiceInterfaceAgent(pipecat_connection, llm_message_queue) # OLD
-        agent = VoiceInterfaceAgent(pipecat_connection, raw_llm_output_queue) # NEW: Pass raw output queue
+        agent = VoiceInterfaceAgent(pipecat_connection, raw_llm_output_queue, llm_message_queue) # NEW: Pass both queues
         background_tasks.add_task(agent.run)
 
     answer = pipecat_connection.get_answer()
@@ -436,9 +457,10 @@ async def websocket_llm_messages(websocket: WebSocket):
         logger.info(f"Closing WebSocket /ws/messages connection for {websocket.client.host}:{websocket.client.port}")
         # Uvicorn handles actual closing, this is just a log. Ensure queue tasks are handled if needed.
 
-async def get_thesys_visualization(assistant_response: str, conversation_history: List[Dict[str, Any]] = None):
+async def get_thesys_visualization(assistant_response: str, conversation_history: List[Dict[str, Any]] = None, enhanced_response: str = None):
     """
-    Calls Thesys Embed API to get a UI representation for the given text.
+    Calls Thesys Visualize API to get a UI representation for the given text.
+    Uses the enhanced_response from LangGraph agent if available, otherwise falls back to original assistant_response.
     Optionally includes conversation history for better context.
     """
     if not thesys_client:
@@ -453,83 +475,30 @@ async def get_thesys_visualization(assistant_response: str, conversation_history
         }
         return f'<content>{json.dumps(error_component)}</content>'
 
-    # User's new prompting strategy for Thesys
-    thesys_prompt_instruction = (
-        "This is what user is talking about and this is voice bot speaking. "
-        "Please create a response to user query in line with the bot answer for display. "
-        "If there's no expansion needed simply respond bot's answer."
-    )
+    # Use enhanced response from LangGraph agent if available, otherwise use original
+    final_response = enhanced_response if enhanced_response else assistant_response
     
-    messages_for_thesys = [{"role": "system", "content": thesys_prompt_instruction}]
-    if conversation_history: # conversation_history should ideally contain the user's last query for context
-        messages_for_thesys.extend(conversation_history[:-1])
-    
-    # Add the carefully constructed assistant message to be visualized/processed by Thesys
-    final_assistant_content_for_thesys = f"For given user query {conversation_history[-1]['content']}, this is what a voice bot answered: {assistant_response}. Now create a response to user query in line with the bot answer for display."
-
-    messages_for_thesys.append({"role": "assistant", "content": final_assistant_content_for_thesys})
+    # Format messages for Thesys Visualize API using the new formatting function
+    messages_for_thesys = format_thesys_messages_for_visualize(final_response, conversation_history)
 
     try:
-        print(f"Sending to Thesys Embed API (content: {messages_for_thesys}...")
+        print(f"Sending to Thesys Visualize API (content: {final_response[:100]}...)...")
         
+        # Use the visualize endpoint format (similar to e-commerce example)
         completion = await thesys_client.chat.completions.create(
             messages=messages_for_thesys,
-            model="c1-nightly" # This is set during client initialization
+            model="c1-nightly",
+            stream=False  # Start with non-streaming for simplicity
         )
         
         visualized_content = completion.choices[0].message.content
-        print(f"Received visualization from Thesys. {visualized_content}")
+        print(f"Received visualization from Thesys Visualize API: {visualized_content}")
         
-        # Check if the content is already in proper Thesys XML format
-        if visualized_content and visualized_content.strip().startswith('<content>'):
-            return visualized_content
-        else:
-            # If not in XML format, parse as JSON and wrap appropriately
-            try:
-                # Try to parse as JSON first
-                parsed_content = json.loads(visualized_content) if isinstance(visualized_content, str) else visualized_content
-                
-                # Handle nested component structure (if Thesys returns {"component": {...}})
-                if isinstance(parsed_content, dict) and "component" in parsed_content:
-                    actual_component = parsed_content["component"]
-                    return f'<content>{json.dumps(actual_component)}</content>'
-                elif isinstance(parsed_content, dict):
-                    # Direct component structure
-                    return f'<content>{json.dumps(parsed_content)}</content>'
-                else:
-                    # Fallback: wrap in a simple text component
-                    fallback_component = {
-                        "component": "Card",
-                        "props": {
-                            "variant": "card",
-                            "children": [{
-                                "component": "TextContent",
-                                "props": {
-                                    "textMarkdown": str(visualized_content)
-                                }
-                            }]
-                        }
-                    }
-                    return f'<content>{json.dumps(fallback_component)}</content>'
-                    
-            except json.JSONDecodeError:
-                # If it's not JSON, treat as plain text
-                fallback_component = {
-                    "component": "Card",
-                    "props": {
-                        "variant": "card",
-                        "children": [{
-                            "component": "TextContent",
-                            "props": {
-                                "textMarkdown": str(visualized_content)
-                            }
-                        }]
-                    }
-                }
-                return f'<content>{json.dumps(fallback_component)}</content>'
+        # Return the content directly as it should already be in the proper format
+        return visualized_content
 
     except Exception as e:
-        logger.error(f"Error calling Thesys Embed API: {e}", exc_info=True)
+        logger.error(f"Error calling Thesys Visualize API: {e}", exc_info=True)
         error_component = {
             "component": "Callout",
             "props": {
@@ -543,53 +512,235 @@ async def get_thesys_visualization(assistant_response: str, conversation_history
 
 async def visualization_processor():
     """
-    Processes raw LLM output, gets visualization from Thesys, and sends to frontend queue.
+    Processes raw LLM output from VOICE INTERFACE through MCP agent, conditionally gets visualization from Thesys, and sends to frontend queue.
+    Note: This is only for voice messages. Chat messages are handled directly through the /api/websocket-bridge endpoint.
     """
-    logger.info("Visualization processor task started.")
+    logger.info("Visualization processor task started for VOICE messages (MCP Agent -> Conditional Thesys Visualize flow).")
     while True:
         try:
+            logger.info("Visualization processor (VOICE): Waiting for item from raw_llm_output_queue...")
             item = await raw_llm_output_queue.get()
-            logger.info(f"Visualization processor: Received item from raw_llm_output_queue: {item}")
-            print(f"Visualization processor: Received item from raw_llm_output_queue: {item}")
-            text_to_visualize: str | None = item.get("text")
+            logger.info(f"Visualization processor (VOICE): Received item from raw_llm_output_queue: {item}")
+            print(f"Visualization processor (VOICE): Received item from raw_llm_output_queue: {item}")
+            
             conversation_history: List[Dict[str, Any]] = item.get("history", [])
             assistant_response: str | None = item.get("assistant_response")
-            logger.info(f"Visualization processor: Received conversation history: {conversation_history} and assistant response: {assistant_response}")
-            # if isinstance(item, str):
-            #     text_to_visualize = item
-            # elif isinstance(item, dict): # Expecting {"text": "...", "history": [...]}
-            #     # text_to_visualize = item.get("text")
-            # conversation_history = item.get("history", [])
             
-            # if not text_to_visualize:
-            #     logger.warning("Visualization processor received empty or invalid item.")
-            #     raw_llm_output_queue.task_done()
-            #     continue
-
-            # logger.info(f"Visualization processor: Processing text '{text_to_visualize[:100]}...'")
-            visualized_ui_payload = await get_thesys_visualization(assistant_response, conversation_history)
+            logger.info(f"Visualization processor (VOICE): Extracted assistant_response: '{assistant_response}'")
+            logger.info(f"Visualization processor (VOICE): Extracted conversation_history: {conversation_history}")
             
-            # Prepare message for frontend (C1Chat compatible)
+            if not assistant_response:
+                logger.warning("Visualization processor (VOICE) received empty assistant response.")
+                continue
+                
+            logger.info(f"Visualization processor (VOICE): Original voice response length: {len(assistant_response)} chars")
+            logger.info(f"Visualization processor (VOICE): Processing assistant response through MCP agent...")
+            
+            # Step 1: Process through MCP agent to determine if enhancement is needed
+            try:
+                logger.info(f"Visualization processor (VOICE): About to call process_with_mcp_agent with response: '{assistant_response[:100]}...'")
+                print(f"Visualization processor (VOICE): About to call process_with_mcp_agent with response: '{assistant_response[:100]}...'")
+                
+                enhancement_decision = await process_with_mcp_agent(assistant_response, conversation_history)
+                
+                logger.info(f"Visualization processor (VOICE): MCP agent call completed successfully with decision: {enhancement_decision}")
+                print(f"Visualization processor (VOICE): MCP agent call completed successfully with decision: {enhancement_decision}")
+            except Exception as e:
+                logger.error(f"Visualization processor (VOICE): Error in MCP agent call: {e}", exc_info=True)
+                print(f"Visualization processor (VOICE): Error in MCP agent call: {e}")
+                # Fallback decision
+                enhancement_decision = EnhancementDecision(
+                    displayEnhancement=False,
+                    displayEnhancedText=assistant_response,
+                    voiceOverText=assistant_response
+                )
+                logger.info(f"Visualization processor (VOICE): Using fallback decision: {enhancement_decision}")
+            
+            display_enhancement = enhancement_decision.displayEnhancement
+            display_text = enhancement_decision.displayEnhancedText
+            voice_text = enhancement_decision.voiceOverText #IDEALLY VOICE OVER TEXT SHOULD BE THERE ONLY IF WE CALL A FUNCTION
+            
+            logger.info(f"Visualization processor (VOICE): MCP Agent decision - Enhancement: {display_enhancement}, DisplayText: '{display_text}', VoiceText: '{voice_text}'")
+            print(f"Visualization processor (VOICE): MCP Agent decision - Enhancement: {display_enhancement}")
+            
+            # Step 2: Conditionally process with Thesys or create simple card
+            if display_enhancement:
+                logger.info(f"Visualization processor (VOICE): Enhancement requested, sending to Thesys Visualize API...")
+                print(f"Visualization processor (VOICE): Enhancement requested, sending to Thesys Visualize API...")
+                # Send enhanced response to Thesys Visualize API
+                visualized_ui_payload = await get_thesys_visualization(
+                    assistant_response, 
+                    conversation_history, 
+                    display_text
+                )
+                logger.info(f"Visualization processor (VOICE): Received UI payload from Thesys, length: {len(str(visualized_ui_payload))} chars")
+                print(f"Visualization processor (VOICE): Received UI payload from Thesys, length: {len(str(visualized_ui_payload))} chars")
+            else:
+                logger.info(f"Visualization processor (VOICE): No enhancement needed, creating simple text card...")
+                print(f"Visualization processor (VOICE): No enhancement needed, creating simple text card...")
+                # Create a simple card with text content - using the proper Thesys format
+                simple_card = {
+                    "component": {
+                        "component": "Card",
+                        "props": {
+                            "children": [
+                                {
+                                    "component": "TextContent",
+                                    "props": {
+                                        "textMarkdown": display_text
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+                visualized_ui_payload = f'<content>{json.dumps(simple_card)}</content>'
+                logger.info(f"Visualization processor (VOICE): Created simple card payload: '{visualized_ui_payload}'")
+                print(f"Visualization processor (VOICE): Created simple card payload: '{visualized_ui_payload}'")
+            
+            # Step 3: Handle TTS if we have voice text
+            if voice_text and voice_text != display_text:
+                logger.info(f"Visualization processor (VOICE): Preparing TTS for voice text...")
+                # TODO: Integrate with Pipecat TTS processor here
+                # For now, we'll just log that TTS should be triggered
+                logger.info(f"Visualization processor (VOICE): TTS text ready: {voice_text[:100]}...")
+            
+            # Step 4: Prepare message for frontend (for voice responses only)
             message_for_frontend = {
                 "id": str(uuid.uuid4()),
-                "role": "assistant", # Represents assistant's UI output
-                "content": visualized_ui_payload, # This is the Thesys UI payload (dict/list or error dict)
+                "role": "assistant",
+                "type": "voice_response", # Mark as voice response
+                "content": visualized_ui_payload, # This is the UI payload (enhanced or simple)
+                "voiceText": voice_text if voice_text != display_text else None, # Include voice text if different
             }
             
+            logger.info(f"Visualization processor (VOICE): Prepared message for frontend: {message_for_frontend}")
+            print(f"Visualization processor (VOICE): Prepared message for frontend with ID: {message_for_frontend['id']}")
+            
             await llm_message_queue.put(message_for_frontend)
-            logger.info(f"Visualization processor: Sent UI payload/error to frontend queue for ID {message_for_frontend['id']}.")
+            logger.info(f"Visualization processor (VOICE): Successfully sent payload to frontend queue for ID {message_for_frontend['id']}.")
+            print(f"Visualization processor (VOICE): Successfully sent payload to frontend queue for ID {message_for_frontend['id']}.")
 
         except Exception as e:
-            logger.error(f"Critical error in visualization_processor loop: {e}", exc_info=True)
-            # Optionally, put an error message on llm_message_queue for the client
+            logger.error(f"Critical error in visualization_processor (VOICE) loop: {e}", exc_info=True)
+            print(f"Critical error in visualization_processor (VOICE) loop: {e}")
+            # Put an error message on llm_message_queue for the client
             await llm_message_queue.put({
                 "id": str(uuid.uuid4()),
                 "role": "assistant",
-                "content": {"type": "error", "message": "A system error occurred while generating UI."}
+                "type": "voice_response",
+                "content": f'<content>{json.dumps({"component": "Callout", "props": {"variant": "warning", "title": "System Error", "description": "A system error occurred while generating UI for voice response."}})}</content>'
             })
         finally:
-            logger.info("Raw LLM output queue task done")
-            #raw_llm_output_queue.task_done()
+            logger.info("Raw LLM output queue task done (VOICE)")
+            raw_llm_output_queue.task_done()
+
+async def process_with_mcp_agent(assistant_response: str, conversation_history: List[Dict[str, Any]] = None) -> EnhancementDecision:
+    """
+    Process the voice assistant response using the enhanced MCP client to determine display enhancement.
+    Returns a structured response indicating whether UI enhancement is needed and what content to use.
+    """
+    logger.info(f"=== ENTERING process_with_mcp_agent (Enhanced MCP Client) ===")
+    print(f"=== ENTERING process_with_mcp_agent (Enhanced MCP Client) ===")
+    logger.info(f"process_with_mcp_agent: Starting with response: {assistant_response[:100]}...")
+    print(f"process_with_mcp_agent: Starting with response: {assistant_response[:100]}...")
+    
+    try:
+        # Get the enhanced MCP client from global state
+        global enhanced_mcp_client
+        if not enhanced_mcp_client:
+            logger.error("Enhanced MCP client not available")
+            print("Enhanced MCP client not available")
+            # Fallback to simple decision
+            return EnhancementDecision(
+                displayEnhancement=False,
+                displayEnhancedText=assistant_response,
+                voiceOverText=assistant_response
+            )
+        
+        logger.info(f"process_with_mcp_agent: Using Enhanced MCP Client with {len(enhanced_mcp_client.get_available_tools())} available tools")
+        print(f"process_with_mcp_agent: Using Enhanced MCP Client with {len(enhanced_mcp_client.get_available_tools())} available tools")
+        
+        # Use the enhanced MCP client to make the decision
+        enhancement_decision = await enhanced_mcp_client.make_enhancement_decision(
+            assistant_response=assistant_response,
+            conversation_history=conversation_history
+        )
+        
+        logger.info(f"Enhanced MCP Agent decision: enhancement={enhancement_decision.displayEnhancement}")
+        print(f"Enhanced MCP Agent decision: enhancement={enhancement_decision.displayEnhancement}")
+        logger.info(f"Enhanced MCP Agent display text: {enhancement_decision.displayEnhancedText[:100]}...")
+        print(f"Enhanced MCP Agent voice text: {enhancement_decision.voiceOverText[:100]}...")
+        logger.info(f"=== EXITING process_with_mcp_agent (Enhanced MCP Client) ===")
+        print(f"=== EXITING process_with_mcp_agent (Enhanced MCP Client) ===")
+        
+        return enhancement_decision
+        
+    except Exception as e:
+        logger.error(f"Error in Enhanced MCP agent processing: {e}", exc_info=True)
+        print(f"Error in Enhanced MCP agent processing: {e}")
+        # Fallback to simple response structure
+        fallback_decision = EnhancementDecision(
+            displayEnhancement=False,
+            displayEnhancedText=assistant_response,
+            voiceOverText=assistant_response
+        )
+        logger.info(f"=== EXITING process_with_mcp_agent (error fallback) ===")
+        print(f"=== EXITING process_with_mcp_agent (error fallback) ===")
+        return fallback_decision
+
+@app.get("/api/mcp/tools")
+async def list_mcp_tools(fastapi_req: Request):
+    """List all available MCP tools from the enhanced client."""
+    tools_info = {
+        "enhanced_client": []
+    }
+    
+    # Get tools from enhanced client
+    if fastapi_req.app.state.enhanced_mcp_client:
+        try:
+            enhanced_tools = fastapi_req.app.state.enhanced_mcp_client.get_available_tools()
+            tools_info["enhanced_client"] = enhanced_tools
+        except Exception as e:
+            logger.error(f"Error getting enhanced tools: {e}")
+    
+    return tools_info
+
+@app.post("/api/mcp/test-enhancement")
+async def test_enhancement_decision(request: dict, fastapi_req: Request):
+    """Test endpoint for the enhanced MCP decision making."""
+    enhanced_client = fastapi_req.app.state.enhanced_mcp_client
+    if not enhanced_client:
+        raise HTTPException(status_code=500, detail="Enhanced MCP Client not initialized.")
+    
+    assistant_response = request.get("assistant_response", "")
+    conversation_history = request.get("conversation_history", [])
+    
+    if not assistant_response:
+        raise HTTPException(status_code=400, detail="assistant_response is required")
+    
+    try:
+        logger.info(f"Testing enhancement decision for: {assistant_response[:100]}...")
+        
+        # Use the enhanced MCP client to make the decision
+        decision = await enhanced_client.make_enhancement_decision(
+            assistant_response=assistant_response,
+            conversation_history=conversation_history
+        )
+        
+        return {
+            "original_response": assistant_response,
+            "decision": {
+                "displayEnhancement": decision.displayEnhancement,
+                "displayEnhancedText": decision.displayEnhancedText,
+                "voiceOverText": decision.voiceOverText
+            },
+            "available_tools": enhanced_client.get_available_tools()
+        }
+        
+    except Exception as e:
+        logger.error(f"Error testing enhancement decision: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Error testing enhancement: {str(e)}")
 
 # If running directly (for testing/dev)
 if __name__ == "__main__":

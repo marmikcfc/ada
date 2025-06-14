@@ -1,9 +1,9 @@
 import React, { useEffect, useRef, useCallback, useState } from 'react';
 import { 
-  C1Chat, 
   useThreadManager, 
-  useThreadListManager 
-} from '@thesysai/genui-sdk';
+  useThreadListManager,
+} from '@thesysai/genui-sdk'; // C1Component is used internally by ChatMessageRenderer
+import GenerativeUIChat from './GenerativeUIChat'; // Import the new component
 import '@crayonai/react-ui/styles/index.css';
 
 const VoiceBotClient: React.FC = () => {
@@ -39,7 +39,7 @@ const VoiceBotClient: React.FC = () => {
         threadId: crypto.randomUUID(),
         title: 'Voice Chat Session',
         createdAt: new Date(),
-        messages: []
+        messages: [] // Initially empty, messages are appended by threadManager
       });
     }, [])
   });
@@ -49,14 +49,17 @@ const VoiceBotClient: React.FC = () => {
     threadListManager,
     loadThread: useCallback((threadId) => {
       console.log('Loading thread:', threadId);
-      return Promise.resolve([]);
+      return Promise.resolve([]); 
     }, []),
     onUpdateMessage: useCallback(({ message }) => {
       console.log('Message updated:', message);
     }, []),
-    // For now, we'll handle WebSocket communication separately
-    // In a real implementation, you'd create an API endpoint that bridges WebSocket and HTTP
-    apiUrl: '/api/websocket-bridge'
+    // apiUrl is not strictly needed if WebSocket handles all outbound messages, 
+    // but CrayonChat might use it for its own input if not overridden.
+    // For Phase 1, let's keep it as it might interact with how CrayonChat's default input works.
+    apiUrl: '/api/websocket-bridge',
+    // We are not using processMessage here as WebSocket messages are handled separately
+    // and C1Component actions will be routed via onC1ComponentAction prop.
   });
 
   // Store threadManager in ref to avoid recreating WebSocket
@@ -78,6 +81,27 @@ const VoiceBotClient: React.FC = () => {
       const pc = new RTCPeerConnection({
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
       });
+
+      // Create data channel for interim transcripts
+      const transcriptChannel = pc.createDataChannel('transcript');
+      transcriptChannel.onopen = () => {
+        console.log('WebRTC transcript channel opened');
+      };
+      transcriptChannel.onmessage = (event) => {
+        console.log('WebRTC transcript message received via data channel:', event.data);
+        let msg;
+        try {
+          msg = JSON.parse(event.data);
+        } catch (err) {
+          console.error('Error parsing transcript JSON:', err);
+          return;
+        }
+        if (msg.type === 'user_transcription') {
+          const transcriptionText = msg.text || msg.content;
+          console.log('Frontend (interim transcript log):', transcriptionText);
+          // no UI update yet – only logging interim transcripts
+        }
+      };
 
       // Add local stream
       stream.getTracks().forEach(track => {
@@ -159,7 +183,7 @@ const VoiceBotClient: React.FC = () => {
     setVoiceStatus('disconnected');
     setAudioStream(null);
     setIsRecording(false);
-    
+    // Consider closing WebRTC connection more formally if needed
     const disconnectMessage = {
       id: crypto.randomUUID(),
       role: 'assistant' as const,
@@ -171,7 +195,6 @@ const VoiceBotClient: React.FC = () => {
         }
       }]
     };
-    
     if (threadManagerRef.current) {
       threadManagerRef.current.appendMessages(disconnectMessage);
     }
@@ -265,7 +288,7 @@ const VoiceBotClient: React.FC = () => {
           type: 'template' as const,
           name: 'c1',
           templateProps: {
-            content: formatAssistantMessage('🎙️ **Voice Chat Ready!** \n\nWebSocket connected successfully. Click "Connect Voice" to start speech-to-speech conversation, or type messages below.')
+            content: formatAssistantMessage('🎙️ **Chat Interface Ready!** \n\nYou can now use the chat input below to send messages to the AI assistant. Voice features are available via the "Connect Voice" button.')
           }
         }]
       };
@@ -291,23 +314,30 @@ const VoiceBotClient: React.FC = () => {
           };
         }
         
-        if (data.type === 'assistant_message' || !data.type) {
+        // Handle different message types
+        if (data.type === 'connection_ack') {
+          // Handle connection acknowledgment
+          console.log('WebSocket connection acknowledged:', data.message);
+          
+        } else if (data.type === 'voice_response') {
+          // Handle voice response messages from the visualization processor
+          console.log('Received voice response message:', data);
+          
           let messageContent;
           
           // Check if content is already in Thesys format (from visualization processor)
           if (typeof data.content === 'string' && data.content.includes('<content>')) {
             // Content is already in Thesys XML format, use as-is
             messageContent = data.content;
-            console.log('Using pre-formatted Thesys content:', messageContent);
+            console.log('Using pre-formatted Thesys content from voice response:', messageContent);
           } else {
             // Content needs formatting
-            messageContent = formatAssistantMessage(data.content || data);
-            console.log('Formatting raw content:', data.content || data);
+            messageContent = formatAssistantMessage(data.content || 'Voice response received');
+            console.log('Formatting raw voice response content:', data.content);
           }
           
-          // Create assistant message in Thesys format
-          const assistantMessage = {
-            id: crypto.randomUUID(),
+          const voiceMessage = {
+            id: data.id || crypto.randomUUID(),
             role: 'assistant' as const,
             message: [{
               type: 'template' as const,
@@ -318,18 +348,68 @@ const VoiceBotClient: React.FC = () => {
             }]
           };
           
-          console.log('Adding assistant message to thread:', assistantMessage);
+          console.log('Prepared voice message for threadManager:', voiceMessage);
+          console.log('threadManagerRef.current:', threadManagerRef.current);
+          
           if (threadManagerRef.current) {
-            threadManagerRef.current.appendMessages(assistantMessage);
+            console.log('About to call appendMessages with voice message');
+            try {
+              threadManagerRef.current.appendMessages(voiceMessage);
+              console.log('Successfully called appendMessages for voice message');
+            } catch (error) {
+              console.error('Error calling appendMessages:', error);
+            }
+          } else {
+            console.error('threadManagerRef.current is null when trying to append voice message');
           }
-        } else if (data.type === 'user_message') {
-          // Handle user message from WebSocket (if needed)
-          console.log('Received user message from WebSocket:', data);
-        } else if (data.type === 'connection_ack') {
-          // Handle connection acknowledgment
-          console.log('WebSocket connection acknowledged:', data.message);
+          
+        } else if (data.type === 'user_transcription') {
+          // Handle user voice transcription messages
+          console.log('Received user transcription message:', data);
+          
+          // Assuming the transcription text is in 'data.text' or 'data.content'.
+          // Please verify and adjust this field (e.g., data.transcription) if necessary
+          // by inspecting the 'data' object logged above.
+          const transcriptionText = data.text || data.content;
+
+          if (transcriptionText && typeof transcriptionText === 'string' && threadManagerRef.current) {
+            const userMessage = {
+              id: data.id || crypto.randomUUID(), // Use server-provided ID or generate a new one
+              role: 'user' as const,
+              message: transcriptionText,
+              type: 'prompt' as const, // Explicitly set type for clarity with SDK internals
+            };
+            threadManagerRef.current.appendMessages(userMessage);
+          } else if (!transcriptionText) {
+            console.warn('User transcription received but the text is empty or not a string:', data);
+          }
+          
+        } else if (data.type === 'voice_message') {
+          // Handle other voice-related messages (for future voice integration)
+          console.log('Received voice-related message:', data);
+          
+          let messageContent = formatAssistantMessage(data.content || data.message || 'Voice message received');
+          
+          const voiceMessage = {
+            id: data.id || crypto.randomUUID(),
+            role: 'assistant' as const,
+            message: [{
+              type: 'template' as const,
+              name: 'c1',
+              templateProps: {
+                content: messageContent
+              }
+            }]
+          };
+          
+          if (threadManagerRef.current) {
+            threadManagerRef.current.appendMessages(voiceMessage);
+          }
+          
         } else {
-          console.log('Received unknown message type:', data.type);
+          console.log('Received unknown message type:', data.type, data);
+          // For debugging purposes, we can still display unknown messages
+          // but in production, you might want to just log them
         }
       } catch (error) {
         console.error('Error processing WebSocket message:', error);
@@ -404,79 +484,59 @@ const VoiceBotClient: React.FC = () => {
     };
   }, []); // Empty dependency array - only run once
 
+  // Handler for actions coming from C1Component via GenerativeUIChat
+  const handleC1ComponentAction = useCallback((action: { llmFriendlyMessage: string, humanFriendlyMessage: string, [key: string]: any }) => {
+    console.log('Action from C1Component received in VoiceBotClient:', action);
+    // Example: Send the action's llmFriendlyMessage via WebSocket
+    // You might need to format this into your backend's expected message structure
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      // Assuming your backend expects a message of type 'user_action' or similar
+      // and the payload is the llmFriendlyMessage or the whole action object.
+      // This is an EXAMPLE, adjust to your backend's needs.
+      const actionMessageForBackend = {
+        type: 'user_action_from_dynamic_ui', // Or whatever your backend expects
+        payload: action.llmFriendlyMessage, // Or action object itself
+        // You might want to include threadId or other context here
+      };
+      wsRef.current.send(JSON.stringify(actionMessageForBackend));
+
+      // Optionally, add a user message to the chat to reflect the action taken
+      // This depends on whether the action itself should be visible as a user prompt
+      if (action.humanFriendlyMessage && threadManagerRef.current) {
+          const userActionMessage = {
+              id: crypto.randomUUID(),
+              role: 'user' as const,
+              content: action.humanFriendlyMessage, 
+          };
+          threadManagerRef.current.appendMessages(userActionMessage);
+      }
+
+    } else {
+      console.warn('WebSocket not open, cannot send C1Component action.');
+      // Potentially queue the action or notify the user
+    }
+  }, []);
+
   return (
     <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
-      {/* Voice Controls Overlay */}
-      <div style={{
-        position: 'absolute',
-        top: '20px',
-        right: '20px',
-        zIndex: 1000,
-        display: 'flex',
-        gap: '10px',
-        alignItems: 'center',
-        background: 'rgba(255, 255, 255, 0.9)',
-        padding: '10px',
-        borderRadius: '8px',
-        boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
-      }}>
-        <span style={{ 
-          fontSize: '12px', 
-          color: voiceStatus === 'connected' ? '#16a34a' : voiceStatus === 'connecting' ? '#eab308' : '#dc2626',
-          fontWeight: 'bold'
-        }}>
-          🎤 {voiceStatus === 'connected' ? 'Voice Active' : voiceStatus === 'connecting' ? 'Connecting...' : 'Voice Disabled'}
-        </span>
-        
-        {voiceStatus === 'disconnected' && (
-          <button
-            onClick={connectVoice}
-            style={{
-              background: '#16a34a',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              fontWeight: 'bold'
-            }}
-          >
-            Connect Voice
-          </button>
-        )}
-        
-        {voiceStatus === 'connected' && (
-          <button
-            onClick={disconnectVoice}
-            style={{
-              background: '#dc2626',
-              color: 'white',
-              border: 'none',
-              padding: '8px 16px',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '12px',
-              fontWeight: 'bold'
-            }}
-          >
-            Disconnect
-          </button>
-        )}
-      </div>
-
+      {/* Remove Voice Controls Overlay from here */}
       {/* Hidden audio element for voice output */}
       <audio ref={audioRef} autoPlay style={{ display: 'none' }} />
-      
-      {/* Main Thesys Chat Interface */}
-      <C1Chat
-        threadManager={threadManager}
-        threadListManager={threadListManager}
+      <GenerativeUIChat
+        threadManager={threadManager} // from @thesysai/genui-sdk
         agentName="Voice Assistant"
-        logoUrl="/favicon.ico"
-        theme={{
-          mode: "light"
+        logoUrl="/favicon.ico" // Ensure this path is correct in your public folder
+        onC1Action={handleC1ComponentAction} // Pass the handler
+        // Pass voice connect/disconnect logic and state to GenerativeUIChat
+        onToggleVoiceConnection={() => {
+          if (voiceStatus === 'connected') {
+            disconnectVoice();
+          } else if (voiceStatus === 'disconnected') {
+            connectVoice();
+          }
         }}
+        isVoiceConnected={voiceStatus === 'connected'}
+        isVoiceConnectionLoading={voiceStatus === 'connecting'}
       />
     </div>
   );

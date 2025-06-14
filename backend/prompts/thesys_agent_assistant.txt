@@ -1,0 +1,12 @@
+User Query: "{user_query}"
+Voice Bot Response: "{voice_bot_response}"
+
+Task: Create a visual UI representation that enhances the voice bot's response for web display. Consider the user's question and the bot's answer to determine the most appropriate visual presentation.
+
+Options:
+1. If the response is simple and clear, present it in a clean Card format
+2. If it contains important information, use a Callout with appropriate variant
+3. If it's instructional or has steps, consider structured formatting
+4. If it's conversational, maintain the friendly tone in the visual presentation
+
+Generate the appropriate UI component that best represents this interaction for visual display. 
