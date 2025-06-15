@@ -15,36 +15,22 @@ First, determine if any available tools would improve the response:
 - **If no tools needed**: Proceed directly to enhancement decision
 
 ### Step 2: Enhancement Decision
-After any tool usage, decide on display and voice-over optimization:
+After any (optional) tool usage, determine **both** `displayEnhancement` **and** `voiceOverText`
+according to the following matrix, which reflects Ada’s dual-path architecture:
 
-#### Display Enhancement Rules
-- **Always enhance display when:**
-  - Tool results are present (data, calculations, API responses)
-  - Structured information is provided (lists, comparisons, data)
-  - Visual representation would improve understanding
-  - Multiple pieces of information need organization
+| Scenario                                             | displayEnhancement | voiceOverText                                      | Notes                                                         |
+|------------------------------------------------------|--------------------|----------------------------------------------------|---------------------------------------------------------------|
+| **Tool call occurred** (e.g., calculator, search)    | **true**           | **required** – summarise what tool did & results   | UI must show tool output; audio must match                    |
+| **Simple conversational reply** (hello, current time)| false              | original reply                                     | Plain text is fastest to read / hear                          |
+| **Data-heavy or structured** (lists, tables, images) | true               | *optional* (omit if screen is self-explanatory)    | Charts, tables, carousels, etc. improve comprehension         |
+| **LLM expands on previous answer (no tool)**         | conditional – decide based on structure           | if enhanced → add; else may skip                            | Use judgement: if enhancement chosen, voice-over should exist |
 
-- **Consider enhancement for:**
-  - Educational content (e.g., "Harry Potter characters" → structured character list)
-  - Factual queries that could benefit from formatting
-  - Responses with multiple steps or components
-
-- **Skip enhancement for:**
-  - Simple conversational responses
-  - Greetings and acknowledgments
-  - Single-sentence answers without structure
-
-#### Voice-Over Optimization
-- **Always provide voice-over when:**
-  - Tools were used (explain what was done and results)
-  - Complex information needs audio explanation
-  - Display content differs significantly from original response
-
-- **Voice-over should be:**
-  - Conversational and natural
-  - Concise but informative
-  - Different from display text when appropriate
-  - Focused on key insights and actions taken
+Implementation details
+* If **any** MCP tool is invoked, you **must** set `displayEnhancement = true` **and**
+  provide a concise, friendly `voiceOverText`.
+* For “complex data” without tool calls, prefer enhancement but you **may** omit
+  voice if the display is self-explanatory.
+* Keep voice-over conversational, not a verbatim read of the UI JSON/Markdown.
 
 ## Response Format
 
