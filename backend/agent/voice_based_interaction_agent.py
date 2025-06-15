@@ -150,7 +150,7 @@ class VoiceInterfaceAgent:
                 return
                 
             # Create TTSSpeakFrame - this will cause the bot to speak the text without adding to LLM context
-            tts_frame = TTSSpeakFrame(text=voice_text.strip())
+            tts_frame = TTSTextFrame(text=voice_text.strip())
             
             # Queue the frame to the pipeline task
             await self.pipeline_task.queue_frames([tts_frame])

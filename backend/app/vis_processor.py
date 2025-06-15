@@ -163,10 +163,28 @@ class VisualizationProcessor:
                 try:
                     logger.info("Visualization processor: Processing assistant response through MCP agent...")
                     
-                    enhancement_decision = await self.enhanced_mcp_client.make_enhancement_decision(
-                        assistant_response=assistant_response,
-                        conversation_history=conversation_history
-                    )
+                    # Create voice injection callback for real-time TTS
+                    async def voice_injection_callback(voice_text: str):
+                        """Inject voice text immediately to active voice agents"""
+                        if voice_text and voice_text.strip():
+                            logger.debug(f"Injecting streaming voice text: '{voice_text}'")
+                            await inject_voice_over_to_all_agents(voice_text.strip())
+                    
+                    # Use streaming enhancement decision for better latency
+                    try:
+                        enhancement_decision = await self.enhanced_mcp_client.make_enhancement_decision_streaming(
+                            assistant_response=assistant_response,
+                            conversation_history=conversation_history,
+                            voice_injection_callback=voice_injection_callback
+                        )
+                        logger.info("Visualization processor: Used streaming enhancement decision")
+                    except AttributeError:
+                        # Fallback to non-streaming version if streaming not available
+                        logger.info("Visualization processor: Streaming not available, using standard enhancement decision")
+                        enhancement_decision = await self.enhanced_mcp_client.make_enhancement_decision(
+                            assistant_response=assistant_response,
+                            conversation_history=conversation_history
+                        )
                     
                     logger.info(f"Visualization processor: MCP agent decision - Enhancement: {enhancement_decision}")
                     
@@ -244,20 +262,31 @@ class VisualizationProcessor:
                     }
                     visualized_ui_payload = f'<content>{json.dumps(simple_card)}</content>'
                 
-                # Step 3: Handle TTS voice-over injection for voice interactions
+                # Step 3: Handle TTS voice-over injection for voice interactions  
                 voice_over_text = voice_text if voice_text != display_text else None
                 source = metadata.get("source", "voice")  # Default to voice for backward compatibility
                 
-                # NEW: Inject voice-over text into TTS pipeline for voice interactions
+                # NEW: Check if we need additional voice-over beyond what was streamed
+                # (In streaming mode, voice-over is already injected during the streaming process)
                 if source == "voice" and voice_text and voice_text.strip():
-                    logger.info(f"Visualization processor: Injecting voice-over text into TTS pipeline...")
-                    logger.info(f"Visualization processor: Voice-over text: '{voice_text[:100]}...'")
-                    
+                    # Only inject if this is significantly different from the display text
+                    # and we haven't already streamed it (streaming mode would have handled it)
                     try:
-                        await inject_voice_over_to_all_agents(voice_text.strip())
-                        logger.info(f"Visualization processor: Successfully injected voice-over text to TTS pipeline")
+                        # Check if we used streaming (if the method exists and was called)
+                        used_streaming = hasattr(self.enhanced_mcp_client, 'make_enhancement_decision_streaming')
+                        
+                        if not used_streaming:
+                            # Non-streaming mode - inject voice-over as before
+                            logger.info(f"Visualization processor: Injecting voice-over text into TTS pipeline...")
+                            logger.info(f"Visualization processor: Voice-over text: '{voice_text[:100]}...'")
+                            await inject_voice_over_to_all_agents(voice_text.strip())
+                            logger.info(f"Visualization processor: Successfully injected voice-over text to TTS pipeline")
+                        else:
+                            # Streaming mode - voice-over was already injected during streaming
+                            logger.info(f"Visualization processor: Voice-over already injected during streaming")
+                            
                     except Exception as e:
-                        logger.error(f"Visualization processor: Error injecting voice-over to TTS: {e}")
+                        logger.error(f"Visualization processor: Error handling voice-over injection: {e}")
                 
                 # Step 4: Prepare message for frontend
                 if source == "text_chat":
