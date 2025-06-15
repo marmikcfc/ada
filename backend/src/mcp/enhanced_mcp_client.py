@@ -1,6 +1,7 @@
 import asyncio
 import json
 import os
+import re
 from typing import Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 import logging
@@ -88,9 +89,13 @@ class EnhancedMCPClient:
             # Parse server configurations
             servers = []
             for name, server_config in servers_section.items():
+                # Substitute environment variables in URL
+                url = server_config.get('url', '')
+                url = self._substitute_env_vars(url)
+                
                 servers.append(MCPServerConfig(
                     name=name,
-                    url=server_config.get('url', ''),
+                    url=url,
                     transport=server_config.get('transport', 'http'),
                     description=server_config.get('description'),
                     command=server_config.get('command'),
@@ -106,6 +111,19 @@ class EnhancedMCPClient:
         except Exception as e:
             logger.error(f"Failed to load MCP configuration: {e}")
             raise
+    
+    def _substitute_env_vars(self, text: str) -> str:
+        """Substitute environment variables in text using {VAR_NAME} format."""
+        def replace_var(match):
+            var_name = match.group(1)
+            env_value = os.getenv(var_name)
+            if env_value is None:
+                logger.warning(f"Environment variable {var_name} not found, keeping placeholder")
+                return match.group(0)  # Return original placeholder if env var not found
+            return env_value
+        
+        # Replace {VAR_NAME} with environment variable values
+        return re.sub(r'\{([A-Z_][A-Z0-9_]*)\}', replace_var, text)
     
     async def _connect_to_servers(self):
         """Connect to all configured MCP servers."""

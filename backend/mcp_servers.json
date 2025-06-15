@@ -5,16 +5,19 @@
     },
     "servers": {
         "calculator": {
-            "url": "https://server.smithery.ai/@githejie/mcp-server-calculator/mcp?api_key=54b8c43d-cdda-4503-bda0-29be49a2b664",
-            "transport": "http"
+            "url": "https://server.smithery.ai/@githejie/mcp-server-calculator/mcp?api_key={SMITHERY_API_KEY}",
+            "transport": "http",
+            "description": "Mathematical calculations including basic arithmetic, algebra, and complex mathematical operations"
         },
         "weather": {
-            "url": "https://server.smithery.ai/@isdaniel/mcp_weather_server/mcp?api_key=54b8c43d-cdda-4503-bda0-29be49a2b664",
-            "transport": "http"
+            "url": "https://server.smithery.ai/@isdaniel/mcp_weather_server/mcp?api_key={SMITHERY_API_KEY}",
+            "transport": "http",
+            "description": "Current weather conditions, forecasts, and weather-related information for any location worldwide"
         },
         "search_engine": {
-            "url": "https://server.smithery.ai/exa/mcp?api_key=54b8c43d-cdda-4503-bda0-29be49a2b664",
-            "transport": "http"
+            "url": "https://server.smithery.ai/exa/mcp?api_key={SMITHERY_API_KEY}",
+            "transport": "http",
+            "description": "Web search capabilities to find current information, news, research, and answers from the internet"
         }
     },
     "disabled_servers": {
@@ -24,12 +27,14 @@
                 "mcp_servers/utilities_server.py"
             ],
             "transport": "stdio",
-            "reason": "STDIO transport not yet supported; kept for future use"
+            "reason": "STDIO transport not yet supported; kept for future use",
+            "description": "General utility functions and helper tools"
         },
         "kite": {
-            "url": "https://server.smithery.ai/@aptro/zerodha-mcp/mcp?profile=tense-raven-Zw05Xc&api_key=54b8c43d-cdda-4503-bda0-29be49a2b664",
+            "url": "https://server.smithery.ai/@aptro/zerodha-mcp/mcp?profile=tense-raven-Zw05Xc&api_key={SMITHERY_API_KEY}",
             "transport": "http",
-            "reason": "Temporarily disabled - can be re-enabled if needed"
+            "reason": "Temporarily disabled - can be re-enabled if needed",
+            "description": "Stock market data and trading information from Zerodha platform"
         }
     }
 }

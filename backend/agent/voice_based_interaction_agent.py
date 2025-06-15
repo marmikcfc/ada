@@ -31,13 +31,55 @@ import json
 load_dotenv(override=True)
 
 def load_voice_agent_prompt() -> str:
-    """Load the voice agent system prompt from the prompts directory."""
+    """Load the voice agent system prompt from the prompts directory and inject available tools."""
     prompt_path = os.path.join(os.path.dirname(__file__), "..", "prompts", "voice_agent_system.txt")
+    mcp_config_path = os.path.join(os.path.dirname(__file__), "..", "mcp_servers.json")
+    
     try:
+        # Load the base prompt template
         with open(prompt_path, "r") as f:
-            return f.read().strip()
+            prompt_template = f.read().strip()
+        
+        # Load MCP servers configuration to get available tools
+        available_tools_text = ""
+        try:
+            with open(mcp_config_path, "r") as f:
+                mcp_config = json.load(f)
+            
+            # Extract enabled servers and their descriptions
+            enabled_servers = mcp_config.get("servers", {})
+            if enabled_servers:
+                tools_list = []
+                for server_name, server_config in enabled_servers.items():
+                    # Check if server URL has required environment variables
+                    url = server_config.get("url", "")
+                    if "{SMITHERY_API_KEY}" in url and not os.getenv("SMITHERY_API_KEY"):
+                        logger.warning(f"Skipping {server_name} - SMITHERY_API_KEY not set")
+                        continue
+                    
+                    description = server_config.get("description", f"{server_name} capabilities")
+                    tools_list.append(f"- {server_name.title()}: {description}")
+                
+                if tools_list:
+                    available_tools_text = "\n".join(tools_list)
+                else:
+                    available_tools_text = "- General assistance and conversation capabilities"
+            else:
+                available_tools_text = "- General assistance and conversation capabilities"
+                
+        except (FileNotFoundError, json.JSONDecodeError) as e:
+            logger.warning(f"Could not load MCP configuration for voice prompt: {e}")
+            available_tools_text = "- General assistance and conversation capabilities"
+        
+        # Replace the placeholder with actual tools information
+        final_prompt = prompt_template.replace("{AVAILABLE_TOOLS}", available_tools_text)
+        
+        logger.info(f"Voice agent prompt loaded with {len(enabled_servers)} available tools")
+        return final_prompt
+        
     except FileNotFoundError:
         # Fallback to default prompt if file not found
+        logger.warning(f"Voice agent prompt file not found at {prompt_path}, using fallback")
         return "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."
 
 class VoiceInterfaceAgent:
