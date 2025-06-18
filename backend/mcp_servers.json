@@ -13,11 +13,6 @@
             "url": "https://server.smithery.ai/@isdaniel/mcp_weather_server/mcp?api_key={SMITHERY_API_KEY}",
             "transport": "http",
             "description": "Current weather conditions, forecasts, and weather-related information for any location worldwide"
-        },
-        "search_engine": {
-            "url": "https://server.smithery.ai/exa/mcp?api_key={SMITHERY_API_KEY}",
-            "transport": "http",
-            "description": "Web search capabilities to find current information, news, research, and answers from the internet"
         }
     },
     "disabled_servers": {

@@ -191,7 +191,7 @@ class VisualizationProcessor:
                 except Exception as e:
                     logger.error(f"Visualization processor: Error in MCP agent call: {e}", exc_info=True)
                     # Fallback decision - no enhancement
-                    from src.mcp.enhanced_mcp_client import EnhancementDecision
+                    from enhanced_mcp_client import EnhancementDecision
                     enhancement_decision = EnhancementDecision(
                         displayEnhancement=False,
                         displayEnhancedText=assistant_response,

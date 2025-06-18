@@ -38,7 +38,7 @@ from app.webrtc import router as webrtc_router, close_all_connections, get_prebu
 from app.vis_processor import create_visualization_processor
 
 # Import MCP client
-from src.mcp.enhanced_mcp_client import EnhancedMCPClient
+from enhanced_mcp_client import EnhancedMCPClient
 
 logger = logging.getLogger(__name__)
 
