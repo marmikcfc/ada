@@ -84,9 +84,12 @@ def load_voice_agent_prompt() -> str:
 
 class VoiceInterfaceAgent:
     def __init__(self, webrtc_connection: SmallWebRTCConnection, raw_llm_output_queue: asyncio.Queue, llm_message_queue: asyncio.Queue = None):
+        # Initialize voice agent identifiers and queues
         self.webrtc_connection = webrtc_connection
         self.raw_llm_output_queue = raw_llm_output_queue
         self.llm_message_queue = llm_message_queue
+        # Use the WebRTC pc_id as thread_id if available, otherwise generate a new one
+        self.thread_id = getattr(webrtc_connection, 'pc_id', None) or str(uuid.uuid4())
         # Store pipeline task reference for TTS injection
         self.pipeline_task = None
 
@@ -101,8 +104,15 @@ class VoiceInterfaceAgent:
                 logger.warning("raw_llm_output_queue not available, cannot send response for visualization")
                 return
                 
-            # This payload structure is expected by the modified visualization_processor in main.py
-            payload = {"assistant_response": assistant_response.strip(), "history": history}
+            # Include metadata for visualization processor (source and thread_id)
+            payload = {
+                "assistant_response": assistant_response.strip(),
+                "history": history,
+                "metadata": {
+                    "source": "voice_bot",
+                    "thread_id": self.thread_id
+                }
+            }
             await self.raw_llm_output_queue.put(payload)
             logger.info(f"Enqueued to raw_llm_output_queue: {payload}")
         except Exception as e:

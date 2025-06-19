@@ -21,7 +21,7 @@ from typing import Dict, List, Any, Optional, Set
 from weakref import WeakSet
 
 from openai import AsyncOpenAI
-
+from enhanced_mcp_client import EnhancementDecision
 from app.config import config
 from app.queues import (
     get_raw_llm_output,
@@ -30,7 +30,7 @@ from app.queues import (
     create_voice_response,
     create_text_chat_response
 )
-from utils.thesys_prompts import format_thesys_messages_for_visualize
+from utils.thesys_prompts import format_thesys_messages_for_visualize, load_thesys_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -145,7 +145,11 @@ class VisualizationProcessor:
                 # Wait for item from raw_llm_output_queue
                 logger.debug("Visualization processor: Waiting for item from raw_llm_output_queue...")
                 item = await get_raw_llm_output()
+                bypass_enhancement = False
                 got_item = True  # Flag to indicate we got an item from the queue
+                if item["metadata"]["source"] == "text_chat":
+                    logger.info("Visualization processor: Received text chat item from raw_llm_output_queue so bypassing it directly for enhancement")
+                    bypass_enhancement = True
                 logger.info("Visualization processor: Received item from raw_llm_output_queue")
                 
                 # Extract data from the queue item
@@ -169,14 +173,21 @@ class VisualizationProcessor:
                         if voice_text and voice_text.strip():
                             logger.debug(f"Injecting streaming voice text: '{voice_text}'")
                             await inject_voice_over_to_all_agents(voice_text.strip())
-                    
                     # Use streaming enhancement decision for better latency
                     try:
-                        enhancement_decision = await self.enhanced_mcp_client.make_enhancement_decision_streaming(
-                            assistant_response=assistant_response,
-                            conversation_history=conversation_history,
-                            voice_injection_callback=voice_injection_callback
-                        )
+                        if not bypass_enhancement:
+                            enhancement_decision = await self.enhanced_mcp_client.make_enhancement_decision_streaming(
+                                assistant_response=assistant_response,
+                                conversation_history=conversation_history,
+                                voice_injection_callback=voice_injection_callback
+                            )
+                        else:
+                            logger.info(f"Visualization processor: Bypassing enhancement decision, {assistant_response}")
+                            enhancement_decision = EnhancementDecision(
+                                displayEnhancement=True,
+                                displayEnhancedText=assistant_response,
+                                voiceOverText=None
+                            )
                         logger.info("Visualization processor: Used streaming enhancement decision")
                     except AttributeError:
                         # Fallback to non-streaming version if streaming not available
@@ -190,8 +201,7 @@ class VisualizationProcessor:
                     
                 except Exception as e:
                     logger.error(f"Visualization processor: Error in MCP agent call: {e}", exc_info=True)
-                    # Fallback decision - no enhancement
-                    from enhanced_mcp_client import EnhancementDecision
+                    
                     enhancement_decision = EnhancementDecision(
                         displayEnhancement=False,
                         displayEnhancedText=assistant_response,
@@ -209,11 +219,35 @@ class VisualizationProcessor:
                     logger.info("Visualization processor: Enhancement requested, sending to Thesys Visualize API...")
                     
                     try:
-                        # Format messages for Thesys Visualize API
-                        messages_for_thesys = format_thesys_messages_for_visualize(
-                            display_text, 
-                            conversation_history
-                        )
+                        # Format messages for Thesys Visualize API with dynamic tool list
+                        try:
+                            tools = self.enhanced_mcp_client.get_tools()
+                            # Build markdown list of tools with descriptions
+                            tool_lines = "\n".join([
+                                f"- **{t.name}**: {t.description}"
+                                for t in tools
+                            ])
+                            base_prompt = load_thesys_prompt("thesys_visualize_system")
+                            dynamic_system_prompt = (
+                                f"{base_prompt}\n\n"
+                                "Available server-side tools for interactivity:\n"
+                                f"{tool_lines}"
+                            )
+                            # Construct messages for Thesys API
+                            messages_for_thesys = [
+                                {"role": "system", "content": dynamic_system_prompt}
+                            ]
+                            if conversation_history:
+                                for msg in conversation_history:
+                                    if msg.get("role") in ["user", "assistant"]:
+                                        messages_for_thesys.append({"role": msg["role"], "content": msg["content"]})
+                            messages_for_thesys.append({"role": "assistant", "content": display_text})
+                        except Exception:
+                            # Fallback to static formatting if dynamic prompt fails
+                            messages_for_thesys = format_thesys_messages_for_visualize(
+                                display_text,
+                                conversation_history
+                            )
                         
                         # Call Thesys Visualize API
                         completion = await self.thesys_client.chat.completions.create(

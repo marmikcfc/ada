@@ -16,6 +16,7 @@ from typing import Dict, List, Any, Optional
 import asyncio  # Needed for asyncio.sleep used in WebSocket loop
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Request, HTTPException
+from typing import Union
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
@@ -53,197 +54,59 @@ class ChatRequest(BaseModel):
     message: str
     thread_id: Optional[str] = None
 
-@router.post("/websocket-bridge")
-async def websocket_bridge(request: ThesysBridgeRequest, fastapi_req: Request):
+def extract_message_and_thread_id(request: Union[ChatRequest, ThesysBridgeRequest]) -> tuple[str, Optional[str]]:
     """
-    Bridge endpoint for Thesys C1Chat to send messages through the enhancement pipeline
-    and receive responses in the expected format.
-    
-    This endpoint:
-    1. Extracts the user message from the prompt
-    2. Processes the message through the MCP enhancement agent
-    3. Conditionally enhances the response with Thesys Visualize API
-    4. Returns the response in streaming format for Thesys C1Chat
+    Extract message and thread_id from either ChatRequest or ThesysBridgeRequest
     
     Args:
-        request: The Thesys bridge request
-        fastapi_req: FastAPI request object
+        request: Either ChatRequest or ThesysBridgeRequest
         
     Returns:
-        StreamingResponse with the enhanced content
+        Tuple of (message, thread_id)
     """
-    try:
-        logger.info(f"WebSocket Bridge: Received request from Thesys C1Chat")
-        logger.debug(f"Prompt: {request.prompt}")
-        logger.debug(f"Thread ID: {request.threadId}")
-        logger.debug(f"Response ID: {request.responseId}")
+    if isinstance(request, ChatRequest):
+        return request.message, request.thread_id
+    elif isinstance(request, ThesysBridgeRequest):
+        # Extract message from prompt["content"] and thread_id from threadId
+        message = request.prompt.get("content", "")
+        thread_id = request.threadId
+        return message, thread_id
+    else:
+        raise ValueError(f"Unsupported request type: {type(request)}")
 
-        # Extract user message from prompt
-        user_message = request.prompt.get('content', '')
-        
-        if not user_message:
-            logger.warning("WebSocket Bridge: Empty user message received")
-            error_response = format_thesys_error_response("Empty message received")
-            return create_streaming_response(error_response)
-        
-        # Get the enhanced MCP client from request state
-        enhanced_mcp_client = fastapi_req.app.state.enhanced_mcp_client
-        if not enhanced_mcp_client:
-            logger.error("WebSocket Bridge: Enhanced MCP client not available")
-            error_response = format_thesys_error_response("Enhancement service not available")
-            return create_streaming_response(error_response)
-        
-        # Get the Thesys client from request state
-        thesys_client = fastapi_req.app.state.thesys_client
-        
-        # Use thread ID from request or generate new one
-        thread_id = request.threadId or str(uuid.uuid4())
-        
-        try:
-            logger.info(f"WebSocket Bridge: Processing message through MCP client for thread {thread_id}")
-            
-            # Process the message through the MCP client
-            response = await enhanced_mcp_client.chat_with_tools(
-                user_message=user_message,
-                conversation_history=[]  # Could be extended to maintain history
-            )
-            
-            logger.info(f"WebSocket Bridge: MCP client response: {response[:100]}...")
-            
-            # Get minimal conversation history for context
-            # In a real implementation, this would come from a database
-            conversation_history = [
-                {"role": "user", "content": user_message},
-                {"role": "assistant", "content": response}
-            ]
-            
-            # Process through enhancement pipeline
-            enhancement_decision = await enhanced_mcp_client.make_enhancement_decision(
-                assistant_response=response,
-                conversation_history=conversation_history
-            )
-            
-            display_enhancement = enhancement_decision.displayEnhancement
-            display_text = enhancement_decision.displayEnhancedText
-            
-            if display_enhancement and thesys_client:
-                # Process through Thesys Visualize API
-                logger.info(f"WebSocket Bridge: Sending enhanced response to Thesys Visualize API")
-                visualized_content = await get_thesys_visualization(
-                    thesys_client=thesys_client,
-                    assistant_response=response,
-                    conversation_history=conversation_history,
-                    enhanced_response=display_text
-                )
-            else:
-                # Create simple card for non-enhanced responses
-                simple_card = {
-                    "component": "Card",
-                    "props": {
-                        "children": [
-                            {
-                                "component": "TextContent",
-                                "props": {
-                                    "textMarkdown": display_text
-                                }
-                            }
-                        ]
-                    }
-                }
-                visualized_content = f'{json.dumps(simple_card)}'
-            
-            logger.info(f"WebSocket Bridge: Returning response to C1Chat component")
-
-            # ------------------------------------------------------------------
-            # ALSO stream the assistant response via the /ws/messages socket so
-            # the React client shows the AI message immediately.
-            # ------------------------------------------------------------------
-            try:
-                await enqueue_llm_message(
-                    {
-                        "id": request.responseId or str(uuid.uuid4()),
-                        "role": "assistant",
-                        "type": "voice_response",  # handled by useWebSocketChat
-                        "content": visualized_content,
-                    }
-                )
-                logger.debug("Assistant response enqueued to llm_message_queue")
-            except Exception as q_err:
-                logger.error(f"Failed to enqueue assistant response: {q_err}", exc_info=True)
-            
-            # Return the response in streaming format for Thesys C1Chat
-            return create_streaming_response(visualized_content)
-            
-        except Exception as agent_error:
-            logger.error(f"WebSocket Bridge: Error processing message: {agent_error}", exc_info=True)
-            error_response = format_thesys_error_response(f"Processing error: {str(agent_error)}")
-            return create_streaming_response(error_response)
-        
-    except Exception as e:
-        logger.error(f"WebSocket Bridge Error: {e}", exc_info=True)
-        error_response = format_thesys_error_response(str(e))
-        return create_streaming_response(error_response)
 
 @router.post("/chat")
-async def chat(request: ChatRequest, fastapi_req: Request):
-    """
-    Process a chat message and return the response
-    
-    This endpoint:
-    1. Processes the message through the MCP client
-    2. Returns the response as JSON
-    
-    Args:
-        request: The chat request
-        fastapi_req: FastAPI request object
-        
-    Returns:
-        JSON response with the processed message
-    """
-    try:
-        # Get the enhanced MCP client from request state
-        enhanced_mcp_client = fastapi_req.app.state.enhanced_mcp_client
-        if not enhanced_mcp_client:
-            raise HTTPException(status_code=500, detail="Chat service not available")
-        
-        # Use thread ID from request or generate new one
-        thread_id = request.thread_id or str(uuid.uuid4())
-        
-        # Process the message through the MCP client
-        response = await enhanced_mcp_client.chat_with_tools(
-            user_message=request.message,
-            conversation_history=[]  # Could be extended to maintain history
-        )
-        
-        return {
-            "response": response,
-            "thread_id": thread_id
-        }
-        
-    except Exception as e:
-        logger.error(f"Chat Error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=str(e))
-
-@router.post("/chat-enhanced")
-async def chat_enhanced(request: ChatRequest, fastapi_req: Request):
+async def chat_enhanced(request: Union[ChatRequest, ThesysBridgeRequest], fastapi_req: Request):
     """
     Process a chat message through the full enhancement pipeline
     
+    This endpoint accepts both ChatRequest and ThesysBridgeRequest formats:
+    - ChatRequest: Direct message format
+    - ThesysBridgeRequest: Thesys interactive element format
+    
     This endpoint:
-    1. Enqueues the user message to the WebSocket stream
-    2. Processes the message through the MCP client
-    3. Sends the response through the enhancement pipeline (like voice messages)
-    4. Returns a simple acknowledgment
+    1. Extracts message and thread_id from the request
+    2. Enqueues the user message to the WebSocket stream
+    3. Processes the message through the MCP client
+    4. Sends the response through the enhancement pipeline (like voice messages)
+    5. Returns a simple acknowledgment
     
     Args:
-        request: The chat request
+        request: Either ChatRequest or ThesysBridgeRequest
         fastapi_req: FastAPI request object
         
     Returns:
         JSON response with thread_id and status
     """
+    # Extract message and thread_id from either request format
+    message, thread_id = extract_message_and_thread_id(request)
+    
     # Initialize thread_id early so it's available in error handling
-    thread_id = request.thread_id or str(uuid.uuid4())
+    thread_id = thread_id or str(uuid.uuid4())
+    
+    # Log the request type and extracted data
+    request_type = "ThesysBridgeRequest" if isinstance(request, ThesysBridgeRequest) else "ChatRequest"
+    logger.info(f"Processing {request_type} - Message: {message[:100]}..., Thread ID: {thread_id}")
     
     try:
         # Get the enhanced MCP client from request state
@@ -253,22 +116,22 @@ async def chat_enhanced(request: ChatRequest, fastapi_req: Request):
         
         # Step 1: Send user message to WebSocket immediately
         user_message_for_frontend = create_user_transcription(
-            content=request.message,
+            content=message,
             id=str(uuid.uuid4())
         )
         await enqueue_llm_message(user_message_for_frontend)
-        logger.info(f"Enqueued user message to WebSocket: {request.message}")
+        logger.info(f"Enqueued user message to WebSocket: {message}")
         
         # Step 2: Process the message through the MCP client
         response = await enhanced_mcp_client.chat_with_tools(
-            user_message=request.message,
+            user_message=message,
             conversation_history=[]  # Could be extended to maintain history
         )
         logger.info(f"MCP client response: {response[:100]}...")
         
         # Step 3: Create conversation history for enhancement
         conversation_history = [
-            {"role": "user", "content": request.message},
+            {"role": "user", "content": message},
             {"role": "assistant", "content": response}
         ]
         

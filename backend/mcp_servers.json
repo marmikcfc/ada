@@ -4,15 +4,16 @@
         "openai_api_key_env": "OPENAI_API_KEY"
     },
     "servers": {
-        "calculator": {
-            "url": "https://server.smithery.ai/@githejie/mcp-server-calculator/mcp?api_key={SMITHERY_API_KEY}",
+    
+        "ghl-mcp": {
+            "url": "http://localhost:3100/mcp",
+            "headers": {
+                "Authorization": "Bearer pit-172a8d40-ceb5-4062-b72c-ff8940dbf98b",
+                "baseUrl": "https://services.leadconnectorhq.com",
+                "locationId": "M13VYJHXaYW3Q8qplNBo"
+            },
             "transport": "http",
-            "description": "Mathematical calculations including basic arithmetic, algebra, and complex mathematical operations"
-        },
-        "weather": {
-            "url": "https://server.smithery.ai/@isdaniel/mcp_weather_server/mcp?api_key={SMITHERY_API_KEY}",
-            "transport": "http",
-            "description": "Current weather conditions, forecasts, and weather-related information for any location worldwide"
+            "description": "General helper functions for the user's gohighlevel account"
         }
     },
     "disabled_servers": {
@@ -30,6 +31,16 @@
             "transport": "http",
             "reason": "Temporarily disabled - can be re-enabled if needed",
             "description": "Stock market data and trading information from Zerodha platform"
+        },
+        "calculator": {
+            "url": "https://server.smithery.ai/@githejie/mcp-server-calculator/mcp?api_key={SMITHERY_API_KEY}",
+            "transport": "http",
+            "description": "Mathematical calculations including basic arithmetic, algebra, and complex mathematical operations"
+        },
+        "weather": {
+            "url": "https://server.smithery.ai/@isdaniel/mcp_weather_server/mcp?api_key={SMITHERY_API_KEY}",
+            "transport": "http",
+            "description": "Current weather conditions, forecasts, and weather-related information for any location worldwide"
         }
     }
 }

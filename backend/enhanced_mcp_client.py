@@ -22,6 +22,7 @@ class MCPServerConfig:
     description: Optional[str] = None
     command: Optional[str] = None
     args: Optional[List[str]] = None
+    headers: Optional[Dict[str, str]] = None  # HTTP headers for this server
 
 @dataclass
 class MCPClientConfig:
@@ -35,10 +36,11 @@ class EnhancementDecision(BaseModel):
         description="Whether the response should be enhanced with dynamic UI components"
     )
     displayEnhancedText: str = Field(
-        description="The text to use for UI generation (if enhancement is true) or plain text display (if enhancement is false)"
+        description="The text to use for UI generation (if enhancement is true) or plain text display (if enhancement is false). Do not add HTML tags or any other thing here. We have a separate function to generate a relavant html for the UI."
     )
-    voiceOverText: str = Field(
-        description="The text to be spoken via TTS - should be natural and conversational"
+    voiceOverText: Optional[str] = Field(
+        default=None,
+        description="The text to be spoken via TTS - should be natural and conversational. It can be None if adding voice over is not needed."
     )
 
 class EnhancedMCPClient:
@@ -90,8 +92,13 @@ class EnhancedMCPClient:
             servers = []
             for name, server_config in servers_section.items():
                 # Substitute environment variables in URL
-                url = server_config.get('url', '')
+                url = server_config.get('url', '') or ''
                 url = self._substitute_env_vars(url)
+                # Parse optional headers, with env var substitution
+                raw_headers = server_config.get('headers') or {}
+                headers = None
+                if isinstance(raw_headers, dict):
+                    headers = {k: self._substitute_env_vars(str(v)) for k, v in raw_headers.items()}
                 
                 servers.append(MCPServerConfig(
                     name=name,
@@ -99,7 +106,8 @@ class EnhancedMCPClient:
                     transport=server_config.get('transport', 'http'),
                     description=server_config.get('description'),
                     command=server_config.get('command'),
-                    args=server_config.get('args', [])
+                    args=server_config.get('args', []),
+                    headers=headers
                 ))
             
             return MCPClientConfig(
@@ -149,7 +157,11 @@ class EnhancedMCPClient:
             logger.info(f"Connecting to HTTP MCP server: {server.name} at {server.url}")
             
             # Connect and discover tools using the pattern that works
-            async with streamablehttp_client(server.url) as (read_stream, write_stream, _):
+            # Include any configured headers
+            client_kwargs = {}
+            if server.headers:
+                client_kwargs['headers'] = server.headers
+            async with streamablehttp_client(server.url, **client_kwargs) as (read_stream, write_stream, _):
                 async with ClientSession(read_stream, write_stream) as session:
                     await session.initialize()
                     
@@ -168,8 +180,18 @@ class EnhancedMCPClient:
                                 'server': server.name,
                                 'tool': tool,
                                 'server_url': server.url,  # Store URL for reconnection
+                                'headers': server.headers,  # Preserve headers for reconnect
                                 'session': None  # We'll reconnect for each call
                             }
+                        
+                        # Store server info in sessions dict for accurate count
+                        # (even though we reconnect for each HTTP call)
+                        self.sessions[server.name] = {
+                            'type': 'http',
+                            'url': server.url,
+                            'headers': server.headers,
+                            'tool_count': len(tools_resp.tools)
+                        }
                         
                         logger.info(f"Connected to {server.name}, discovered {len(tools_resp.tools)} tools")
                         
@@ -334,9 +356,13 @@ class EnhancedMCPClient:
             # If it's an HTTP server, reconnect for the tool call
             if 'server_url' in tool_info:
                 server_url = tool_info['server_url']
+                headers = tool_info.get('headers')
                 logger.info(f"Reconnecting to HTTP server for tool call: {tool_key}")
                 
-                async with streamablehttp_client(server_url) as (read_stream, write_stream, _):
+                client_kwargs = {}
+                if headers:
+                    client_kwargs['headers'] = headers
+                async with streamablehttp_client(server_url, **client_kwargs) as (read_stream, write_stream, _):
                     async with ClientSession(read_stream, write_stream) as session:
                         await session.initialize()
                         
@@ -930,27 +956,3 @@ If tools would help, call them. Then provide your structured enhancement decisio
                 displayEnhancedText=assistant_response,
                 voiceOverText=assistant_response
             )
-
-# Example usage function
-async def example_usage():
-    """Example of how to use the Enhanced MCP Client."""
-    client = EnhancedMCPClient("mcp_servers.json")
-    
-    try:
-        await client.initialize()
-        
-        print(f"Available tools: {client.get_available_tools()}")
-        
-        # Chat with tools
-        response = await client.chat_with_tools("What is 2 + 3?")
-        print(f"Assistant response: {response}")
-        
-        # Test enhancement decision
-        decision = await client.make_enhancement_decision("The result is 42")
-        print(f"Enhancement decision: {decision}")
-        
-    finally:
-        await client.close()
-
-if __name__ == "__main__":
-    asyncio.run(example_usage())
