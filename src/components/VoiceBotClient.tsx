@@ -416,17 +416,24 @@ const VoiceBotClient: React.FC = () => {
           // by inspecting the 'data' object logged above.
           const transcriptionText = data.text || data.content;
 
-          if (transcriptionText && typeof transcriptionText === 'string' && threadManagerRef.current) {
-            const userMessage = {
-              id: data.id || crypto.randomUUID(), // Use server-provided ID or generate a new one
-              role: 'user' as const,
-              message: transcriptionText,
-              type: 'prompt' as const, // Explicitly set type for clarity with SDK internals
-            };
-            threadManagerRef.current.appendMessages(userMessage);
-          } else if (!transcriptionText) {
+          if (!transcriptionText) {
             console.warn('User transcription received but the text is empty or not a string:', data);
+            return;
           }
+
+          if (!threadManagerRef.current) return;
+
+          // Always treat transcriptions as plain-text user prompts.  Any rich
+          // formatting of user messages is now handled on the backend before it
+          // is broadcast back to the frontend.
+          const userTextMessage = {
+            id: data.id || crypto.randomUUID(),
+            role: 'user' as const,
+            message: transcriptionText,
+            type: 'prompt' as const,
+          };
+
+          threadManagerRef.current.appendMessages(userTextMessage);
           
         } else if (data.type === 'voice_message') {
           // Handle other voice-related messages (for future voice integration)

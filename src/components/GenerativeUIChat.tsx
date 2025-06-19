@@ -84,15 +84,8 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
             message: text
         };
         if (onSendMessage) {
+            // Let backend / WebSocket deliver the user message via threadManager
             onSendMessage(text);
-            const immediateUserMessage: Message = {
-                id: `user-${Date.now()}`,
-                role: 'user',
-                content: text,
-                timestamp: new Date()
-            };
-            setMessages(prev => [...prev, immediateUserMessage]);
-            console.log('[Loading] User message sent. Loading started.');
         } else if (threadManager?.processMessage) {
             threadManager.processMessage(userMessagePayload);
         }
