@@ -48,7 +48,7 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
     const [messages, setMessages] = useState<Message[]>([]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
-
+    console.log(agentName, logoUrl, searchImage, isVoiceConnectionLoading);
     // Scroll to bottom when new messages arrive
     const scrollToBottom = () => {
         messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });

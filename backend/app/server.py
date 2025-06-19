@@ -40,6 +40,8 @@ from app.vis_processor import create_visualization_processor
 # Import MCP client
 from enhanced_mcp_client import EnhancedMCPClient
 
+# Import chat history manager (shared across the whole backend)
+from app.chat_history_manager import chat_history_manager
 logger = logging.getLogger(__name__)
 
 @asynccontextmanager
@@ -61,6 +63,8 @@ async def lifespan(app: FastAPI):
     app.state.enhanced_mcp_client = None
     app.state.thesys_client = None
     app.state.visualization_processor = None
+    # Make chat history manager available everywhere via app.state
+    app.state.chat_history_manager = chat_history_manager
     
     # Initialize queues
     initialize_queues()
@@ -144,6 +148,13 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to close WebRTC connections: {e}", exc_info=True)
 
+    # Cleanup inactive chat threads
+    try:
+        removed = await chat_history_manager.cleanup_inactive_threads()
+        logger.info(f"Cleaned up {removed} inactive chat threads on shutdown.")
+    except Exception as e:
+        logger.error(f"Failed cleaning up chat history threads: {e}", exc_info=True)
+
 def create_application() -> FastAPI:
     """
     Create and configure the FastAPI application
@@ -207,6 +218,25 @@ def create_application() -> FastAPI:
                 logger.error(f"Error getting enhanced tools: {e}")
         
         return tools_info
+
+    # ------------------------------------------------------------------ #
+    # Chat-history debugging / inspection endpoints (internal use only)
+    # ------------------------------------------------------------------ #
+
+    @app.get("/api/chat/threads", tags=["debug"])
+    async def list_threads():
+        """Return all active thread IDs (debug only)."""
+        return await chat_history_manager.get_all_threads()
+
+    @app.get("/api/chat/history/{thread_id}", tags=["debug"])
+    async def get_thread_history(thread_id: str, max_messages: int | None = None):
+        """
+        Return conversation history for a specific thread ID.
+        `max_messages` can limit the number of recent messages returned.
+        """
+        if max_messages:
+            return await chat_history_manager.get_recent_history(thread_id, max_messages=max_messages)
+        return await chat_history_manager.get_history(thread_id)
     
     # Add MCP enhancement test endpoint
     @app.post("/api/mcp/test-enhancement", tags=["mcp"])

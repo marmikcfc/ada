@@ -276,16 +276,20 @@ class EnhancedMCPClient:
         functions = []
         for tool_key, tool_info in self.available_tools.items():
             tool = tool_info['tool']
+            description = tool.description or f"Tool from {tool_info['server']}"
+            if tool_info.get("headers"):
+                description += f" Note: The following headers are sent with this tool call. If you need any of these headers in payload, use them. For create a contact locationId is needed in body: {json.dumps(tool_info['headers'])}"
+            
             functions.append({
                 "name": tool_key,  # Use server_tool format (OpenAI compatible)
-                "description": tool.description or f"Tool from {tool_info['server']}",
+                "description": description,
                 "parameters": tool.inputSchema
             })
         
         try:
             # Initial model call with tool definitions
             if functions:
-                # Tools available → expose them to the model
+                logger.info(f"Messages: {messages}")
                 response = await self.openai_client.chat.completions.create(
                     model=self.config.model,
                     messages=messages,
@@ -365,13 +369,14 @@ class EnhancedMCPClient:
                 async with streamablehttp_client(server_url, **client_kwargs) as (read_stream, write_stream, _):
                     async with ClientSession(read_stream, write_stream) as session:
                         await session.initialize()
-                        
                         # Call the MCP tool with timeout to prevent hanging
                         tool_result = await asyncio.wait_for(
-                            session.call_tool(tool_name, arguments=args),
+                            session.call_tool(tool_name, args),
                             timeout=20.0  # 20 second timeout for tool calls
                         )
                         
+                        logger.info(f"Tool result: {tool_result}")
+
                         # Extract text result
                         if tool_result.isError:
                             return f"Error: {tool_result.content[0].text if tool_result.content else 'Unknown error'}"
@@ -515,12 +520,14 @@ For responses with data, analysis, or tool usage, set displayEnhancement to true
                 available_tools_info.append({
                     "name": tool_key,
                     "description": tool.description or f"Tool from {tool_info['server']}",
-                    "server": tool_info['server']
+                    "server": tool_info['server'],
+                    "headers": tool_info.get("headers")
                 })
             
             # Format the prompt with available tools
             tools_description = "\n".join([
-                f"- **{tool['name']}** ({tool['server']}): {tool['description']}"
+                f"- **{tool['name']}** ({tool['server']}): {tool['description']}" +
+                (f" (Headers sent: {json.dumps(tool['headers'])})" if tool.get('headers') else "")
                 for tool in available_tools_info
             ])
             
@@ -557,9 +564,13 @@ If tools would help, call them. Then provide your structured enhancement decisio
             functions = []
             for tool_key, tool_info in self.available_tools.items():
                 tool = tool_info['tool']
+                description = tool.description or f"Tool from {tool_info['server']}"
+                if tool_info.get("headers"):
+                    description += f" Note: The following headers are sent with this tool call: {json.dumps(tool_info['headers'])}"
+
                 functions.append({
                     "name": tool_key,
-                    "description": tool.description or f"Tool from {tool_info['server']}",
+                    "description": description,
                     "parameters": tool.inputSchema
                 })
             
@@ -708,12 +719,14 @@ For responses with data, analysis, or tool usage, set displayEnhancement to true
                 available_tools_info.append({
                     "name": tool_key,
                     "description": tool.description or f"Tool from {tool_info['server']}",
-                    "server": tool_info['server']
+                    "server": tool_info['server'],
+                    "headers": tool_info.get("headers")
                 })
             
             # Format the prompt with available tools
             tools_description = "\n".join([
-                f"- **{tool['name']}** ({tool['server']}): {tool['description']}"
+                f"- **{tool['name']}** ({tool['server']}): {tool['description']}" +
+                (f" (Headers sent: {json.dumps(tool['headers'])})" if tool.get('headers') else "")
                 for tool in available_tools_info
             ])
             
@@ -750,9 +763,13 @@ If tools would help, call them. Then provide your structured enhancement decisio
             functions = []
             for tool_key, tool_info in self.available_tools.items():
                 tool = tool_info['tool']
+                description = tool.description or f"Tool from {tool_info['server']}"
+                if tool_info.get("headers"):
+                    description += f" Note: The following headers are sent with this tool call: {json.dumps(tool_info['headers'])}"
+                
                 functions.append({
                     "name": tool_key,  # Use server_tool format (OpenAI compatible)
-                    "description": tool.description or f"Tool from {tool_info['server']}",
+                    "description": description,
                     "parameters": tool.inputSchema
                 })
             

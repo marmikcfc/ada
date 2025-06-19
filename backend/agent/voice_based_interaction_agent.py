@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
-from pipecat.frames.frames import Frame, InputImageRawFrame, OutputImageRawFrame, LLMTextFrame, TTSSpeakFrame, TTSTextFrame, LLMFullResponseEndFrame, TranscriptionFrame
+from pipecat.frames.frames import Frame, InputImageRawFrame, OutputImageRawFrame, LLMTextFrame, TTSTextFrame, LLMFullResponseEndFrame, TranscriptionFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -27,6 +27,9 @@ from pipecat.observers.loggers.llm_log_observer import LLMLogObserver
 from pipecat.processors.transcript_processor import TranscriptProcessor
 from pipecat.transports.network.webrtc_connection import SmallWebRTCConnection
 import json
+
+# Import chat history manager
+from app.chat_history_manager import chat_history_manager
 
 load_dotenv(override=True)
 
@@ -90,6 +93,7 @@ class VoiceInterfaceAgent:
         self.llm_message_queue = llm_message_queue
         # Use the WebRTC pc_id as thread_id if available, otherwise generate a new one
         self.thread_id = getattr(webrtc_connection, 'pc_id', None) or str(uuid.uuid4())
+        logger.info(f"Voice agent initialized with thread_id: {self.thread_id}")
         # Store pipeline task reference for TTS injection
         self.pipeline_task = None
 
@@ -136,6 +140,10 @@ class VoiceInterfaceAgent:
                 "content": transcription_text
             }
             
+            # Add to chat history manager
+            await chat_history_manager.add_user_message(self.thread_id, transcription_text, user_message["id"])
+            logger.info(f"Added user transcription to chat history for thread {self.thread_id}")
+            
             await self.llm_message_queue.put(user_message)
             logger.info(f"User transcription sent to frontend: {user_message}")
         except Exception as e:
@@ -143,7 +151,7 @@ class VoiceInterfaceAgent:
 
     async def inject_tts_voice_over(self, voice_text: str):
         """
-        Inject voice-over text directly into the TTS pipeline using TTSSpeakFrame.
+        Inject voice-over text directly into the TTS pipeline using TTSTextFrame.
         This is called by the visualization processor when MCP generates voice-over text.
         """
         logger.info(f"--- inject_tts_voice_over ---")
@@ -159,7 +167,7 @@ class VoiceInterfaceAgent:
                 logger.warning("Empty voice text provided, skipping TTS injection")
                 return
                 
-            # Create TTSSpeakFrame - this will cause the bot to speak the text without adding to LLM context
+            # Create TTSTextFrame - this will cause the bot to speak the text without adding to LLM context
             tts_frame = TTSTextFrame(text=voice_text.strip())
             
             # Queue the frame to the pipeline task
@@ -271,9 +279,17 @@ class VoiceInterfaceAgent:
         async def handle_transcript_update(processor, frame):
             # Each message contains role (user/assistant), content, and timestamp
             for message in frame.messages:
-                #print(f"[{message.timestamp}] {message.role}: {message.content}")
                 logger.info(f"Capturing transcriber logs [{message.timestamp}] {message.role}: {message.content}")
-                await self.send_user_transcription_to_frontend(message.content)
+                
+                # Add to chat history based on role
+                if message.role == "user":
+                    # Add user message to chat history
+                    await chat_history_manager.add_user_message(self.thread_id, message.content)
+                    # Send to frontend
+                    await self.send_user_transcription_to_frontend(message.content)
+                elif message.role == "assistant":
+                    # Add assistant message to chat history
+                    await chat_history_manager.add_assistant_message(self.thread_id, message.content)
 
         # Store pipeline task reference for TTS injection
         self.pipeline_task = task
@@ -303,23 +319,23 @@ class ResponseAggregatorProcessor(FrameProcessor):
 
         if isinstance(frame, LLMFullResponseEndFrame):
             if self.current_assistant_response_buffer:
-                last_user_message_content = "User input not found"  # Default
-                # Iterate backwards through the context to find the last user message
-                current_messages = self.context.get_messages()
-                # if current_messages:
-                #     for i in range(len(current_messages) - 1, -1, -1):
-                #         msg = current_messages[i]
-                #         if msg["role"] == "user":
-                #             last_user_message_content = msg["content"]
-                #             break
-
-                assistant_response=self.current_assistant_response_buffer.strip()
-                
-                await self.agent_instance.process_downstream_display(
-                    # user_input=last_user_message_content,
-                    assistant_response=self.current_assistant_response_buffer.strip(),
-                    history=current_messages[1:]
+                # Add the complete assistant response to chat history
+                assistant_response = self.current_assistant_response_buffer.strip()
+                await chat_history_manager.add_assistant_message(
+                    self.agent_instance.thread_id, 
+                    assistant_response
                 )
+                logger.info(f"Added assistant response to chat history for thread {self.agent_instance.thread_id}")
+                
+                # Get conversation history from chat history manager instead of context
+                conversation_history = await chat_history_manager.get_recent_history(self.agent_instance.thread_id)
+                
+                # Process downstream display with the real conversation history
+                await self.agent_instance.process_downstream_display(
+                    assistant_response=assistant_response,
+                    history=conversation_history
+                )
+                
                 # Reset buffer after processing the full response
                 self.current_assistant_response_buffer = ""
             
@@ -328,4 +344,4 @@ class ResponseAggregatorProcessor(FrameProcessor):
             return
 
         # For all other frames not specifically handled above, pass them through.
-        await self.push_frame(frame, direction) 
+        await self.push_frame(frame, direction)

@@ -40,6 +40,11 @@ logger = logging.getLogger(__name__)
 # Router for chat endpoints
 router = APIRouter(prefix="/api", tags=["chat"])
 
+# --------------------------------------------------------------------------- #
+# Chat history integration
+# --------------------------------------------------------------------------- #
+from app.chat_history_manager import chat_history_manager  # noqa: E402
+
 # WebSocket router (needs different prefix)
 ws_router = APIRouter(tags=["websocket"])
 
@@ -113,6 +118,14 @@ async def chat_enhanced(request: Union[ChatRequest, ThesysBridgeRequest], fastap
         enhanced_mcp_client = fastapi_req.app.state.enhanced_mcp_client
         if not enhanced_mcp_client:
             raise HTTPException(status_code=500, detail="Chat service not available")
+
+        # ------------------------------------------------------------------- #
+        # 1. Persist USER message in history
+        # ------------------------------------------------------------------- #
+        if isinstance(request, ThesysBridgeRequest):
+            await chat_history_manager.add_c1_action(thread_id, message)
+        else:
+            await chat_history_manager.add_user_message(thread_id, message)
         
         # Step 1: Send user message to WebSocket immediately
         user_message_for_frontend = create_user_transcription(
@@ -122,18 +135,23 @@ async def chat_enhanced(request: Union[ChatRequest, ThesysBridgeRequest], fastap
         await enqueue_llm_message(user_message_for_frontend)
         logger.info(f"Enqueued user message to WebSocket: {message}")
         
+        # Gather recent history for context
+        conversation_history = await chat_history_manager.get_recent_history(thread_id)
+
         # Step 2: Process the message through the MCP client
         response = await enhanced_mcp_client.chat_with_tools(
             user_message=message,
-            conversation_history=[]  # Could be extended to maintain history
+            conversation_history=conversation_history  # real history
         )
         logger.info(f"MCP client response: {response[:100]}...")
         
-        # Step 3: Create conversation history for enhancement
-        conversation_history = [
-            {"role": "user", "content": message},
-            {"role": "assistant", "content": response}
-        ]
+        # ------------------------------------------------------------------- #
+        # 3. Persist ASSISTANT response in history
+        # ------------------------------------------------------------------- #
+        await chat_history_manager.add_assistant_message(thread_id, response)
+
+        # Fetch updated conversation history for downstream processors
+        conversation_history = await chat_history_manager.get_recent_history(thread_id)
         
         # Step 4: Send response through enhancement pipeline (like voice messages)
         await enqueue_raw_llm_output(
