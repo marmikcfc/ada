@@ -45,6 +45,9 @@ chat_history.db
 *.db-shm
 *.db-wal
 
+# MCP servers configuration
+backend/mcp_servers.json
+
 # Logs
 *.log
 logs/
