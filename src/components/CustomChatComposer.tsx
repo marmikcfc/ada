@@ -10,6 +10,7 @@ interface CustomChatComposerProps {
     isVoiceActive?: boolean;
     onToggleVoiceConnection?: () => void;
     isVoiceConnected?: boolean;
+    isLoading?: boolean;
 }
 
 const CustomChatComposer: React.FC<CustomChatComposerProps> = ({
@@ -19,13 +20,14 @@ const CustomChatComposer: React.FC<CustomChatComposerProps> = ({
     onStopVoiceChat,
     isVoiceActive = false,
     onToggleVoiceConnection,
-    isVoiceConnected = false
+    isVoiceConnected = false,
+    isLoading = false
 }) => {
     const [message, setMessage] = useState('');
     const textareaRef = useRef<HTMLTextAreaElement>(null);
 
     const handleSend = () => {
-        if (message.trim() && !disabled) {
+        if (message.trim() && !disabled && !isLoading) {
             onSendMessage(message.trim());
             setMessage('');
             // Reset textarea height
@@ -67,23 +69,27 @@ const CustomChatComposer: React.FC<CustomChatComposerProps> = ({
                     value={message}
                     onChange={handleTextareaChange}
                     onKeyDown={handleKeyDown}
-                    disabled={disabled || isVoiceActive}
+                    disabled={disabled || isVoiceActive || isLoading}
                     rows={1}
                 />
                 <div className="composer-actions">
                     {/* Send Button */}
                     <button
-                        className={`send-button${disabled || !message.trim() || isVoiceActive ? ' disabled' : ''}`}
+                        className={`send-button${(disabled || !message.trim() || isVoiceActive || isLoading) ? ' disabled' : ''}`}
                         onClick={handleSend}
-                        disabled={disabled || !message.trim() || isVoiceActive}
+                        disabled={disabled || !message.trim() || isVoiceActive || isLoading}
                         title="Send"
                     >
-                        <ArrowUpCircle 
-                            size={28}
-                            strokeWidth={2.5}
-                            color={disabled || !message.trim() || isVoiceActive ? '#adb5bd' : '#2563eb'}
-                            style={{ filter: disabled || !message.trim() || isVoiceActive ? 'none' : 'drop-shadow(0 2px 8px rgba(37,99,235,0.15))', transition: 'transform 0.15s, box-shadow 0.15s' }}
-                        />
+                        {isLoading ? (
+                            'Loading...'
+                        ) : (
+                            <ArrowUpCircle 
+                                size={28}
+                                strokeWidth={2.5}
+                                color={disabled || !message.trim() || isVoiceActive ? '#adb5bd' : '#2563eb'}
+                                style={{ filter: disabled || !message.trim() || isVoiceActive ? 'none' : 'drop-shadow(0 2px 8px rgba(37,99,235,0.15))', transition: 'transform 0.15s, box-shadow 0.15s' }}
+                            />
+                        )}
                     </button>
                     {/* Voice Connect Button (now to the right of send) */}
                     {onToggleVoiceConnection && (

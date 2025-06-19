@@ -23,15 +23,12 @@ interface GenerativeUIChatProps {
     agentName?: string;
     logoUrl?: string;
     onSendMessage?: (message: string) => void;
-    // Callback for C1Component actions
     onC1Action?: (action: any) => void;
-    // Function to search for images (required by C1Component)
     searchImage?: (query: string) => Promise<{ url: string; thumbnailUrl?: string }>;
-    
-    // Props for the new voice connection button in composer
     onToggleVoiceConnection?: () => void;
     isVoiceConnected?: boolean;
-    isVoiceConnectionLoading?: boolean; // To show a loading state on the button
+    isVoiceConnectionLoading?: boolean;
+    isLoading?: boolean;
 }
 
 const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
@@ -43,10 +40,10 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
     searchImage,
     onToggleVoiceConnection,
     isVoiceConnected,
-    isVoiceConnectionLoading
+    isVoiceConnectionLoading,
+    isLoading
 }) => {
     const [messages, setMessages] = useState<Message[]>([]);
-    const [isLoading, setIsLoading] = useState(false);
     const messagesEndRef = useRef<HTMLDivElement>(null);
     const chatContainerRef = useRef<HTMLDivElement>(null);
 
@@ -63,22 +60,19 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
     useEffect(() => {
         if (threadManager?.messages) {
             const convertedMessages: Message[] = threadManager.messages.map((msg: any) => {
-                // Check if this is a C1Component message
                 const isC1Message = msg.message?.[0]?.type === 'template' && 
                                    msg.message?.[0]?.name === 'c1';
-                
                 return {
                     id: msg.id,
                     role: msg.role,
                     content: isC1Message ? undefined : (msg.content || msg.message),
                     c1Content: isC1Message ? msg.message[0].templateProps.content : undefined,
-                    timestamp: new Date(msg.createdAt || Date.now()) // Use createdAt if available
+                    timestamp: new Date(msg.createdAt || Date.now())
                 };
             });
             setMessages(convertedMessages);
-            setIsLoading(threadManager.isRunning || false);
         }
-    }, [threadManager?.messages, threadManager?.isRunning]);
+    }, [threadManager?.messages]);
 
     const handleSendMessage = useCallback((text: string) => {
         if (!text.trim()) return;
@@ -89,7 +83,6 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
         };
         if (onSendMessage) {
             onSendMessage(text);
-             // Optionally, update UI immediately or wait for parent
             const immediateUserMessage: Message = {
                 id: `user-${Date.now()}`,
                 role: 'user',
@@ -97,10 +90,9 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
                 timestamp: new Date()
             };
             setMessages(prev => [...prev, immediateUserMessage]);
-            setIsLoading(true);
+            console.log('[Loading] User message sent. Loading started.');
         } else if (threadManager?.processMessage) {
             threadManager.processMessage(userMessagePayload);
-            // threadManager should update messages, triggering useEffect
         }
     }, [onSendMessage, threadManager]);
 
@@ -140,13 +132,13 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
                             key={message.id}
                             message={message}
                             isLast={index === messages.length - 1}
-                            isStreaming={isLoading && message.role === 'assistant' && index === messages.length -1}
+                            isStreaming={(isLoading ?? false) && message.role === 'assistant' && index === messages.length -1}
                         >
                             {/* Render C1Component for messages that have c1Content */}
                             {message.c1Content && (
                                 <C1Component
                                     c1Response={message.c1Content}
-                                    isStreaming={isLoading && message.role === 'assistant' && index === messages.length -1}
+                                    isStreaming={(isLoading ?? false) && message.role === 'assistant' && index === messages.length -1}
                                     updateMessage={(content: string) => handleC1UpdateMessage(content, message.id)}
                                     onAction={handleC1ComponentAction}
                                 />
@@ -155,7 +147,7 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
                     ))}
                     
                     {/* Loading indicator */}
-                    {isLoading && messages[messages.length -1]?.role === 'user' && (
+                    {(isLoading ?? false) && (
                         <div className="loading-indicator">
                             <span className="typing-dots">
                                 <span></span>
@@ -171,7 +163,8 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
                 {/* Composer */}
                 <CustomChatComposer
                     onSendMessage={handleSendMessage}
-                    disabled={isLoading || isVoiceConnectionLoading}
+                    disabled={isLoading ?? false}
+                    isLoading={isLoading ?? false}
                     onToggleVoiceConnection={onToggleVoiceConnection}
                     isVoiceConnected={isVoiceConnected}
                 />

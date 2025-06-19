@@ -14,6 +14,7 @@ const VoiceBotClient: React.FC = () => {
   // Voice/WebRTC state
   const [voiceStatus, setVoiceStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Thread list management with stable callbacks
   const threadListManager = useThreadListManager({
@@ -56,7 +57,7 @@ const VoiceBotClient: React.FC = () => {
     // apiUrl is not strictly needed if WebSocket handles all outbound messages, 
     // but CrayonChat might use it for its own input if not overridden.
     // For Phase 1, let's keep it as it might interact with how CrayonChat's default input works.
-    apiUrl: '/api/websocket-bridge',
+    apiUrl: '/api/chat',
     // We are not using processMessage here as WebSocket messages are handled separately
     // and C1Component actions will be routed via onC1ComponentAction prop.
   });
@@ -300,17 +301,8 @@ const VoiceBotClient: React.FC = () => {
       console.log('WebSocket message received:', event.data);
       
       try {
-        // Try to parse as JSON first
-        let data;
-        try {
-          data = JSON.parse(event.data);
-        } catch {
-          // If not JSON, treat as plain text
-          data = {
-            type: 'assistant_message',
-            content: event.data
-          };
-        }
+        const data = JSON.parse(event.data);
+        setIsLoading(false);
         
         // Handle different message types
         if (data.type === 'connection_ack') {
@@ -560,6 +552,7 @@ const VoiceBotClient: React.FC = () => {
 
   // Handler for text messages sent via chat input
   const handleSendTextMessage = useCallback(async (message: string) => {
+    setIsLoading(true);
     console.log('=== SENDING TEXT MESSAGE ===');
     console.log('Message:', message);
     console.log('Thread ID:', threadListManager.selectedThreadId);
@@ -567,7 +560,7 @@ const VoiceBotClient: React.FC = () => {
     
     try {
       // Call the enhanced chat endpoint for full enhancement pipeline
-      const response = await fetch('/api/chat-enhanced', {
+      const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -638,6 +631,7 @@ const VoiceBotClient: React.FC = () => {
         }}
         isVoiceConnected={voiceStatus === 'connected'}
         isVoiceConnectionLoading={voiceStatus === 'connecting'}
+        isLoading={isLoading}
       />
     </div>
   );
