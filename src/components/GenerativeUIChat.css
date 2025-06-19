@@ -44,7 +44,15 @@
 .loading-indicator {
     display: flex;
     justify-content: center;
+    align-items: center;        /* keep text and dots vertically aligned */
+    gap: 8px;                   /* space between text and dots */
     padding: 16px;
+}
+
+.loading-text {
+    font-size: 14px;
+    color: #6c757d;              /* subtle, matches dot colour */
+    line-height: 1.4;
 }
 
 .typing-dots {

@@ -29,6 +29,7 @@ interface GenerativeUIChatProps {
     isVoiceConnected?: boolean;
     isVoiceConnectionLoading?: boolean;
     isLoading?: boolean;
+    isVoiceLoading?: boolean;
 }
 
 const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
@@ -41,7 +42,8 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
     onToggleVoiceConnection,
     isVoiceConnected,
     isVoiceConnectionLoading,
-    isLoading
+    isLoading,
+    isVoiceLoading
 }) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -147,8 +149,11 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
                     ))}
                     
                     {/* Loading indicator */}
-                    {(isLoading ?? false) && (
+                    {((isLoading ?? false) || (isVoiceLoading ?? false)) && (
                         <div className="loading-indicator">
+                            <span className="loading-text">
+                                {isLoading ? 'Assistant is thinking...' : 'Assistant is preparing to speak...'}
+                            </span>
                             <span className="typing-dots">
                                 <span></span>
                                 <span></span>
@@ -163,8 +168,8 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
                 {/* Composer */}
                 <CustomChatComposer
                     onSendMessage={handleSendMessage}
-                    disabled={isLoading ?? false}
-                    isLoading={isLoading ?? false}
+                    disabled={(isLoading ?? false) || (isVoiceLoading ?? false)}
+                    isLoading={(isLoading ?? false) || (isVoiceLoading ?? false)}
                     onToggleVoiceConnection={onToggleVoiceConnection}
                     isVoiceConnected={isVoiceConnected}
                 />

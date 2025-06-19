@@ -15,6 +15,8 @@ const VoiceBotClient: React.FC = () => {
   const [voiceStatus, setVoiceStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  // Voice-specific loading (between user-stopped-speaking → bot-started-speaking)
+  const [isVoiceLoading, setIsVoiceLoading] = useState(false);
 
   // Thread list management with stable callbacks
   const threadListManager = useThreadListManager({
@@ -96,6 +98,13 @@ const VoiceBotClient: React.FC = () => {
           console.error('Error parsing transcript JSON:', err);
           return;
         }
+        // loading state toggles
+        if (msg.type === 'user-stopped-speaking') {
+          setIsVoiceLoading(true);
+        } else if (msg.type === 'bot-started-speaking') {
+          setIsVoiceLoading(false);
+        }
+
         if (msg.type === 'user_transcription') {
           const transcriptionText = msg.text || msg.content;
           console.log('Frontend (interim transcript log):', transcriptionText);
@@ -302,7 +311,6 @@ const VoiceBotClient: React.FC = () => {
       
       try {
         const data = JSON.parse(event.data);
-        setIsLoading(false);
         
         // Handle different message types
         if (data.type === 'connection_ack') {
@@ -356,6 +364,9 @@ const VoiceBotClient: React.FC = () => {
         } else if (data.type === 'text_chat_response') {
           // Handle text chat response messages from the visualization processor
           console.log('Received text chat response message:', data);
+
+          // Text response is now fully received – stop the loading indicator
+          setIsLoading(false);
           
           let messageContent;
           
@@ -632,6 +643,7 @@ const VoiceBotClient: React.FC = () => {
         isVoiceConnected={voiceStatus === 'connected'}
         isVoiceConnectionLoading={voiceStatus === 'connecting'}
         isLoading={isLoading}
+        isVoiceLoading={isVoiceLoading}
       />
     </div>
   );
