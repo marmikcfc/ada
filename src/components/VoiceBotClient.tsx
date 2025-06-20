@@ -551,17 +551,6 @@ const VoiceBotClient: React.FC = () => {
       };
       wsRef.current.send(JSON.stringify(actionMessageForBackend));
 
-      // Optionally, add a user message to the chat to reflect the action taken
-      // This depends on whether the action itself should be visible as a user prompt
-      if (action.humanFriendlyMessage && threadManagerRef.current) {
-          const userActionMessage = {
-              id: crypto.randomUUID(),
-              role: 'user' as const,
-              content: action.humanFriendlyMessage, 
-          };
-          threadManagerRef.current.appendMessages(userActionMessage);
-      }
-
     } else {
       console.warn('WebSocket not open, cannot send C1Component action.');
       // Potentially queue the action or notify the user

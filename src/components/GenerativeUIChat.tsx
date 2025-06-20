@@ -95,17 +95,18 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
         if (onC1Action) {
             onC1Action(action);
         }
-        if (action.llmFriendlyMessage) {
-             // Process C1 action as a new user message via threadManager or callback
-            const userMessagePayload = {
+        // Show a clean user bubble with the human-readable action name
+        if (action?.humanFriendlyMessage && threadManager?.appendMessages) {
+            threadManager.appendMessages({
+                id: crypto.randomUUID(),
                 role: 'user' as const,
-                type: 'prompt' as const,
-                message: action.llmFriendlyMessage
-            };
-            if (threadManager?.processMessage) {
-                threadManager.processMessage(userMessagePayload);
-            }
+                message: action.humanFriendlyMessage,
+                type: 'prompt' as const
+            });
         }
+        // Do NOT send llmFriendlyMessage through processMessage – it will be
+        // forwarded to the backend via onC1Action and WebSocket inside
+        // VoiceBotClient to avoid duplicating raw data in the UI.
     }, [onC1Action, threadManager]);
 
     const handleC1UpdateMessage = useCallback((updatedContent: string, messageId: string) => {
