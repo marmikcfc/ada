@@ -64,6 +64,22 @@ class RawLLMOutput(TypedDict):
     history: List[Dict[str, Any]]
     metadata: Optional[Dict[str, Any]]
 
+# --------------------------------------------------------------------------- #
+#  NEW: Immediate voice response (sent before slow-path enhancement)
+# --------------------------------------------------------------------------- #
+class ImmediateVoiceResponse(TypedDict):
+    """
+    A lightweight assistant message pushed to the UI *immediately* after the
+    full LLM text is available but before the visualization/enhancement
+    pipeline finishes.  Structure is identical to VoiceResponse except for
+    the `type` discriminator.
+    """
+    id: str
+    role: str              # "assistant"
+    type: str              # "immediate_voice_response"
+    content: str           # Simple C1Component payload (usually a basic card)
+    voiceText: Optional[str]  # Optionally override spoken text
+
 # Queue instances
 llm_message_queue: Optional[asyncio.Queue] = None
 raw_llm_output_queue: Optional[asyncio.Queue] = None
@@ -77,7 +93,15 @@ def initialize_queues():
     raw_llm_output_queue = asyncio.Queue(maxsize=config.queue.raw_llm_output_queue_maxsize)
     logger.info("Communication queues initialized successfully")
 
-async def enqueue_llm_message(message: Union[UserTranscription, ChatToken, C1Token, ChatDone, VoiceResponse, TextChatResponse]):
+async def enqueue_llm_message(message: Union[
+    UserTranscription,
+    ChatToken,
+    C1Token,
+    ChatDone,
+    VoiceResponse,
+    TextChatResponse,
+    ImmediateVoiceResponse  # NEW: allow immediate voice responses
+]):
     """
     Enqueue a message to be sent to the frontend via WebSocket
     
@@ -237,4 +261,58 @@ def create_text_chat_response(content: str, thread_id: Optional[str] = None) -> 
         "type": "text_chat_response",
         "content": content,
         "threadId": thread_id
+    }
+
+# --------------------------------------------------------------------------- #
+# Helper for building a plain Card/TextContent payload
+# --------------------------------------------------------------------------- #
+def create_simple_card_content(text_markdown: str) -> str:
+    """
+    Create the minimal C1-compatible payload used when no visual enhancement
+    is requested.  The structure exactly mirrors the fallback built inside
+    `vis_processor.py` so that the UI receives consistent markup whether the
+    payload is produced eagerly (fast-path) or later (slow-path).
+
+    Args:
+        text_markdown: The raw assistant text to embed in the card.
+
+    Returns:
+        A `<content> … </content>` string ready to be placed in a message.
+    """
+    simple_card = {
+        "component": {
+            "component": "Card",
+            "props": {
+                "children": [
+                    {
+                        "component": "TextContent",
+                        "props": {
+                            "textMarkdown": text_markdown
+                        },
+                    }
+                ]
+            },
+        }
+    }
+    return f"<content>{json.dumps(simple_card)}</content>"
+
+# --------------------------------------------------------------------------- #
+# Helper for immediate voice responses
+# --------------------------------------------------------------------------- #
+def create_immediate_voice_response(
+    content: str,
+    voice_text: Optional[str] = None
+) -> ImmediateVoiceResponse:
+    """
+    Create an *immediate* voice response that can be displayed as soon as the
+    fast-path LLM finishes (before enhancement).  The caller is expected to
+    supply a simple C1-compatible payload, typically the same “simple card”
+    structure used as a fallback in `vis_processor.py`.
+    """
+    return {
+        "id": str(uuid.uuid4()),
+        "role": "assistant",
+        "type": "immediate_voice_response",
+        "content": content,
+        "voiceText": voice_text,
     }

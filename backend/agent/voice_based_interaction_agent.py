@@ -30,6 +30,12 @@ import json
 
 # Import chat history manager
 from app.chat_history_manager import chat_history_manager
+# Helpers for immediate UI update
+from app.queues import (
+    create_simple_card_content,
+    create_immediate_voice_response,
+    enqueue_llm_message,
+)
 
 load_dotenv(override=True)
 
@@ -322,9 +328,31 @@ class ResponseAggregatorProcessor(FrameProcessor):
                 # Add the complete assistant response to chat history
                 assistant_response = self.current_assistant_response_buffer.strip()
                 await chat_history_manager.add_assistant_message(
-                    self.agent_instance.thread_id, 
+                    self.agent_instance.thread_id,
                     assistant_response
                 )
+
+                # ------------------------------------------------------------------
+                # FAST-PATH UI UPDATE: push a simple Card to the frontend **now**
+                # ------------------------------------------------------------------
+                try:
+                    simple_content = create_simple_card_content(assistant_response)
+                    immediate_msg = create_immediate_voice_response(
+                        content=simple_content,
+                        voice_text=None,
+                    )
+                    # Prefer the agent-scoped queue if supplied, otherwise fall back
+                    # to the global enqueue helper.
+                    if self.agent_instance.llm_message_queue is not None:
+                        await self.agent_instance.llm_message_queue.put(immediate_msg)
+                    else:
+                        await enqueue_llm_message(immediate_msg)
+                    logger.info(
+                        f"Sent immediate_voice_response to frontend (id={immediate_msg['id']})"
+                    )
+                except Exception as e:
+                    logger.error(f"Error sending immediate voice response: {e}")
+
                 logger.info(f"Added assistant response to chat history for thread {self.agent_instance.thread_id}")
                 
                 # Get conversation history from chat history manager instead of context

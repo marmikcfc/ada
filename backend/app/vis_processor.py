@@ -17,6 +17,7 @@ import asyncio
 import logging
 import json
 import uuid
+import difflib
 from typing import Dict, List, Any, Optional, Set
 from weakref import WeakSet
 
@@ -74,6 +75,37 @@ async def inject_voice_over_to_all_agents(voice_text: str):
             logger.info(f"Voice-over text injected to {len(injection_tasks)} agents")
         except Exception as e:
             logger.error(f"Error during concurrent TTS injection: {e}")
+
+def is_significantly_different(text1: str, text2: str, threshold: float = 0.2) -> bool:
+    """
+    Determine if two text strings are significantly different.
+    
+    Args:
+        text1: First text string
+        text2: Second text string
+        threshold: Difference threshold (0.0 to 1.0) where higher means more difference required
+        
+    Returns:
+        True if texts are significantly different, False if similar
+    """
+    # Normalize texts for comparison
+    text1 = text1.strip().lower()
+    text2 = text2.strip().lower()
+    
+    # Quick check for identical texts
+    if text1 == text2:
+        return False
+    
+    # Use difflib to calculate similarity ratio (0.0 to 1.0)
+    similarity = difflib.SequenceMatcher(None, text1, text2).ratio()
+    
+    # Lower similarity means higher difference
+    difference = 1.0 - similarity
+    
+    logger.debug(f"Text similarity: {similarity:.2f}, difference: {difference:.2f}, threshold: {threshold}")
+    
+    # Return True if difference exceeds threshold
+    return difference > threshold
 
 class VisualizationProcessor:
     """
@@ -214,8 +246,21 @@ class VisualizationProcessor:
                 display_text = enhancement_decision.displayEnhancedText
                 voice_text = enhancement_decision.voiceOverText
                 
+                # Check if this is a voice message where an immediate response was already sent
+                source = metadata.get("source", "voice")  # Default to voice for backward compatibility
+                
+                # For voice messages, check if the enhanced text is significantly different 
+                # from the original text that was already sent as an immediate response
+                skip_sending = False
+                if source == "voice":
+                    # Check if the enhanced text is significantly different from the original
+                    if not display_enhancement and not is_significantly_different(display_text, assistant_response):
+                        logger.info("Visualization processor: Enhanced text not significantly different from original. "
+                                   "Skipping duplicate message since immediate response was already sent.")
+                        skip_sending = True
+                
                 # Step 2: Conditionally process with Thesys or create simple card
-                if display_enhancement and self.thesys_client:
+                if not skip_sending and display_enhancement and self.thesys_client:
                     logger.info("Visualization processor: Enhancement requested, sending to Thesys Visualize API...")
                     
                     try:
@@ -271,7 +316,7 @@ class VisualizationProcessor:
                             }
                         }
                         visualized_ui_payload = f'<content>{json.dumps(error_component)}</content>'
-                else:
+                elif not skip_sending:
                     logger.info("Visualization processor: No enhancement needed or Thesys unavailable, creating simple text card...")
                     
                     # Create a simple card with text content
@@ -298,7 +343,6 @@ class VisualizationProcessor:
                 
                 # Step 3: Handle TTS voice-over injection for voice interactions  
                 voice_over_text = voice_text if voice_text != display_text else None
-                source = metadata.get("source", "voice")  # Default to voice for backward compatibility
                 
                 # NEW: Check if we need additional voice-over beyond what was streamed
                 # (In streaming mode, voice-over is already injected during the streaming process)
@@ -322,26 +366,29 @@ class VisualizationProcessor:
                     except Exception as e:
                         logger.error(f"Visualization processor: Error handling voice-over injection: {e}")
                 
-                # Step 4: Prepare message for frontend
-                if source == "text_chat":
-                    # Create text chat response for text-based interactions
-                    thread_id = metadata.get("thread_id")
-                    message_for_frontend = create_text_chat_response(
-                        content=visualized_ui_payload,
-                        thread_id=thread_id
-                    )
+                # Step 4: Prepare message for frontend (if not skipped)
+                if not skip_sending:
+                    if source == "text_chat":
+                        # Create text chat response for text-based interactions
+                        thread_id = metadata.get("thread_id")
+                        message_for_frontend = create_text_chat_response(
+                            content=visualized_ui_payload,
+                            thread_id=thread_id
+                        )
+                    else:
+                        # Create voice response for voice-based interactions
+                        message_for_frontend = create_voice_response(
+                            content=visualized_ui_payload,
+                            voice_text=voice_over_text
+                        )
+                    
+                    logger.info(f"Visualization processor: Prepared message for frontend with ID: {message_for_frontend['id']}")
+                    
+                    # Step 5: Enqueue the message for the frontend
+                    await enqueue_llm_message(message_for_frontend)
+                    logger.info(f"Visualization processor: Successfully sent payload to frontend queue")
                 else:
-                    # Create voice response for voice-based interactions
-                    message_for_frontend = create_voice_response(
-                        content=visualized_ui_payload,
-                        voice_text=voice_over_text
-                    )
-                
-                logger.info(f"Visualization processor: Prepared message for frontend with ID: {message_for_frontend['id']}")
-                
-                # Step 5: Enqueue the message for the frontend
-                await enqueue_llm_message(message_for_frontend)
-                logger.info(f"Visualization processor: Successfully sent payload to frontend queue")
+                    logger.info("Visualization processor: Skipped sending duplicate message for voice response")
                 
             except asyncio.CancelledError:
                 # Don't mark task as done when cancelled - just propagate the cancellation

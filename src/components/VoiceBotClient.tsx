@@ -317,6 +317,41 @@ const VoiceBotClient: React.FC = () => {
           // Handle connection acknowledgment
           console.log('WebSocket connection acknowledged:', data.message);
           
+        } else if (data.type === 'immediate_voice_response') {
+          // Fast-path message that arrives before enhancement
+          console.log('Received immediate voice response message:', data);
+
+          let messageContent;
+
+          // Payload should already be Thesys XML, but be defensive
+          if (typeof data.content === 'string' && data.content.includes('<content>')) {
+            messageContent = data.content;
+            console.log('Using pre-formatted Thesys content from immediate voice response:', messageContent);
+          } else {
+            messageContent = formatAssistantMessage(data.content || 'Voice response received');
+            console.log('Formatting raw immediate voice response content:', data.content);
+          }
+
+          const immediateVoiceMessage = {
+            id: data.id || crypto.randomUUID(),
+            role: 'assistant' as const,
+            message: [{
+              type: 'template' as const,
+              name: 'c1',
+              templateProps: {
+                content: messageContent
+              }
+            }]
+          };
+
+          if (threadManagerRef.current) {
+            try {
+              threadManagerRef.current.appendMessages(immediateVoiceMessage);
+            } catch (error) {
+              console.error('Error calling appendMessages for immediate voice message:', error);
+            }
+          }
+        
         } else if (data.type === 'voice_response') {
           // Handle voice response messages from the visualization processor
           console.log('Received voice response message:', data);
