@@ -15,6 +15,9 @@ interface Message {
     content?: string;
     // For C1Component messages
     c1Content?: string;
+    /** True when backend flagged the assistant bubble as having additional
+     *  audio (voice-over) that is *not* included in the visible content. */
+    hasVoiceOver?: boolean;
     timestamp: Date;
 }
 
@@ -69,6 +72,8 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
                     role: msg.role,
                     content: isC1Message ? undefined : (msg.content || msg.message),
                     c1Content: isC1Message ? msg.message[0].templateProps.content : undefined,
+                    // Voice-over flag comes from backend through isVoiceOverOnly
+                    hasVoiceOver: Boolean(msg.isVoiceOverOnly),
                     timestamp: new Date(msg.createdAt || Date.now())
                 };
             });
@@ -129,6 +134,7 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
                             message={message}
                             isLast={index === messages.length - 1}
                             isStreaming={(isLoading ?? false) && message.role === 'assistant' && index === messages.length -1}
+                            hasVoiceOver={message.hasVoiceOver}
                         >
                             {/* Render C1Component for messages that have c1Content */}
                             {message.c1Content && (

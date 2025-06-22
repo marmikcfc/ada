@@ -277,9 +277,14 @@ const VoiceBotClient: React.FC = () => {
 
   useEffect(() => {
     console.log('Setting up WebSocket connection for C1Chat...');
+    // Always connect to the backend running on port 8000. We keep the same
+    // protocol (ws/wss) and hostname, but override the port so the frontend
+    // (e.g. Vite dev server on 1420) does not attempt to serve the WS route.
+    const backendPort = '8000';
+    const hostname = window.location.hostname;
     const wsUrl = window.location.protocol === 'https:'
-      ? 'wss://' + window.location.host + '/ws/messages'
-      : 'ws://' + window.location.host + '/ws/messages';
+      ? `wss://${hostname}:${backendPort}/ws/messages`
+      : `ws://${hostname}:${backendPort}/ws/messages`;
 
     console.log(`Connecting to WebSocket at: ${wsUrl}`);
     const ws = new WebSocket(wsUrl);
@@ -335,6 +340,8 @@ const VoiceBotClient: React.FC = () => {
           const immediateVoiceMessage = {
             id: data.id || crypto.randomUUID(),
             role: 'assistant' as const,
+            // Pass the isVoiceOverOnly flag to indicate there was voice-over audio
+            isVoiceOverOnly: data.isVoiceOverOnly || false,
             message: [{
               type: 'template' as const,
               name: 'c1',
@@ -372,6 +379,8 @@ const VoiceBotClient: React.FC = () => {
           const voiceMessage = {
             id: data.id || crypto.randomUUID(),
             role: 'assistant' as const,
+            // Pass the isVoiceOverOnly flag to indicate there was voice-over audio
+            isVoiceOverOnly: data.isVoiceOverOnly || false,
             message: [{
               type: 'template' as const,
               name: 'c1',

@@ -14,7 +14,9 @@ from typing import Generator, Optional, Callable, Awaitable, Dict, Any
 from dataclasses import dataclass
 from pydantic import BaseModel
 
-from enhanced_mcp_client import EnhancementDecision
+# Avoid circular import by importing the shared schema instead of the full client
+# (enhanced_mcp_client → streaming_parser → enhanced_mcp_client caused ImportError)
+from schemas import EnhancementDecision
 
 logger = logging.getLogger(__name__)
 
@@ -56,6 +58,9 @@ class EnhancementStreamingParser:
             "displayEnhancedText": "", 
             "voiceOverText": ""
         }
+        # If we later discover displayEnhancement is False we disable
+        # any further real-time voice-over injection to avoid duplicate audio.
+        self.voice_disabled: bool = False
         
     async def process_chunk(self, chunk: str) -> Optional[StreamingChunk]:
         """
@@ -69,6 +74,15 @@ class EnhancementStreamingParser:
         """
         if not chunk:
             return None
+
+        # ------------------------------------------------------------------ #
+        #  Verbose debug – token-level visibility of the incoming stream
+        # ------------------------------------------------------------------ #
+        # Log the raw delta content (trim to first 120 chars to avoid noise)
+        logger.debug(
+            "StreamingParser ▸ raw_chunk: %s",
+            chunk.replace("\n", "\\n")[:120] + ("…" if len(chunk) > 120 else "")
+        )
             
         self.buffer += chunk
         
@@ -85,8 +99,12 @@ class EnhancementStreamingParser:
         
         # Look for voiceOverText content - highest priority for immediate TTS
         voice_match = self._extract_streaming_field_content("voiceOverText", chunk)
-        if voice_match:
+        if voice_match and not self.voice_disabled:
             # Process voice content word by word for immediate TTS
+            logger.debug(
+                "StreamingParser ▸ voiceOver fragment detected (%s chars, disabled=%s)",
+                len(voice_match), self.voice_disabled
+            )
             words = voice_match.split()
             for word in words:
                 if word.strip():
@@ -109,6 +127,7 @@ class EnhancementStreamingParser:
         if enhancement_match:
             try:
                 self.enhancement_flag = json.loads(enhancement_match.lower())
+                logger.info("StreamingParser ▸ displayEnhancement token=%s", self.enhancement_flag)
                 return StreamingChunk(
                     content=enhancement_match,
                     chunk_type="metadata",
@@ -116,10 +135,18 @@ class EnhancementStreamingParser:
                 )
             except json.JSONDecodeError:
                 pass
+            # Immediately disable further voice-over if enhancement is False
+            if self.enhancement_flag is False:
+                logger.info("StreamingParser ▸ enhancement=False ⇒ disabling further voiceOver injection")
+                self.voice_disabled = True
         
         # Look for displayEnhancedText content
         display_match = self._extract_streaming_field_content("displayEnhancedText", chunk)
         if display_match:
+            logger.debug(
+                "StreamingParser ▸ displayEnhancedText fragment (%s chars)",
+                len(display_match)
+            )
             return StreamingChunk(
                 content=display_match,
                 chunk_type="display",

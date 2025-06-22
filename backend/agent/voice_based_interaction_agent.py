@@ -119,7 +119,10 @@ class VoiceInterfaceAgent:
                 "assistant_response": assistant_response.strip(),
                 "history": history,
                 "metadata": {
-                    "source": "voice_bot",
+                    # Use the canonical label expected by the visualization
+                    # processor so that its early-exit de-duplication logic
+                    # triggers correctly.
+                    "source": "voice",
                     "thread_id": self.thread_id
                 }
             }

@@ -22,7 +22,7 @@ from typing import Dict, List, Any, Optional, Set
 from weakref import WeakSet
 
 from openai import AsyncOpenAI
-from enhanced_mcp_client import EnhancementDecision
+from schemas import EnhancementDecision
 from app.config import config
 from app.queues import (
     get_raw_llm_output,
@@ -237,7 +237,7 @@ class VisualizationProcessor:
                     enhancement_decision = EnhancementDecision(
                         displayEnhancement=False,
                         displayEnhancedText=assistant_response,
-                        voiceOverText=assistant_response
+                        voiceOverText=""  # Empty voice-over to avoid duplicate audio
                     )
                     logger.info("Visualization processor: Using fallback decision (no enhancement)")
                 
@@ -248,16 +248,39 @@ class VisualizationProcessor:
                 
                 # Check if this is a voice message where an immediate response was already sent
                 source = metadata.get("source", "voice")  # Default to voice for backward compatibility
-                
-                # For voice messages, check if the enhanced text is significantly different 
-                # from the original text that was already sent as an immediate response
+
+                # ------------------------------------------------------------------ #
+                #  Extra DEBUG: log values before early-exit decision
+                # ------------------------------------------------------------------ #
+                logger.debug(
+                    "Early-exit evaluation → source=%s (type=%s) | "
+                    "display_enhancement=%s (type=%s)",
+                    source,
+                    type(source).__name__,
+                    display_enhancement,
+                    type(display_enhancement).__name__,
+                )
+
+                # ------------------------------------------------------------------ #
+                #  EARLY-EXIT RULE  (lowest-latency, no duplicates, no extra TTS)
+                # ------------------------------------------------------------------ #
+                # If this came from the voice path *and* the agent decided there is
+                # NO visual enhancement, we have already shown the immediate bubble
+                # and streamed the audio.  Nothing more to do – skip the rest of the
+                # slow-path entirely.
+                if source == "voice" and display_enhancement is False:
+                    logger.info(
+                        "Visualization processor: displayEnhancement=False for voice turn – "
+                        "bypassing further processing to avoid duplicate UI / audio."
+                    )
+                    # Mark queue task done and move to next item
+                    mark_raw_llm_output_done()
+                    continue
+                # From this point onwards we always want to continue normal
+                # processing; duplication has been avoided already.  Ensure the
+                # legacy `skip_sending` flag is defined so the remainder of the
+                # method can reference it safely without a NameError.
                 skip_sending = False
-                if source == "voice":
-                    # Check if the enhanced text is significantly different from the original
-                    if not display_enhancement and not is_significantly_different(display_text, assistant_response):
-                        logger.info("Visualization processor: Enhanced text not significantly different from original. "
-                                   "Skipping duplicate message since immediate response was already sent.")
-                        skip_sending = True
                 
                 # Step 2: Conditionally process with Thesys or create simple card
                 if not skip_sending and display_enhancement and self.thesys_client:
@@ -341,14 +364,33 @@ class VisualizationProcessor:
                     }
                     visualized_ui_payload = f'<content>{json.dumps(simple_card)}</content>'
                 
-                # Step 3: Handle TTS voice-over injection for voice interactions  
-                voice_over_text = voice_text if voice_text != display_text else None
+                # Step 3: Handle TTS voice-over injection for voice interactions
+                # UPDATED: Only inject voice-over if it meets all criteria:
+                # 1. Not empty/null
+                # 2. Significantly different from display text
+                # 3. Enhancement was actually requested
+                
+                # Only set voice_over_text if it's significantly different from display text
+                voice_over_text = None
+                should_inject_voice_over = False
+                
+                if source == "voice" and voice_text and voice_text.strip():
+                    # Check if voice_text is significantly different from display_text
+                    if is_significantly_different(voice_text, display_text):
+                        # Only use voice-over if enhancement was requested
+                        if display_enhancement:
+                            voice_over_text = voice_text
+                            should_inject_voice_over = True
+                            logger.info(f"Visualization processor: Will use voice-over text (significantly different + enhancement requested)")
+                        else:
+                            logger.info(f"Visualization processor: Skipping voice-over (no enhancement requested)")
+                    else:
+                        logger.info(f"Visualization processor: Skipping voice-over (not significantly different from display text)")
+                else:
+                    logger.info(f"Visualization processor: No voice-over text provided or empty")
                 
                 # NEW: Check if we need additional voice-over beyond what was streamed
-                # (In streaming mode, voice-over is already injected during the streaming process)
-                if source == "voice" and voice_text and voice_text.strip():
-                    # Only inject if this is significantly different from the display text
-                    # and we haven't already streamed it (streaming mode would have handled it)
+                if should_inject_voice_over:
                     try:
                         # Check if we used streaming (if the method exists and was called)
                         used_streaming = hasattr(self.enhanced_mcp_client, 'make_enhancement_decision_streaming')
@@ -356,8 +398,8 @@ class VisualizationProcessor:
                         if not used_streaming:
                             # Non-streaming mode - inject voice-over as before
                             logger.info(f"Visualization processor: Injecting voice-over text into TTS pipeline...")
-                            logger.info(f"Visualization processor: Voice-over text: '{voice_text[:100]}...'")
-                            await inject_voice_over_to_all_agents(voice_text.strip())
+                            logger.info(f"Visualization processor: Voice-over text: '{voice_over_text[:100]}...'")
+                            await inject_voice_over_to_all_agents(voice_over_text.strip())
                             logger.info(f"Visualization processor: Successfully injected voice-over text to TTS pipeline")
                         else:
                             # Streaming mode - voice-over was already injected during streaming

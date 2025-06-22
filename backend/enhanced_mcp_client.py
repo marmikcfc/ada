@@ -5,12 +5,19 @@ import re
 from typing import Awaitable, Callable, Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 import logging
+# Third-party / MCP imports
 from openai import AsyncOpenAI
 from mcp import ClientSession
 from mcp.client.streamable_http import streamablehttp_client
 
-# Import the EnhancementDecision model
-from pydantic import BaseModel, Field
+# Shared data models
+from schemas import EnhancementDecision
+
+# Streaming utilities
+from streaming_parser import (
+    StreamingEnhancementGenerator,
+    EnhancementStreamingParser,  # <-- NEW: correct low-level parser
+)
 
 logger = logging.getLogger(__name__)
 
@@ -29,19 +36,6 @@ class MCPClientConfig:
     model: str
     openai_api_key: str
     servers: List[MCPServerConfig]
-
-class EnhancementDecision(BaseModel):
-    """Pydantic model for MCP agent's enhancement decision response."""
-    displayEnhancement: bool = Field(
-        description="Whether the response should be enhanced with dynamic UI components"
-    )
-    displayEnhancedText: str = Field(
-        description="The text to use for UI generation (if enhancement is true) or plain text display (if enhancement is false). Do not add HTML tags or any other thing here. We have a separate function to generate a relavant html for the UI."
-    )
-    voiceOverText: Optional[str] = Field(
-        default=None,
-        description="The text to be spoken via TTS - should be natural and conversational. It can be None if adding voice over is not needed."
-    )
 
 class EnhancedMCPClient:
     """Enhanced MCP client that supports HTTP servers and external configuration."""
@@ -370,6 +364,8 @@ class EnhancedMCPClient:
                     async with ClientSession(read_stream, write_stream) as session:
                         await session.initialize()
                         # Call the MCP tool with timeout to prevent hanging
+
+                        logger.info(f"Calling tool: {tool_name} with args {args}")
                         tool_result = await asyncio.wait_for(
                             session.call_tool(tool_name, args),
                             timeout=20.0  # 20 second timeout for tool calls
@@ -472,202 +468,147 @@ class EnhancedMCPClient:
         self._connection_resources.clear()
 
     async def make_enhancement_decision_streaming(
-        self, 
-        assistant_response: str, 
+        self,
+        assistant_response: str,
         conversation_history: Optional[List[Dict[str, Any]]] = None,
         voice_injection_callback: Optional[Callable[[str], Awaitable[None]]] = None
     ) -> EnhancementDecision:
         """
-        Make an enhancement decision with streaming support for real-time voice-over injection.
-        
-        Args:
-            assistant_response: The original voice assistant response
-            conversation_history: Optional conversation history for context
-            voice_injection_callback: Async callback for real-time voice-over injection
-            
-        Returns:
-            EnhancementDecision with display and voice-over recommendations
+        Make an enhancement decision with full streaming support for both function
+        calls and direct answers, enabling real-time voice-over injection.
         """
         if not self.openai_client:
             raise RuntimeError("MCP client not initialized")
-        
+
         try:
-            from streaming_parser import StreamingEnhancementGenerator
-            
-            # Load the enhancement prompt
-            prompt_path = os.path.join(os.path.dirname(__file__), "..", "..", "prompts", "voice_enhancement_mcp_prompt.txt")
-            try:
-                with open(prompt_path, "r") as f:
-                    enhancement_prompt = f.read().strip()
-            except FileNotFoundError:
-                enhancement_prompt = """You are an AI assistant that decides whether a response should be enhanced with dynamic UI or displayed as plain text.
-
-Available tools: {available_tools}
-
-Analyze the assistant response and determine:
-1. If the content would benefit from visual enhancement
-2. What enhanced text should be used for UI generation
-3. What text should be used for voice-over/TTS
-4. If any tools should be called to improve the response
-
-For simple conversational responses, set displayEnhancement to false.
-For responses with data, analysis, or tool usage, set displayEnhancement to true."""
-            
-            # Get available tools information
-            available_tools_info = []
-            for tool_key, tool_info in self.available_tools.items():
-                tool = tool_info['tool']
-                available_tools_info.append({
-                    "name": tool_key,
-                    "description": tool.description or f"Tool from {tool_info['server']}",
-                    "server": tool_info['server'],
-                    "headers": tool_info.get("headers")
-                })
-            
-            # Format the prompt with available tools
-            tools_description = "\n".join([
-                f"- **{tool['name']}** ({tool['server']}): {tool['description']}" +
-                (f" (Headers sent: {json.dumps(tool['headers'])})" if tool.get('headers') else "")
-                for tool in available_tools_info
-            ])
-            
-            if not tools_description:
-                tools_description = "No tools currently available."
-            
-            formatted_prompt = enhancement_prompt.format(available_tools=tools_description)
-            
-            # Prepare conversation context
-            context_text = ""
-            if conversation_history:
-                context_text = "\n\nConversation Context:\n"
-                for msg in conversation_history[-3:]:
-                    role = msg.get('role', 'unknown')
-                    content = msg.get('content', '')
-                    context_text += f"{role}: {content}\n"
-            
-            # Prepare messages for OpenAI with tool-aware prompt
-            messages = [
-                {"role": "system", "content": formatted_prompt},
-                {"role": "user", "content": f"""Analyze this voice assistant response and make an enhancement decision:
-
-Original Response: "{assistant_response}"{context_text}
-
-Consider:
-1. Should any tools be called to improve this response?
-2. Would visual enhancement improve user experience?
-3. What's the best voice-over approach?
-
-If tools would help, call them. Then provide your structured enhancement decision."""}
-            ]
-            
-            # Prepare function definitions from available tools
-            functions = []
-            for tool_key, tool_info in self.available_tools.items():
-                tool = tool_info['tool']
-                description = tool.description or f"Tool from {tool_info['server']}"
-                if tool_info.get("headers"):
-                    description += f" Note: The following headers are sent with this tool call: {json.dumps(tool_info['headers'])}"
-
-                functions.append({
-                    "name": tool_key,
-                    "description": description,
-                    "parameters": tool.inputSchema
-                })
-            
-            # Use streaming generator
-            generator = StreamingEnhancementGenerator(self.openai_client, self.config.model)
-            
-            # Handle function calls and streaming
-            if functions:
-                # Check for function calls first
-                response = await asyncio.wait_for(
-                    self.openai_client.chat.completions.create(
-                        model=self.config.model,
-                        messages=messages,
-                        functions=functions,
-                        function_call="auto",
-                        temperature=0.3
-                    ),
-                    timeout=30.0
-                )
-                
-                reply = response.choices[0].message
-                
-                # If function call detected, handle it and then stream the final decision
-                if hasattr(reply, 'function_call') and reply.function_call:
-                    func_call = reply.function_call
-                    func_name = func_call.name
-                    args = json.loads(func_call.arguments or "{}")
-                    
-                    logger.info(f"Model requested tool: {func_name} with args {args}")
-                    
-                    # Call the MCP tool
-                    tool_result = await self._call_tool(func_name, args)
-                    
-                    # Send immediate voice feedback about tool usage
-                    if voice_injection_callback:
-                        await voice_injection_callback("I'm using tools to help answer your question. ")
-                    
-                    # Update messages with tool result
-                    messages.extend([
-                        {
-                            "role": "assistant",
-                            "content": None,
-                            "function_call": {
-                                "name": func_name,
-                                "arguments": json.dumps(args)
-                            }
-                        },
-                        {
-                            "role": "function",
-                            "name": func_name,
-                            "content": tool_result
-                        },
-                        {
-                            "role": "user", 
-                            "content": "Now provide your structured enhancement decision based on the tool results."
-                        }
-                    ])
-                    
-                    # Stream the final decision with tool results
-                    final_decision = await generator.stream_enhancement_decision(
-                        messages, 
-                        voice_injection_callback=voice_injection_callback
-                    )
-                    
-                    # Force display enhancement since tools were used
-                    if isinstance(final_decision, EnhancementDecision):
-                        final_decision.displayEnhancement = True
-                        if not final_decision.voiceOverText.strip():
-                            final_decision.voiceOverText = f"I used the {func_name} tool to help answer your question."
-                        
-                        logger.info(f"Enhanced MCP Agent decision (with tools): enhancement={final_decision.displayEnhancement}")
-                        return final_decision
-                    else:
-                        # Fallback for tool calls
-                        return EnhancementDecision(
-                            displayEnhancement=True,
-                            displayEnhancedText=f"Tool Result: {tool_result}",
-                            voiceOverText=f"I used the {func_name} tool to help answer your question."
-                        )
-            
-            # No function calls - stream the decision directly  
-            final_decision = await generator.stream_enhancement_decision(
-                messages,
-                voice_injection_callback=voice_injection_callback
+            # Load and format the enhancement prompt
+            # `enhanced_mcp_client.py` already lives inside the `backend/` package.
+            # The prompts directory is a *sibling* of this file (backend/prompts),
+            # so we should **not** climb up one level.  Using `".."` caused a
+            # FileNotFoundError at runtime.
+            prompt_path = os.path.join(
+                os.path.dirname(__file__),
+                "prompts",
+                "voice_enhancement_mcp_prompt.txt",
             )
+            with open(prompt_path, "r") as f:
+                enhancement_prompt = f.read().strip()
             
-            if isinstance(final_decision, EnhancementDecision):
-                logger.info(f"Enhanced MCP Agent decision (streaming): enhancement={final_decision.displayEnhancement}")
-                return final_decision
-            else:
-                # Fallback decision
-                return EnhancementDecision(
-                    displayEnhancement=False,
-                    displayEnhancedText=assistant_response,
-                    voiceOverText=assistant_response
+            tools_description = "\n".join([
+                f"- **{tool_info['tool'].name}** ({tool_info['server']}): {tool_info['tool'].description}"
+                for tool_info in self.available_tools.values()
+            ]) or "No tools currently available."
+            formatted_prompt = enhancement_prompt.format(available_tools=tools_description)
+
+            # Prepare messages for the initial call
+            messages = [{"role": "system", "content": formatted_prompt}]
+            if conversation_history:
+                messages.extend(conversation_history[-3:])  # Use last 3 for context
+            messages.append({"role": "user", "content": f"Analyze this voice assistant response and make an enhancement decision:\n\nOriginal Response: \"{assistant_response}\""})
+
+            # Prepare function definitions
+            functions = [{
+                "name": tool_key,
+                "description": tool_info['tool'].description or f"Tool from {tool_info['server']}",
+                "parameters": tool_info['tool'].inputSchema
+            } for tool_key, tool_info in self.available_tools.items()]
+
+            # -- Start of Streaming Logic --
+            stream_params = {
+                "model": self.config.model,
+                "messages": messages,
+                "stream": True,
+                "temperature": 0.3,
+            }
+            if functions:
+                stream_params["functions"] = functions
+                stream_params["function_call"] = "auto"
+            
+            stream = await self.openai_client.chat.completions.create(**stream_params)
+
+            # Buffers to handle the stream
+            is_function_call = False
+            func_name = ""
+            func_args_buffer = ""
+            # Parser that incrementally consumes delta.content tokens and
+            # triggers voice_injection_callback while building the final
+            # EnhancementDecision payload.
+            parser = EnhancementStreamingParser(voice_injection_callback)
+
+            async for chunk in stream:
+                delta = chunk.choices[0].delta
+                if not delta:
+                    continue
+
+                if delta.function_call:
+                    is_function_call = True
+                    if delta.function_call.name:
+                        func_name = delta.function_call.name
+                    if delta.function_call.arguments:
+                        func_args_buffer += delta.function_call.arguments
+                
+                if delta.content:
+                    # This is a direct response, parse it for voice-over
+                    await parser.process_chunk(delta.content)
+            
+            # -- End of Streaming, now decide what to do --
+
+            if is_function_call:
+                logger.info(f"Streaming detected function call: {func_name} with args: {func_args_buffer}")
+                
+                # Execute the tool
+                try:
+                    args = json.loads(func_args_buffer)
+                    tool_result = await self._call_tool(func_name, args)
+                except json.JSONDecodeError:
+                    tool_result = "Error: Invalid arguments for function call."
+                
+                # Inject voice-over for tool usage
+                if voice_injection_callback:
+                    await voice_injection_callback(f"I'm using the {func_name.split('_')[-1]} tool. ")
+
+                # Update messages with the tool call and result
+                messages.extend([
+                    {"role": "assistant", "content": None, "function_call": {"name": func_name, "arguments": func_args_buffer}},
+                    {"role": "function", "name": func_name, "content": tool_result},
+                    {"role": "user", "content": "Now provide your final structured enhancement decision based on the tool's output."}
+                ])
+
+                # Make a SECOND streaming call to get the final decision
+                logger.info("Making second streaming call for final decision after tool use.")
+                final_generator = StreamingEnhancementGenerator(self.openai_client, self.config.model)
+                final_decision = await final_generator.stream_enhancement_decision(
+                    messages,
+                    voice_injection_callback=voice_injection_callback
                 )
                 
+                # Ensure enhancement is true after a tool call
+                final_decision.displayEnhancement = True
+                if not final_decision.voiceOverText or not final_decision.voiceOverText.strip():
+                    final_decision.voiceOverText = "I've used a tool to get you this information."
+                
+                return final_decision
+
+            else:
+                # No function call, finalize the parsing of the direct response
+                final_decision = await parser.finalize()
+                if not final_decision:
+                    # Fallback if parsing fails
+                    logger.warning("Streaming parser failed to finalize, using fallback.")
+                    return EnhancementDecision(
+                        displayEnhancement=False,
+                        displayEnhancedText=assistant_response,
+                        voiceOverText=assistant_response
+                    )
+                
+                # Safety net: If no enhancement, ensure voiceOverText is empty
+                if not final_decision.displayEnhancement:
+                    logger.info("Forcing voiceOverText to empty since displayEnhancement is false.")
+                    final_decision.voiceOverText = ""
+                
+                logger.info(f"Enhanced MCP Agent decision (direct stream): enhancement={final_decision.displayEnhancement}")
+                return final_decision
+
         except Exception as e:
             logger.error(f"Error in streaming enhanced MCP agent decision: {e}", exc_info=True)
             return EnhancementDecision(
@@ -693,7 +634,7 @@ If tools would help, call them. Then provide your structured enhancement decisio
         
         try:
             # Load the enhancement prompt
-            prompt_path = os.path.join(os.path.dirname(__file__), "..", "..", "prompts", "voice_enhancement_mcp_prompt.txt")
+            prompt_path = os.path.join(os.path.dirname(__file__), "..", "prompts", "voice_enhancement_mcp_prompt.txt")
             try:
                 with open(prompt_path, "r") as f:
                     enhancement_prompt = f.read().strip()

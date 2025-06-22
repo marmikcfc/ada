@@ -49,6 +49,7 @@ class VoiceResponse(TypedDict):
     type: str  # "voice_response"
     content: str  # UI payload
     voiceText: Optional[str]  # TTS text if different from display
+    isVoiceOverOnly: bool  # Flag indicating if voiceText should not be displayed in UI
 
 class TextChatResponse(TypedDict):
     """Complete text chat response with UI payload"""
@@ -79,6 +80,7 @@ class ImmediateVoiceResponse(TypedDict):
     type: str              # "immediate_voice_response"
     content: str           # Simple C1Component payload (usually a basic card)
     voiceText: Optional[str]  # Optionally override spoken text
+    isVoiceOverOnly: bool  # Flag indicating if voiceText should not be displayed in UI
 
 # Queue instances
 llm_message_queue: Optional[asyncio.Queue] = None
@@ -243,14 +245,30 @@ def create_chat_done(id: str, content: Optional[str] = None) -> ChatDone:
         "content": content
     }
 
-def create_voice_response(content: str, voice_text: Optional[str] = None) -> VoiceResponse:
-    """Create a voice response message"""
+def create_voice_response(
+    content: str, 
+    voice_text: Optional[str] = None,
+    is_voice_over_only: bool = True
+) -> VoiceResponse:
+    """
+    Create a voice response message
+    
+    Args:
+        content: The UI content payload
+        voice_text: Optional text for TTS that differs from display text
+        is_voice_over_only: Flag indicating if voice_text should not be displayed in UI
+                           (defaults to True since voice-over is typically for audio only)
+    
+    Returns:
+        A VoiceResponse object
+    """
     return {
         "id": str(uuid.uuid4()),
         "role": "assistant",
         "type": "voice_response",
         "content": content,
-        "voiceText": voice_text
+        "voiceText": voice_text,
+        "isVoiceOverOnly": is_voice_over_only if voice_text else False
     }
 
 def create_text_chat_response(content: str, thread_id: Optional[str] = None) -> TextChatResponse:
@@ -301,13 +319,23 @@ def create_simple_card_content(text_markdown: str) -> str:
 # --------------------------------------------------------------------------- #
 def create_immediate_voice_response(
     content: str,
-    voice_text: Optional[str] = None
+    voice_text: Optional[str] = None,
+    is_voice_over_only: bool = True
 ) -> ImmediateVoiceResponse:
     """
     Create an *immediate* voice response that can be displayed as soon as the
     fast-path LLM finishes (before enhancement).  The caller is expected to
-    supply a simple C1-compatible payload, typically the same “simple card”
+    supply a simple C1-compatible payload, typically the same "simple card"
     structure used as a fallback in `vis_processor.py`.
+    
+    Args:
+        content: The UI content payload
+        voice_text: Optional text for TTS that differs from display text
+        is_voice_over_only: Flag indicating if voice_text should not be displayed in UI
+                           (defaults to True since voice-over is typically for audio only)
+    
+    Returns:
+        An ImmediateVoiceResponse object
     """
     return {
         "id": str(uuid.uuid4()),
@@ -315,4 +343,5 @@ def create_immediate_voice_response(
         "type": "immediate_voice_response",
         "content": content,
         "voiceText": voice_text,
+        "isVoiceOverOnly": is_voice_over_only if voice_text else False
     }

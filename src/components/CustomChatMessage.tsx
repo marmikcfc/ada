@@ -14,13 +14,18 @@ interface CustomChatMessageProps {
     isLast: boolean;
     isStreaming: boolean;
     children?: React.ReactNode; // For C1Component
+    /** Flag indicating this assistant message had extra voice-over that is **not**
+     *  shown in the bubble.  When true we show a small speaker glyph so the
+     *  user knows there was additional audio context. */
+    hasVoiceOver?: boolean;
 }
 
 const CustomChatMessage: React.FC<CustomChatMessageProps> = ({
     message,
     isLast,
     isStreaming,
-    children
+    children,
+    hasVoiceOver = false
 }) => {
     const isUser = message.role === 'user';
 
@@ -59,6 +64,16 @@ const CustomChatMessage: React.FC<CustomChatMessageProps> = ({
                 
                 <div className="message-timestamp">
                     {message.timestamp.toLocaleTimeString()}
+                    {/* Voice-over indicator (assistant only) */}
+                    {hasVoiceOver && !isUser && (
+                        <span
+                            className="voiceover-indicator"
+                            title="Additional audio (voice-over) was played"
+                            style={{ marginLeft: 4 }}
+                        >
+                            🔈
+                        </span>
+                    )}
                 </div>
             </div>
         </div>
