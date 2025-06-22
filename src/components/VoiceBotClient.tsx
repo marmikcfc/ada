@@ -10,6 +10,8 @@ const VoiceBotClient: React.FC = () => {
   const wsRef = useRef<WebSocket | null>(null);
   const threadManagerRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  const wsConnectionIdRef = useRef<string>(`ws-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
+  const [wsConnectionState, setWsConnectionState] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
   
   // Voice/WebRTC state
   const [voiceStatus, setVoiceStatus] = useState<'disconnected' | 'connecting' | 'connected'>('disconnected');
@@ -17,6 +19,8 @@ const VoiceBotClient: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
   // Voice-specific loading (between user-stopped-speaking → bot-started-speaking)
   const [isVoiceLoading, setIsVoiceLoading] = useState(false);
+  // NEW: UI-enhancement loading indicator (slow-path visualization)
+  const [isEnhancing, setIsEnhancing] = useState(false);
 
   // Thread list management with stable callbacks
   const threadListManager = useThreadListManager({
@@ -264,6 +268,71 @@ const VoiceBotClient: React.FC = () => {
     })}</content>`;
   }, []);
 
+  // Helper function to parse and format user messages that might be in XML format
+  const parseAndFormatUserMessage = useCallback((message: string) => {
+    // Check if the message matches the pattern <content>action</content><context>data</context>
+    const contentMatch = message.match(/<content>(.*?)<\/content>/);
+    const contextMatch = message.match(/<context>(.*?)<\/context>/);
+    
+    if (contentMatch && contextMatch) {
+      try {
+        // Extract the action name and context data
+        const actionName = contentMatch[1];
+        const contextData = contextMatch[1];
+        
+        console.log('Detected C1 action format. Action:', actionName, 'Context:', contextData);
+        
+        // Parse the context data if possible
+        let parsedContext;
+        try {
+          // The context is often a JSON string with escaped quotes
+          // First unescape it
+          const unescapedContext = contextData.replace(/\\"/g, '"');
+          parsedContext = JSON.parse(unescapedContext);
+        } catch (e) {
+          console.log('Could not parse context as JSON, using as string');
+          parsedContext = contextData;
+        }
+        
+        // Format as a C1Component with clean display
+        return {
+          isC1Format: true,
+          message: [{
+            type: 'template' as const,
+            name: 'c1',
+            templateProps: {
+              content: `<content>${JSON.stringify({
+                component: "Card",
+                props: {
+                  variant: "card",
+                  children: [{
+                    component: "TextContent",
+                    props: {
+                      textMarkdown: actionName
+                    }
+                  }, {
+                    component: "TextContent",
+                    props: {
+                      textMarkdown: parsedContext
+                    }
+                  }]
+                }
+              })}</content>`
+            }
+          }]
+        };
+      } catch (error) {
+        console.error('Error parsing XML message:', error);
+      }
+    }
+    
+    // If not in XML format or parsing failed, return as plain text
+    return {
+      isC1Format: false,
+      message: message
+    };
+  }, []);
+
   const createErrorMessage = useCallback((errorText: string) => {
     return `<content>${JSON.stringify({
       component: "Callout",
@@ -275,8 +344,53 @@ const VoiceBotClient: React.FC = () => {
     })}</content>`;
   }, []);
 
+  // Function to safely close WebSocket
+  const safelyCloseWebSocket = useCallback((ws: WebSocket | null) => {
+    if (!ws) return;
+    
+    try {
+      const connectionId = wsConnectionIdRef.current;
+      console.log(`[WS:${connectionId}] Closing WebSocket connection...`);
+      
+      // Check if it's already closed or closing
+      if (ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
+        console.log(`[WS:${connectionId}] WebSocket already closing/closed (state: ${ws.readyState})`);
+        return;
+      }
+      
+      // For CONNECTING state, we need to wait for connection to establish before closing
+      if (ws.readyState === WebSocket.CONNECTING) {
+        console.log(`[WS:${connectionId}] WebSocket is connecting, setting up onopen handler to close immediately`);
+        const originalOnOpen = ws.onopen;
+        ws.onopen = (event) => {
+          // Call original handler if exists
+          if (originalOnOpen) {
+            originalOnOpen.call(ws, event);
+          }
+          console.log(`[WS:${connectionId}] WebSocket connected, now closing immediately`);
+          ws.close();
+        };
+        return;
+      }
+      
+      // For OPEN state, just close it
+      console.log(`[WS:${connectionId}] Closing open WebSocket connection`);
+      ws.close();
+    } catch (error) {
+      console.error('Error closing WebSocket:', error);
+    }
+  }, []);
+
+  // Setup WebSocket connection
   useEffect(() => {
-    console.log('Setting up WebSocket connection for C1Chat...');
+    const connectionId = wsConnectionIdRef.current;
+    console.log(`[WS:${connectionId}] Setting up WebSocket connection for C1Chat...`);
+    
+    // Close any existing connection first
+    safelyCloseWebSocket(wsRef.current);
+    wsRef.current = null;
+    setWsConnectionState('connecting');
+    
     // Always connect to the backend running on port 8000. We keep the same
     // protocol (ws/wss) and hostname, but override the port so the frontend
     // (e.g. Vite dev server on 1420) does not attempt to serve the WS route.
@@ -286,12 +400,13 @@ const VoiceBotClient: React.FC = () => {
       ? `wss://${hostname}:${backendPort}/ws/messages`
       : `ws://${hostname}:${backendPort}/ws/messages`;
 
-    console.log(`Connecting to WebSocket at: ${wsUrl}`);
+    console.log(`[WS:${connectionId}] Connecting to WebSocket at: ${wsUrl}`);
     const ws = new WebSocket(wsUrl);
     wsRef.current = ws;
 
     ws.onopen = () => {
-      console.log('WebSocket connected for C1Chat');
+      console.log(`[WS:${connectionId}] WebSocket connected for C1Chat`);
+      setWsConnectionState('connected');
       
       // Send a welcome message through Thesys
       const welcomeMessage = {
@@ -312,7 +427,7 @@ const VoiceBotClient: React.FC = () => {
     };
 
     ws.onmessage = (event) => {
-      console.log('WebSocket message received:', event.data);
+      console.log(`[WS:${connectionId}] WebSocket message received:`, event.data);
       
       try {
         const data = JSON.parse(event.data);
@@ -320,21 +435,21 @@ const VoiceBotClient: React.FC = () => {
         // Handle different message types
         if (data.type === 'connection_ack') {
           // Handle connection acknowledgment
-          console.log('WebSocket connection acknowledged:', data.message);
+          console.log(`[WS:${connectionId}] WebSocket connection acknowledged:`, data.message);
           
         } else if (data.type === 'immediate_voice_response') {
           // Fast-path message that arrives before enhancement
-          console.log('Received immediate voice response message:', data);
+          console.log(`[WS:${connectionId}] Received immediate voice response message:`, data);
 
           let messageContent;
 
           // Payload should already be Thesys XML, but be defensive
           if (typeof data.content === 'string' && data.content.includes('<content>')) {
             messageContent = data.content;
-            console.log('Using pre-formatted Thesys content from immediate voice response:', messageContent);
+            console.log(`[WS:${connectionId}] Using pre-formatted Thesys content from immediate voice response:`, messageContent);
           } else {
             messageContent = formatAssistantMessage(data.content || 'Voice response received');
-            console.log('Formatting raw immediate voice response content:', data.content);
+            console.log(`[WS:${connectionId}] Formatting raw immediate voice response content:`, data.content);
           }
 
           const immediateVoiceMessage = {
@@ -355,13 +470,15 @@ const VoiceBotClient: React.FC = () => {
             try {
               threadManagerRef.current.appendMessages(immediateVoiceMessage);
             } catch (error) {
-              console.error('Error calling appendMessages for immediate voice message:', error);
+              console.error(`[WS:${connectionId}] Error calling appendMessages for immediate voice message:`, error);
             }
           }
         
         } else if (data.type === 'voice_response') {
           // Handle voice response messages from the visualization processor
-          console.log('Received voice response message:', data);
+          console.log(`[WS:${connectionId}] Received voice response message:`, data);
+          // Slow-path finished – stop enhancement indicator
+          setIsEnhancing(false);
           
           let messageContent;
           
@@ -369,11 +486,11 @@ const VoiceBotClient: React.FC = () => {
           if (typeof data.content === 'string' && data.content.includes('<content>')) {
             // Content is already in Thesys XML format, use as-is
             messageContent = data.content;
-            console.log('Using pre-formatted Thesys content from voice response:', messageContent);
+            console.log(`[WS:${connectionId}] Using pre-formatted Thesys content from voice response:`, messageContent);
           } else {
             // Content needs formatting
             messageContent = formatAssistantMessage(data.content || 'Voice response received');
-            console.log('Formatting raw voice response content:', data.content);
+            console.log(`[WS:${connectionId}] Formatting raw voice response content:`, data.content);
           }
           
           const voiceMessage = {
@@ -390,24 +507,24 @@ const VoiceBotClient: React.FC = () => {
             }]
           };
           
-          console.log('Prepared voice message for threadManager:', voiceMessage);
-          console.log('threadManagerRef.current:', threadManagerRef.current);
+          console.log(`[WS:${connectionId}] Prepared voice message for threadManager:`, voiceMessage);
+          console.log(`[WS:${connectionId}] threadManagerRef.current:`, threadManagerRef.current);
           
           if (threadManagerRef.current) {
-            console.log('About to call appendMessages with voice message');
+            console.log(`[WS:${connectionId}] About to call appendMessages with voice message`);
             try {
               threadManagerRef.current.appendMessages(voiceMessage);
-              console.log('Successfully called appendMessages for voice message');
+              console.log(`[WS:${connectionId}] Successfully called appendMessages for voice message`);
             } catch (error) {
-              console.error('Error calling appendMessages:', error);
+              console.error(`[WS:${connectionId}] Error calling appendMessages:`, error);
             }
           } else {
-            console.error('threadManagerRef.current is null when trying to append voice message');
+            console.error(`[WS:${connectionId}] threadManagerRef.current is null when trying to append voice message`);
           }
           
         } else if (data.type === 'text_chat_response') {
           // Handle text chat response messages from the visualization processor
-          console.log('Received text chat response message:', data);
+          console.log(`[WS:${connectionId}] Received text chat response message:`, data);
 
           // Text response is now fully received – stop the loading indicator
           setIsLoading(false);
@@ -418,11 +535,11 @@ const VoiceBotClient: React.FC = () => {
           if (typeof data.content === 'string' && data.content.includes('<content>')) {
             // Content is already in Thesys XML format, use as-is
             messageContent = data.content;
-            console.log('Using pre-formatted Thesys content from text chat response:', messageContent);
+            console.log(`[WS:${connectionId}] Using pre-formatted Thesys content from text chat response:`, messageContent);
           } else {
             // Content needs formatting
             messageContent = formatAssistantMessage(data.content || 'Text response received');
-            console.log('Formatting raw text chat response content:', data.content);
+            console.log(`[WS:${connectionId}] Formatting raw text chat response content:`, data.content);
           }
           
           const textChatMessage = {
@@ -437,51 +554,65 @@ const VoiceBotClient: React.FC = () => {
             }]
           };
           
-          console.log('Prepared text chat message for threadManager:', textChatMessage);
+          console.log(`[WS:${connectionId}] Prepared text chat message for threadManager:`, textChatMessage);
           
           if (threadManagerRef.current) {
-            console.log('About to call appendMessages with text chat message');
+            console.log(`[WS:${connectionId}] About to call appendMessages with text chat message`);
             try {
               threadManagerRef.current.appendMessages(textChatMessage);
-              console.log('Successfully called appendMessages for text chat message');
+              console.log(`[WS:${connectionId}] Successfully called appendMessages for text chat message`);
             } catch (error) {
-              console.error('Error calling appendMessages:', error);
+              console.error(`[WS:${connectionId}] Error calling appendMessages:`, error);
             }
           } else {
-            console.error('threadManagerRef.current is null when trying to append text chat message');
+            console.error(`[WS:${connectionId}] threadManagerRef.current is null when trying to append text chat message`);
           }
           
         } else if (data.type === 'user_transcription') {
           // Handle user voice transcription messages
-          console.log('Received user transcription message:', data);
+          console.log(`[WS:${connectionId}] Received user transcription message:`, data);
           
-          // Assuming the transcription text is in 'data.text' or 'data.content'.
-          // Please verify and adjust this field (e.g., data.transcription) if necessary
-          // by inspecting the 'data' object logged above.
+          // Get the transcription text
           const transcriptionText = data.text || data.content;
 
           if (!transcriptionText) {
-            console.warn('User transcription received but the text is empty or not a string:', data);
+            console.warn(`[WS:${connectionId}] User transcription received but the text is empty or not a string:`, data);
             return;
           }
 
           if (!threadManagerRef.current) return;
 
-          // Always treat transcriptions as plain-text user prompts.  Any rich
-          // formatting of user messages is now handled on the backend before it
-          // is broadcast back to the frontend.
-          const userTextMessage = {
+          // Check if message is in XML format (contains <content> and <context> tags)
+          const isXmlFormat = transcriptionText.includes('<content>') && transcriptionText.includes('<context>');
+          
+          // Skip displaying XML format messages since they're already shown by handleC1ComponentAction
+          if (isXmlFormat) {
+            console.log(`[WS:${connectionId}] Skipping XML format user message to avoid duplication:`, transcriptionText);
+            return;
+          }
+          
+          // For non-XML messages, parse and display normally
+          const parsedMessage = parseAndFormatUserMessage(transcriptionText);
+          
+          // Create the appropriate message format based on parsing result
+          const userMessage = {
             id: data.id || crypto.randomUUID(),
             role: 'user' as const,
-            message: transcriptionText,
-            type: 'prompt' as const,
+            ...(parsedMessage.isC1Format 
+              ? { message: parsedMessage.message } // Use the C1Component format
+              : { message: parsedMessage.message, type: 'prompt' as const }) // Use plain text format
           };
 
-          threadManagerRef.current.appendMessages(userTextMessage);
+          threadManagerRef.current.appendMessages(userMessage);
+          
+        } else if (data.type === 'enhancement_started') {
+          // Slow path (visualisation) signalled it is working on UI
+          console.log(`[WS:${connectionId}] Enhancement in progress – showing indicator`);
+          setIsEnhancing(true);
           
         } else if (data.type === 'voice_message') {
           // Handle other voice-related messages (for future voice integration)
-          console.log('Received voice-related message:', data);
+          console.log(`[WS:${connectionId}] Received voice-related message:`, data);
           
           let messageContent = formatAssistantMessage(data.content || data.message || 'Voice message received');
           
@@ -502,12 +633,12 @@ const VoiceBotClient: React.FC = () => {
           }
           
         } else {
-          console.log('Received unknown message type:', data.type, data);
+          console.log(`[WS:${connectionId}] Received unknown message type:`, data.type, data);
           // For debugging purposes, we can still display unknown messages
           // but in production, you might want to just log them
         }
       } catch (error) {
-        console.error('Error processing WebSocket message:', error);
+        console.error(`[WS:${connectionId}] Error processing WebSocket message:`, error);
         
         const errorMessage = {
           id: crypto.randomUUID(),
@@ -528,7 +659,8 @@ const VoiceBotClient: React.FC = () => {
     };
 
     ws.onerror = (error) => {
-      console.error('WebSocket error:', error);
+      console.error(`[WS:${connectionId}] WebSocket error:`, error);
+      setWsConnectionState('error');
       
       const errorMessage = {
         id: crypto.randomUUID(),
@@ -548,7 +680,9 @@ const VoiceBotClient: React.FC = () => {
     };
 
     ws.onclose = (event) => {
-      console.log('WebSocket disconnected:', event);
+      console.log(`[WS:${connectionId}] WebSocket disconnected:`, event);
+      setWsConnectionState('disconnected');
+      
       const closeMessage = `❌ WebSocket closed: code=${event.code}, reason=${event.reason || 'N/A'}, clean=${event.wasClean}`;
       
       const disconnectMessage = {
@@ -568,38 +702,76 @@ const VoiceBotClient: React.FC = () => {
       }
     };
 
+    // Cleanup function
     return () => {
-      console.log('Cleaning up WebSocket connection...');
-      if (wsRef.current && 
-          wsRef.current.readyState !== WebSocket.CLOSED && 
-          wsRef.current.readyState !== WebSocket.CLOSING) {
-        wsRef.current.close();
-      }
+      console.log(`[WS:${connectionId}] Component unmounting, cleaning up WebSocket connection...`);
+      const ws = wsRef.current;
+      
+      // Use the safe close method that handles all WebSocket states
+      safelyCloseWebSocket(ws);
+      
+      // Clear the reference
       wsRef.current = null;
+      setWsConnectionState('disconnected');
     };
-  }, []); // Empty dependency array - only run once
+  }, [safelyCloseWebSocket, formatAssistantMessage, createErrorMessage, parseAndFormatUserMessage]); // Dependencies include the stable callbacks
 
   // Handler for actions coming from C1Component via GenerativeUIChat
-  const handleC1ComponentAction = useCallback((action: { llmFriendlyMessage: string, humanFriendlyMessage: string, [key: string]: any }) => {
+  const handleC1ComponentAction = useCallback(async (action: { llmFriendlyMessage: string, humanFriendlyMessage: string, [key: string]: any }) => {
     console.log('Action from C1Component received in VoiceBotClient:', action);
-    // Example: Send the action's llmFriendlyMessage via WebSocket
-    // You might need to format this into your backend's expected message structure
-    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-      // Assuming your backend expects a message of type 'user_action' or similar
-      // and the payload is the llmFriendlyMessage or the whole action object.
-      // This is an EXAMPLE, adjust to your backend's needs.
-      const actionMessageForBackend = {
-        type: 'user_action_from_dynamic_ui', // Or whatever your backend expects
-        payload: action.llmFriendlyMessage, // Or action object itself
-        // You might want to include threadId or other context here
+    
+    try {
+      // Set loading state
+      setIsLoading(true);
+      
+      // Use the HTTP endpoint with ThesysBridgeRequest format
+      const response = await fetch('/api/chat', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          prompt: { content: action.llmFriendlyMessage },
+          threadId: threadListManager.selectedThreadId,
+          responseId: crypto.randomUUID()
+        }),
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error: ${response.status}`);
+      }
+      
+      const result = await response.json();
+      console.log('C1Component action sent successfully:', result);
+      console.log('Response will be delivered via WebSocket');
+      
+      // The user message and enhanced response will come through WebSocket
+      // No need to manually add them here
+      
+    } catch (error) {
+      console.error('Error sending C1Component action:', error);
+      
+      // Show error message in chat
+      const errorMessage = {
+        id: crypto.randomUUID(),
+        role: 'assistant' as const,
+        message: [{
+          type: 'template' as const,
+          name: 'c1',
+          templateProps: {
+            content: createErrorMessage('Failed to send action: ' + (error instanceof Error ? error.message : String(error)))
+          }
+        }]
       };
-      wsRef.current.send(JSON.stringify(actionMessageForBackend));
-
-    } else {
-      console.warn('WebSocket not open, cannot send C1Component action.');
-      // Potentially queue the action or notify the user
+      
+      if (threadManagerRef.current) {
+        threadManagerRef.current.appendMessages(errorMessage);
+      }
+      
+      // Reset loading state
+      setIsLoading(false);
     }
-  }, []);
+  }, [threadListManager.selectedThreadId, createErrorMessage]);
 
   // Handler for text messages sent via chat input
   const handleSendTextMessage = useCallback(async (message: string) => {
@@ -684,6 +856,7 @@ const VoiceBotClient: React.FC = () => {
         isVoiceConnectionLoading={voiceStatus === 'connecting'}
         isLoading={isLoading}
         isVoiceLoading={isVoiceLoading}
+        isEnhancing={isEnhancing}
       />
     </div>
   );

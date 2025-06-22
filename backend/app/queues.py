@@ -82,6 +82,20 @@ class ImmediateVoiceResponse(TypedDict):
     voiceText: Optional[str]  # Optionally override spoken text
     isVoiceOverOnly: bool  # Flag indicating if voiceText should not be displayed in UI
 
+# --------------------------------------------------------------------------- #
+#  NEW: Enhancement loading indicator (slow-path in progress)
+# --------------------------------------------------------------------------- #
+class EnhancementStarted(TypedDict):
+    """
+    Interim assistant message sent only during voice interactions to tell the
+    client that the slow-path (visualisation / Thesys) has decided an enhanced
+    UI is required and is currently generating it.
+    """
+    id: str
+    role: str            # "assistant"
+    type: str            # "enhancement_started"
+    content: str         # Friendly note, e.g. "Generating enhanced display…"
+
 # Queue instances
 llm_message_queue: Optional[asyncio.Queue] = None
 raw_llm_output_queue: Optional[asyncio.Queue] = None
@@ -102,7 +116,8 @@ async def enqueue_llm_message(message: Union[
     ChatDone,
     VoiceResponse,
     TextChatResponse,
-    ImmediateVoiceResponse  # NEW: allow immediate voice responses
+    ImmediateVoiceResponse,  # fast-path interim
+    EnhancementStarted       # NEW: enhancement loading indicator
 ]):
     """
     Enqueue a message to be sent to the frontend via WebSocket
@@ -344,4 +359,21 @@ def create_immediate_voice_response(
         "content": content,
         "voiceText": voice_text,
         "isVoiceOverOnly": is_voice_over_only if voice_text else False
+    }
+
+
+# --------------------------------------------------------------------------- #
+# Helper for enhancement loading indicator
+# --------------------------------------------------------------------------- #
+def create_enhancement_started(note: str = "Generating enhanced display…") -> EnhancementStarted:
+    """
+    Build an `enhancement_started` message to inform the frontend that the slow
+    path is working on a richer UI.  `note` can be customised but defaults to a
+    friendly generic text.
+    """
+    return {
+        "id": str(uuid.uuid4()),
+        "role": "assistant",
+        "type": "enhancement_started",
+        "content": note,
     }

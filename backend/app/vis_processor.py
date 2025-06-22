@@ -28,6 +28,7 @@ from app.queues import (
     get_raw_llm_output,
     mark_raw_llm_output_done,
     enqueue_llm_message,
+    create_enhancement_started,   # NEW – interim loading indicator
     create_voice_response,
     create_text_chat_response
 )
@@ -175,7 +176,7 @@ class VisualizationProcessor:
             got_item = False
             try:
                 # Wait for item from raw_llm_output_queue
-                logger.debug("Visualization processor: Waiting for item from raw_llm_output_queue...")
+                logger.info("Visualization processor: Waiting for item from raw_llm_output_queue...")
                 item = await get_raw_llm_output()
                 bypass_enhancement = False
                 got_item = True  # Flag to indicate we got an item from the queue
@@ -203,11 +204,12 @@ class VisualizationProcessor:
                     async def voice_injection_callback(voice_text: str):
                         """Inject voice text immediately to active voice agents"""
                         if voice_text and voice_text.strip():
-                            logger.debug(f"Injecting streaming voice text: '{voice_text}'")
+                            logger.info(f"Injecting streaming voice text: '{voice_text}'")
                             await inject_voice_over_to_all_agents(voice_text.strip())
                     # Use streaming enhancement decision for better latency
                     try:
                         if not bypass_enhancement:
+                            logger.info(f"Visualization processor: Making enhancement decision with streaming")
                             enhancement_decision = await self.enhanced_mcp_client.make_enhancement_decision_streaming(
                                 assistant_response=assistant_response,
                                 conversation_history=conversation_history,
@@ -250,9 +252,36 @@ class VisualizationProcessor:
                 source = metadata.get("source", "voice")  # Default to voice for backward compatibility
 
                 # ------------------------------------------------------------------ #
+                #  NEW: Notify frontend that visual enhancement has started
+                # ------------------------------------------------------------------ #
+                # We do this **only** for the voice path and **only** when the MCP
+                # agent asked for `displayEnhancement=True`.  The frontend uses
+                # this interim message to show a subtle “Generating enhanced
+                # display…” indicator until the final <voice_response> arrives.
+                if (
+                    source == "voice"
+                    and display_enhancement is True
+                ):
+                    try:
+                        enhancement_started_msg = create_enhancement_started()
+                        await enqueue_llm_message(enhancement_started_msg)
+                        logger.info(
+                            "Visualization processor: Sent enhancement_started "
+                            "indicator (id=%s) to frontend",
+                            enhancement_started_msg["id"],
+                        )
+                    except Exception as e:
+                        logger.error(
+                            "Visualization processor: Failed to enqueue "
+                            "enhancement_started message: %s",
+                            e,
+                            exc_info=True,
+                        )
+
+                # ------------------------------------------------------------------ #
                 #  Extra DEBUG: log values before early-exit decision
                 # ------------------------------------------------------------------ #
-                logger.debug(
+                logger.info(
                     "Early-exit evaluation → source=%s (type=%s) | "
                     "display_enhancement=%s (type=%s)",
                     source,
@@ -274,7 +303,8 @@ class VisualizationProcessor:
                         "bypassing further processing to avoid duplicate UI / audio."
                     )
                     # Mark queue task done and move to next item
-                    mark_raw_llm_output_done()
+                    #mark_raw_llm_output_done()
+                    logger.info("Visualization processor: Marked queue task done and moving to next item")
                     continue
                 # From this point onwards we always want to continue normal
                 # processing; duplication has been avoided already.  Ensure the

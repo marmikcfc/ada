@@ -78,6 +78,15 @@ Original: "What's the weather in Paris tomorrow?"
    - displayEnhancedText: "## Tomorrow's Weather in Paris\n\n**21 °C – Partly cloudy**"
    - voiceOverText: "Tomorrow in Paris it will be partly cloudy with a high of twenty-one degrees Celsius."
 
+
+**Example 6: Tool Call – Give all the contacts in a CRM (WITH enhancement)**
+Original: "Can you give me all my contacts from my GHL account?"
+1. Call Get contacts tool: getContacts()
+2. Enhancement decision:
+   - displayEnhancement: true
+   - displayEnhancedText: "GHL accounts"
+   - voiceOverText: "Here are all your contacts in your GHL account."
+
 ## Important Guidelines
 
 1. **Efficiency First**: Make tool calls and enhancement decisions in one interaction

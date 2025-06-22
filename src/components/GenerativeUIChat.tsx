@@ -33,6 +33,8 @@ interface GenerativeUIChatProps {
     isVoiceConnectionLoading?: boolean;
     isLoading?: boolean;
     isVoiceLoading?: boolean;
+    /** True while slow-path visual enhancement is generating UI. */
+    isEnhancing?: boolean;
 }
 
 const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
@@ -46,7 +48,8 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
     isVoiceConnected,
     isVoiceConnectionLoading,
     isLoading,
-    isVoiceLoading
+    isVoiceLoading,
+    isEnhancing
 }) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -149,10 +152,14 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
                     ))}
                     
                     {/* Loading indicator */}
-                    {((isLoading ?? false) || (isVoiceLoading ?? false)) && (
+                    {(isEnhancing ?? false) || (isLoading ?? false) || (isVoiceLoading ?? false) ? (
                         <div className="loading-indicator">
                             <span className="loading-text">
-                                {isLoading ? 'Assistant is thinking...' : 'Assistant is preparing to speak...'}
+                                {isEnhancing
+                                    ? 'Generating enhanced display…'
+                                    : (isLoading
+                                        ? 'Assistant is thinking...'
+                                        : 'Assistant is preparing to speak...')}
                             </span>
                             <span className="typing-dots">
                                 <span></span>
@@ -160,7 +167,7 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
                                 <span></span>
                             </span>
                         </div>
-                    )}
+                    ) : null}
                     
                     <div ref={messagesEndRef} />
                 </div>
