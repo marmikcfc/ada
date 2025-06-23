@@ -3,6 +3,18 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import GenerativeUIChat from '../GenerativeUIChat';
 
+// jsdom doesn't implement scrollIntoView; mock it for tests
+Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+  value: jest.fn(),
+  writable: true,
+});
+
+// Node's crypto may not provide randomUUID in jsdom; stub it
+if (!(globalThis as any).crypto) {
+  (globalThis as any).crypto = {};
+}
+(globalThis as any).crypto.randomUUID = () => 'test-id';
+
 // Mock the C1Component from @thesysai/genui-sdk
 jest.mock('@thesysai/genui-sdk', () => ({
   C1Component: ({ onAction }) => (

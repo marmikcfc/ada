@@ -54,11 +54,3 @@ def format_thesys_messages_for_visualize(enhanced_response: str, conversation_hi
     })
     
     return messages_for_thesys
-
-# Keep the old function for backward compatibility but mark it as deprecated
-def format_thesys_messages(assistant_response: str, conversation_history: List[Dict[str, Any]] = None) -> List[Dict[str, str]]:
-    """
-    Legacy function for embed endpoint format. 
-    Now redirects to the visualize format.
-    """
-    return format_thesys_messages_for_visualize(assistant_response, conversation_history) 
