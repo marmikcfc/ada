@@ -30,7 +30,9 @@ from app.queues import (
     enqueue_llm_message,
     create_enhancement_started,   # NEW – interim loading indicator
     create_voice_response,
-    create_text_chat_response
+    create_text_chat_response,
+    create_c1_token,
+    create_chat_done
 )
 from utils.thesys_prompts import format_thesys_messages_for_visualize, load_thesys_prompt
 
@@ -39,28 +41,31 @@ logger = logging.getLogger(__name__)
 # Global registry for active voice agents - using WeakSet for automatic cleanup
 _active_voice_agents: WeakSet = WeakSet()
 
+
 def register_voice_agent(agent):
     """Register a voice agent so the visualization processor can inject TTS"""
     _active_voice_agents.add(agent)
     logger.info(f"Registered voice agent. Total active agents: {len(_active_voice_agents)}")
+
 
 def unregister_voice_agent(agent):
     """Unregister a voice agent"""
     _active_voice_agents.discard(agent)
     logger.info(f"Unregistered voice agent. Total active agents: {len(_active_voice_agents)}")
 
+
 async def inject_voice_over_to_all_agents(voice_text: str):
     """Inject voice-over text to all active voice agents"""
     if not voice_text or not voice_text.strip():
         logger.debug("No voice text to inject")
         return
-        
+
     if not _active_voice_agents:
         logger.warning("No active voice agents to inject TTS voice-over")
         return
-    
+
     logger.info(f"Injecting voice-over text to {len(_active_voice_agents)} active voice agents")
-    
+
     # Inject to all active agents
     injection_tasks = []
     for agent in list(_active_voice_agents):  # Create list to avoid modification during iteration
@@ -68,7 +73,7 @@ async def inject_voice_over_to_all_agents(voice_text: str):
             injection_tasks.append(agent.inject_tts_voice_over(voice_text))
         except Exception as e:
             logger.error(f"Error preparing TTS injection for agent: {e}")
-    
+
     if injection_tasks:
         # Execute all injections concurrently
         try:
@@ -77,41 +82,43 @@ async def inject_voice_over_to_all_agents(voice_text: str):
         except Exception as e:
             logger.error(f"Error during concurrent TTS injection: {e}")
 
+
 def is_significantly_different(text1: str, text2: str, threshold: float = 0.2) -> bool:
     """
     Determine if two text strings are significantly different.
-    
+
     Args:
         text1: First text string
         text2: Second text string
         threshold: Difference threshold (0.0 to 1.0) where higher means more difference required
-        
+
     Returns:
         True if texts are significantly different, False if similar
     """
     # Normalize texts for comparison
     text1 = text1.strip().lower()
     text2 = text2.strip().lower()
-    
+
     # Quick check for identical texts
     if text1 == text2:
         return False
-    
+
     # Use difflib to calculate similarity ratio (0.0 to 1.0)
     similarity = difflib.SequenceMatcher(None, text1, text2).ratio()
-    
+
     # Lower similarity means higher difference
     difference = 1.0 - similarity
-    
+
     logger.debug(f"Text similarity: {similarity:.2f}, difference: {difference:.2f}, threshold: {threshold}")
-    
+
     # Return True if difference exceeds threshold
     return difference > threshold
+
 
 class VisualizationProcessor:
     """
     Processor for enhancing voice messages with rich UI components.
-    
+
     This class handles the slow path processing pipeline:
     - Takes raw LLM output from the fast path
     - Determines if enhancement is needed via MCP agent
@@ -119,11 +126,11 @@ class VisualizationProcessor:
     - Formats and enqueues the final response
     - NEW: Injects voice-over text into TTS pipeline via TTSSpeakFrame
     """
-    
+
     def __init__(self, enhanced_mcp_client, thesys_client: Optional[AsyncOpenAI] = None):
         """
         Initialize the visualization processor
-        
+
         Args:
             enhanced_mcp_client: The enhanced MCP client for making enhancement decisions
             thesys_client: Optional Thesys client for visualization
@@ -132,23 +139,23 @@ class VisualizationProcessor:
         self.thesys_client = thesys_client
         self.running = False
         self.task = None
-        
+
     async def start(self):
         """Start the visualization processor as a background task"""
         if self.running:
             logger.warning("Visualization processor already running")
             return
-            
+
         self.running = True
         self.task = asyncio.create_task(self.process_loop())
         logger.info("Visualization processor started")
-        
+
     async def stop(self):
         """Stop the visualization processor"""
         if not self.running:
             logger.warning("Visualization processor not running")
             return
-            
+
         self.running = False
         if self.task:
             self.task.cancel()
@@ -158,11 +165,11 @@ class VisualizationProcessor:
                 logger.info("Visualization processor loop cancelled")
             self.task = None
         logger.info("Visualization processor stopped")
-        
+
     async def process_loop(self):
         """
         Main processing loop for the visualization processor
-        
+
         This loop:
         1. Dequeues raw LLM output from the fast path
         2. Processes it through the MCP Enhancement Agent
@@ -170,7 +177,7 @@ class VisualizationProcessor:
         4. Formats and enqueues the final response
         """
         logger.info("Visualization processor loop started for VOICE messages")
-        
+
         while self.running:
             item = None
             got_item = False
@@ -184,72 +191,65 @@ class VisualizationProcessor:
                     logger.info("Visualization processor: Received text chat item from raw_llm_output_queue so bypassing it directly for enhancement")
                     bypass_enhancement = True
                 logger.info("Visualization processor: Received item from raw_llm_output_queue")
-                
+
                 # Extract data from the queue item
                 conversation_history: List[Dict[str, Any]] = item.get("history", [])
                 assistant_response: str = item.get("assistant_response")
                 metadata: Dict[str, Any] = item.get("metadata", {})
-                
+
                 if not assistant_response:
                     logger.warning("Visualization processor received empty assistant response")
                     continue
-                    
+
                 logger.info(f"Visualization processor: Original voice response length: {len(assistant_response)} chars")
-                
+
                 # Step 1: Process through MCP agent to determine if enhancement is needed
                 try:
                     logger.info("Visualization processor: Processing assistant response through MCP agent...")
-                    
+
                     # Create voice injection callback for real-time TTS
                     async def voice_injection_callback(voice_text: str):
                         """Inject voice text immediately to active voice agents"""
                         if voice_text and voice_text.strip():
                             logger.info(f"Injecting streaming voice text: '{voice_text}'")
                             await inject_voice_over_to_all_agents(voice_text.strip())
+                   
                     # Use streaming enhancement decision for better latency
-                    try:
-                        if not bypass_enhancement:
-                            logger.info(f"Visualization processor: Making enhancement decision with streaming")
-                            enhancement_decision = await self.enhanced_mcp_client.make_enhancement_decision_streaming(
-                                assistant_response=assistant_response,
-                                conversation_history=conversation_history,
-                                voice_injection_callback=voice_injection_callback
-                            )
-                        else:
-                            logger.info(f"Visualization processor: Bypassing enhancement decision, {assistant_response}")
-                            enhancement_decision = EnhancementDecision(
-                                displayEnhancement=True,
-                                displayEnhancedText=assistant_response,
-                                voiceOverText=None
-                            )
-                        logger.info("Visualization processor: Used streaming enhancement decision")
-                    except AttributeError:
-                        # Fallback to non-streaming version if streaming not available
-                        logger.info("Visualization processor: Streaming not available, using standard enhancement decision")
-                        enhancement_decision = await self.enhanced_mcp_client.make_enhancement_decision(
+                    if not bypass_enhancement:
+                        logger.info(f"Visualization processor: Making enhancement decision with streaming")
+                        enhancement_decision = await self.enhanced_mcp_client.make_enhancement_decision_streaming(
                             assistant_response=assistant_response,
-                            conversation_history=conversation_history
+                            conversation_history=conversation_history,
+                            voice_injection_callback=voice_injection_callback
                         )
-                    
+                    else:
+                        logger.info(f"Visualization processor: Bypassing enhancement decision, {assistant_response}")
+                        enhancement_decision = EnhancementDecision(
+                            displayEnhancement=True,
+                            displayEnhancedText=assistant_response,
+                            voiceOverText=None
+                        )
+                        logger.info("Visualization processor: Used streaming enhancement decision")
+
                     logger.info(f"Visualization processor: MCP agent decision - Enhancement: {enhancement_decision}")
-                    
+
                 except Exception as e:
                     logger.error(f"Visualization processor: Error in MCP agent call: {e}", exc_info=True)
-                    
+
                     enhancement_decision = EnhancementDecision(
                         displayEnhancement=False,
                         displayEnhancedText=assistant_response,
                         voiceOverText=""  # Empty voice-over to avoid duplicate audio
                     )
                     logger.info("Visualization processor: Using fallback decision (no enhancement)")
-                
+
                 # Extract decision components
                 display_enhancement = enhancement_decision.displayEnhancement
                 display_text = enhancement_decision.displayEnhancedText
                 voice_text = enhancement_decision.voiceOverText
-                
+
                 # Check if this is a voice message where an immediate response was already sent
-                source = metadata.get("source", "voice")  # Default to voice for backward compatibility
+                source = metadata.get("source", "voice-agent")  # Default to voice for backward compatibility
 
                 # ------------------------------------------------------------------ #
                 #  NEW: Notify frontend that visual enhancement has started
@@ -258,30 +258,22 @@ class VisualizationProcessor:
                 # agent asked for `displayEnhancement=True`.  The frontend uses
                 # this interim message to show a subtle “Generating enhanced
                 # display…” indicator until the final <voice_response> arrives.
-                if (
-                    source == "voice"
-                    and display_enhancement is True
-                ):
-                    try:
-                        enhancement_started_msg = create_enhancement_started()
-                        await enqueue_llm_message(enhancement_started_msg)
-                        logger.info(
-                            "Visualization processor: Sent enhancement_started "
-                            "indicator (id=%s) to frontend",
-                            enhancement_started_msg["id"],
-                        )
-                    except Exception as e:
-                        logger.error(
-                            "Visualization processor: Failed to enqueue "
-                            "enhancement_started message: %s",
-                            e,
-                            exc_info=True,
-                        )
+                if(display_enhancement):
+                    enhancement_started_msg = create_enhancement_started()
+                    await enqueue_llm_message(enhancement_started_msg)
+                    logger.info(
+                        "Visualization processor: Sent enhancement_started "
+                        "indicator (id=%s) to frontend",
+                        enhancement_started_msg["id"],
+                    )
+                else:
+                    logger.info("Visualization processor: No enhancement needed")
+                    continue
 
                 # ------------------------------------------------------------------ #
                 #  Extra DEBUG: log values before early-exit decision
                 # ------------------------------------------------------------------ #
-                logger.info(
+                logger.debug(
                     "Early-exit evaluation → source=%s (type=%s) | "
                     "display_enhancement=%s (type=%s)",
                     source,
@@ -297,7 +289,7 @@ class VisualizationProcessor:
                 # NO visual enhancement, we have already shown the immediate bubble
                 # and streamed the audio.  Nothing more to do – skip the rest of the
                 # slow-path entirely.
-                if source == "voice" and display_enhancement is False:
+                if source == "voice-agent" and display_enhancement is False:
                     logger.info(
                         "Visualization processor: displayEnhancement=False for voice turn – "
                         "bypassing further processing to avoid duplicate UI / audio."
@@ -311,52 +303,45 @@ class VisualizationProcessor:
                 # legacy `skip_sending` flag is defined so the remainder of the
                 # method can reference it safely without a NameError.
                 skip_sending = False
-                
+                visualized_ui_payload = ""
+
                 # Step 2: Conditionally process with Thesys or create simple card
                 if not skip_sending and display_enhancement and self.thesys_client:
                     logger.info("Visualization processor: Enhancement requested, sending to Thesys Visualize API...")
-                    
+
                     try:
                         # Format messages for Thesys Visualize API with dynamic tool list
-                        try:
-                            tools = self.enhanced_mcp_client.get_tools()
-                            # Build markdown list of tools with descriptions
-                            tool_lines = "\n".join([
-                                f"- **{t.name}**: {t.description}"
-                                for t in tools
-                            ])
-                            base_prompt = load_thesys_prompt("thesys_visualize_system")
-                            dynamic_system_prompt = (
-                                f"{base_prompt}\n\n"
-                                "Available server-side tools for interactivity:\n"
-                                f"{tool_lines}"
-                            )
-                            # Construct messages for Thesys API
-                            messages_for_thesys = [
-                                {"role": "system", "content": dynamic_system_prompt}
-                            ]
-                            if conversation_history:
-                                for msg in conversation_history:
-                                    if msg.get("role") in ["user", "assistant"]:
-                                        messages_for_thesys.append({"role": msg["role"], "content": msg["content"]})
-                            messages_for_thesys.append({"role": "assistant", "content": display_text})
-                        except Exception:
-                            # Fallback to static formatting if dynamic prompt fails
-                            messages_for_thesys = format_thesys_messages_for_visualize(
-                                display_text,
-                                conversation_history
-                            )
-                        
+                        tools = self.enhanced_mcp_client.get_tools()
+                        # Build markdown list of tools with descriptions
+                        tool_lines = "\n".join([
+                            f"- **{t.name}**: {t.description}"
+                            for t in tools
+                        ])
+                        base_prompt = load_thesys_prompt("thesys_visualize_system")
+                        dynamic_system_prompt = (
+                            f"{base_prompt}\n\n"
+                            "Available server-side tools for interactivity:\n"
+                            f"{tool_lines}"
+                        )
+                        # Construct messages for Thesys API
+                        messages_for_thesys = [
+                            {"role": "system", "content": dynamic_system_prompt}
+                        ]
+                        if conversation_history:
+                            for msg in conversation_history:
+                                if msg.get("role") in ["user", "assistant"]:
+                                    messages_for_thesys.append({"role": msg["role"], "content": msg["content"]})
+                        messages_for_thesys.append({"role": "assistant", "content": display_text})
                         # Call Thesys Visualize API
                         completion = await self.thesys_client.chat.completions.create(
                             messages=messages_for_thesys,
                             model=config.model.thesys_model,
                             stream=False
                         )
-                        
+
                         visualized_ui_payload = completion.choices[0].message.content
                         logger.info(f"Visualization processor: Received UI payload from Thesys")
-                        
+
                     except Exception as e:
                         logger.error(f"Visualization processor: Error calling Thesys Visualize API: {e}", exc_info=True)
                         # Fallback to simple card
@@ -364,14 +349,14 @@ class VisualizationProcessor:
                             "component": "Callout",
                             "props": {
                                 "variant": "warning",
-                                "title": "Visualization Error", 
+                                "title": "Visualization Error",
                                 "description": f"Failed to generate UI: {str(e)}"
                             }
                         }
                         visualized_ui_payload = f'<content>{json.dumps(error_component)}</content>'
                 elif not skip_sending:
                     logger.info("Visualization processor: No enhancement needed or Thesys unavailable, creating simple text card...")
-                    
+
                     # Create a simple card with text content
                     # NOTE: The frontend expects the same nested structure that
                     # legacy main.py produced: a top-level "component" whose value
@@ -393,81 +378,33 @@ class VisualizationProcessor:
                         }
                     }
                     visualized_ui_payload = f'<content>{json.dumps(simple_card)}</content>'
-                
-                # Step 3: Handle TTS voice-over injection for voice interactions
-                # UPDATED: Only inject voice-over if it meets all criteria:
-                # 1. Not empty/null
-                # 2. Significantly different from display text
-                # 3. Enhancement was actually requested
-                
-                # Only set voice_over_text if it's significantly different from display text
-                voice_over_text = None
-                should_inject_voice_over = False
-                
-                if source == "voice" and voice_text and voice_text.strip():
-                    # Check if voice_text is significantly different from display_text
-                    if is_significantly_different(voice_text, display_text):
-                        # Only use voice-over if enhancement was requested
-                        if display_enhancement:
-                            voice_over_text = voice_text
-                            should_inject_voice_over = True
-                            logger.info(f"Visualization processor: Will use voice-over text (significantly different + enhancement requested)")
-                        else:
-                            logger.info(f"Visualization processor: Skipping voice-over (no enhancement requested)")
-                    else:
-                        logger.info(f"Visualization processor: Skipping voice-over (not significantly different from display text)")
+
+                if source == "text_chat":
+                    thread_id = metadata.get("thread_id")
+                    message_for_frontend = create_text_chat_response(
+                        content=visualized_ui_payload,
+                        thread_id=thread_id
+                    )
                 else:
-                    logger.info(f"Visualization processor: No voice-over text provided or empty")
                 
-                # NEW: Check if we need additional voice-over beyond what was streamed
-                if should_inject_voice_over:
-                    try:
-                        # Check if we used streaming (if the method exists and was called)
-                        used_streaming = hasattr(self.enhanced_mcp_client, 'make_enhancement_decision_streaming')
-                        
-                        if not used_streaming:
-                            # Non-streaming mode - inject voice-over as before
-                            logger.info(f"Visualization processor: Injecting voice-over text into TTS pipeline...")
-                            logger.info(f"Visualization processor: Voice-over text: '{voice_over_text[:100]}...'")
-                            await inject_voice_over_to_all_agents(voice_over_text.strip())
-                            logger.info(f"Visualization processor: Successfully injected voice-over text to TTS pipeline")
-                        else:
-                            # Streaming mode - voice-over was already injected during streaming
-                            logger.info(f"Visualization processor: Voice-over already injected during streaming")
-                            
-                    except Exception as e:
-                        logger.error(f"Visualization processor: Error handling voice-over injection: {e}")
-                
-                # Step 4: Prepare message for frontend (if not skipped)
-                if not skip_sending:
-                    if source == "text_chat":
-                        # Create text chat response for text-based interactions
-                        thread_id = metadata.get("thread_id")
-                        message_for_frontend = create_text_chat_response(
-                            content=visualized_ui_payload,
-                            thread_id=thread_id
-                        )
-                    else:
-                        # Create voice response for voice-based interactions
-                        message_for_frontend = create_voice_response(
-                            content=visualized_ui_payload,
-                            voice_text=voice_over_text
-                        )
-                    
-                    logger.info(f"Visualization processor: Prepared message for frontend with ID: {message_for_frontend['id']}")
-                    
-                    # Step 5: Enqueue the message for the frontend
-                    await enqueue_llm_message(message_for_frontend)
-                    logger.info(f"Visualization processor: Successfully sent payload to frontend queue")
-                else:
-                    logger.info("Visualization processor: Skipped sending duplicate message for voice response")
-                
+                    message_for_frontend = create_voice_response(
+                        content=visualized_ui_payload,
+                        voice_text=""
+                    )
+                assistant_message_id = metadata.get("message_id", str(uuid.uuid4()))
+                await enqueue_llm_message(create_chat_done(id=assistant_message_id))
+                logger.info(f"Prepared message for frontend with ID: {message_for_frontend.get('id')}")
+                await enqueue_llm_message(message_for_frontend)
+                logger.info("Successfully sent full payload to frontend queue")
+
+
+
             except asyncio.CancelledError:
                 # Don't mark task as done when cancelled - just propagate the cancellation
                 raise
             except Exception as e:
                 logger.error(f"Critical error in visualization_processor loop: {e}", exc_info=True)
-                
+
                 # Put an error message on llm_message_queue for the client
                 error_card = {
                     "component": "Callout",
@@ -477,9 +414,9 @@ class VisualizationProcessor:
                         "description": "A system error occurred while generating UI for voice response."
                     }
                 }
-                
+
                 # Use appropriate message type based on source
-                source = item.get("metadata", {}).get("source", "voice") if item else "voice"
+                source = item.get("metadata", {}).get("source", "voice-agent") if item else "voice-agent"
                 if source == "text_chat":
                     thread_id = item.get("metadata", {}).get("thread_id") if item else None
                     error_message = create_text_chat_response(
@@ -490,7 +427,7 @@ class VisualizationProcessor:
                     error_message = create_voice_response(
                         content=f'<content>{json.dumps(error_card)}</content>'
                     )
-                
+
                 try:
                     await enqueue_llm_message(error_message)
                 except Exception as enqueue_error:
@@ -500,17 +437,18 @@ class VisualizationProcessor:
                 if got_item:
                     # Mark the task as done
                     mark_raw_llm_output_done()
-        
+
         logger.info("Visualization processor loop ended")
+
 
 async def create_visualization_processor(enhanced_mcp_client, thesys_client=None):
     """
     Create and start a visualization processor
-    
+
     Args:
         enhanced_mcp_client: The enhanced MCP client
         thesys_client: Optional Thesys client
-        
+
     Returns:
         The started visualization processor
     """

@@ -238,43 +238,7 @@ def create_application() -> FastAPI:
             return await chat_history_manager.get_recent_history(thread_id, max_messages=max_messages)
         return await chat_history_manager.get_history(thread_id)
     
-    # Add MCP enhancement test endpoint
-    @app.post("/api/mcp/test-enhancement", tags=["mcp"])
-    async def test_enhancement_decision(request: Dict[str, Any], fastapi_req: Request):
-        """Test endpoint for the enhanced MCP decision making"""
-        enhanced_client = fastapi_req.app.state.enhanced_mcp_client
-        if not enhanced_client:
-            raise HTTPException(status_code=500, detail="Enhanced MCP Client not initialized.")
-        
-        assistant_response = request.get("assistant_response", "")
-        conversation_history = request.get("conversation_history", [])
-        
-        if not assistant_response:
-            raise HTTPException(status_code=400, detail="assistant_response is required")
-        
-        try:
-            logger.info(f"Testing enhancement decision for: {assistant_response[:100]}...")
-            
-            # Use the enhanced MCP client to make the decision
-            decision = await enhanced_client.make_enhancement_decision(
-                assistant_response=assistant_response,
-                conversation_history=conversation_history
-            )
-            
-            return {
-                "original_response": assistant_response,
-                "decision": {
-                    "displayEnhancement": decision.displayEnhancement,
-                    "displayEnhancedText": decision.displayEnhancedText,
-                    "voiceOverText": decision.voiceOverText
-                },
-                "available_tools": enhanced_client.get_available_tools()
-            }
-            
-        except Exception as e:
-            logger.error(f"Error testing enhancement decision: {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail=f"Error testing enhancement: {str(e)}")
-    
+   
     return app
 
 def run():

@@ -122,7 +122,7 @@ class VoiceInterfaceAgent:
                     # Use the canonical label expected by the visualization
                     # processor so that its early-exit de-duplication logic
                     # triggers correctly.
-                    "source": "voice",
+                    "source": "voice-agent",
                     "thread_id": self.thread_id
                 }
             }

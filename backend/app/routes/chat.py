@@ -25,14 +25,11 @@ from app.queues import (
     enqueue_llm_message,
     get_llm_message,
     mark_llm_message_done,
-    create_chat_token,
-    create_c1_token,
-    create_chat_done,
-    create_voice_response,
     create_user_transcription,
     enqueue_raw_llm_output,
     create_text_chat_response
 )
+from enhanced_mcp_client import EnhancedMCPClient
 from utils.thesys_prompts import format_thesys_messages_for_visualize
 
 logger = logging.getLogger(__name__)
@@ -115,7 +112,7 @@ async def chat_enhanced(request: Union[ChatRequest, ThesysBridgeRequest], fastap
     
     try:
         # Get the enhanced MCP client from request state
-        enhanced_mcp_client = fastapi_req.app.state.enhanced_mcp_client
+        enhanced_mcp_client: EnhancedMCPClient = fastapi_req.app.state.enhanced_mcp_client
         if not enhanced_mcp_client:
             raise HTTPException(status_code=500, detail="Chat service not available")
 
