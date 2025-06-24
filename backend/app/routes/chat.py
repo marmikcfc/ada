@@ -77,6 +77,63 @@ def extract_message_and_thread_id(request: Union[ChatRequest, ThesysBridgeReques
         raise ValueError(f"Unsupported request type: {type(request)}")
 
 
+async def _process_chat_logic(message: str, thread_id: str, *, is_c1_action: bool, app_state) -> None:
+    """Internal helper to process a chat message just like the POST endpoint."""
+
+    enhanced_mcp_client: EnhancedMCPClient = app_state.enhanced_mcp_client
+    if not enhanced_mcp_client:
+        raise HTTPException(status_code=500, detail="Chat service not available")
+
+    # ------------------------------------------------------------------- #
+    # 1. Persist USER message in history
+    # ------------------------------------------------------------------- #
+    if is_c1_action:
+        await chat_history_manager.add_c1_action(thread_id, message)
+    else:
+        await chat_history_manager.add_user_message(thread_id, message)
+
+    # Step 1: Send user message to WebSocket immediately
+    user_message_for_frontend = create_user_transcription(
+        content=message,
+        id=str(uuid.uuid4())
+    )
+    await enqueue_llm_message(user_message_for_frontend)
+    logger.info(f"Enqueued user message to WebSocket: {message}")
+
+    # Gather recent history for context
+    conversation_history = await chat_history_manager.get_recent_history(thread_id)
+
+    # Step 2: Process the message through the MCP client
+    response = await enhanced_mcp_client.chat_with_tools(
+        user_message=message,
+        conversation_history=conversation_history  # real history
+    )
+    logger.info(f"MCP client response: {response[:100]}...")
+
+    # ------------------------------------------------------------------- #
+    # 3. Persist ASSISTANT response in history
+    # ------------------------------------------------------------------- #
+    await chat_history_manager.add_assistant_message(thread_id, response)
+
+    # Fetch updated conversation history for downstream processors
+    conversation_history = await chat_history_manager.get_recent_history(thread_id)
+
+    # Generate a unique message_id for streaming correlation
+    message_id = str(uuid.uuid4())
+
+    # Step 4: Send response through enhancement pipeline (like voice messages)
+    await enqueue_raw_llm_output(
+        assistant_response=response,
+        history=conversation_history,
+        metadata={
+            "source": "text_chat",
+            "thread_id": thread_id,
+            "message_id": message_id  # Add message_id for streaming correlation
+        }
+    )
+    logger.info(f"Enqueued response to enhancement pipeline with message_id: {message_id}")
+
+
 @router.post("/chat")
 async def chat_enhanced(request: Union[ChatRequest, ThesysBridgeRequest], fastapi_req: Request):
     """
@@ -111,66 +168,17 @@ async def chat_enhanced(request: Union[ChatRequest, ThesysBridgeRequest], fastap
     logger.info(f"Processing {request_type} - Message: {message[:100]}..., Thread ID: {thread_id}")
     
     try:
-        # Get the enhanced MCP client from request state
-        enhanced_mcp_client: EnhancedMCPClient = fastapi_req.app.state.enhanced_mcp_client
-        if not enhanced_mcp_client:
-            raise HTTPException(status_code=500, detail="Chat service not available")
-
-        # ------------------------------------------------------------------- #
-        # 1. Persist USER message in history
-        # ------------------------------------------------------------------- #
-        if isinstance(request, ThesysBridgeRequest):
-            await chat_history_manager.add_c1_action(thread_id, message)
-        else:
-            await chat_history_manager.add_user_message(thread_id, message)
-        
-        # Step 1: Send user message to WebSocket immediately
-        user_message_for_frontend = create_user_transcription(
-            content=message,
-            id=str(uuid.uuid4())
+        await _process_chat_logic(
+            message,
+            thread_id,
+            is_c1_action=isinstance(request, ThesysBridgeRequest),
+            app_state=fastapi_req.app.state,
         )
-        await enqueue_llm_message(user_message_for_frontend)
-        logger.info(f"Enqueued user message to WebSocket: {message}")
-        
-        # Gather recent history for context
-        conversation_history = await chat_history_manager.get_recent_history(thread_id)
-
-        # Step 2: Process the message through the MCP client
-        response = await enhanced_mcp_client.chat_with_tools(
-            user_message=message,
-            conversation_history=conversation_history  # real history
-        )
-        logger.info(f"MCP client response: {response[:100]}...")
-        
-        # ------------------------------------------------------------------- #
-        # 3. Persist ASSISTANT response in history
-        # ------------------------------------------------------------------- #
-        await chat_history_manager.add_assistant_message(thread_id, response)
-
-        # Fetch updated conversation history for downstream processors
-        conversation_history = await chat_history_manager.get_recent_history(thread_id)
-        
-        # Generate a unique message_id for streaming correlation
-        message_id = str(uuid.uuid4())
-        
-        # Step 4: Send response through enhancement pipeline (like voice messages)
-        await enqueue_raw_llm_output(
-            assistant_response=response,
-            history=conversation_history,
-            metadata={
-                "source": "text_chat", 
-                "thread_id": thread_id,
-                "message_id": message_id  # Add message_id for streaming correlation
-            }
-        )
-        logger.info(f"Enqueued response to enhancement pipeline with message_id: {message_id}")
-        
         return {
             "status": "processing",
             "thread_id": thread_id,
             "message": "Message sent for processing. Response will be delivered via WebSocket."
         }
-        
     except Exception as e:
         logger.error(f"Enhanced Chat Error: {e}", exc_info=True)
         # Send error message to WebSocket
@@ -187,59 +195,64 @@ async def chat_enhanced(request: Union[ChatRequest, ThesysBridgeRequest], fastap
 
 @ws_router.websocket("/ws/messages")
 async def websocket_llm_messages(websocket: WebSocket):
-    """
-    WebSocket endpoint for streaming LLM messages to the client
-    
-    This endpoint:
-    1. Accepts a WebSocket connection
-    2. Continuously streams messages from the LLM message queue to the client
-    3. Handles disconnection and errors
-    
-    Args:
-        websocket: The WebSocket connection
-    """
+    """Bidirectional WebSocket for chat messages and streaming responses."""
     await websocket.accept()
     client_info = f"{websocket.client.host}:{websocket.client.port}"
     logger.info(f"WebSocket /ws/messages connection accepted from {client_info}")
-    
-    try:
-        # Send an initial test message to the client
-        await websocket.send_text(json.dumps({
-            "type": "connection_ack", 
-            "message": "WebSocket connection established!"
-        }))
-        logger.info(f"Sent connection_ack to {client_info}")
 
+    async def sender():
         while True:
-            logger.debug(f"WebSocket waiting for message from llm_message_queue for {client_info}")
             msg = await get_llm_message()
-            
             try:
-                serialized_msg = msg if isinstance(msg, str) else json.dumps(msg)
-                await websocket.send_text(serialized_msg)
-                logger.debug(f"WebSocket successfully sent message to {client_info}")
+                serialized = msg if isinstance(msg, str) else json.dumps(msg)
+                await websocket.send_text(serialized)
             except Exception as send_error:
-                # Network hiccups or malformed frames should not kill the
-                # whole stream – log and keep waiting for the next item.
                 logger.error(
                     f"WebSocket error sending message to {client_info}: {send_error}",
                     exc_info=True,
                 )
+                break
             finally:
-                # Always mark a queue task as done so the queue does not get
-                # stuck and back-pressure stays accurate.
                 mark_llm_message_done()
-
-            # Yield control to allow other tasks to run before the next get().
-            # (Behaviour identical to the old main.py loop.)
             await asyncio.sleep(0)
-            
-    except WebSocketDisconnect:
-        logger.info(f"WebSocket client {client_info} disconnected.")
-    except Exception as e:
-        logger.error(f"Unexpected error in WebSocket for {client_info}: {e}", exc_info=True)
-    finally:
-        logger.info(f"Closing WebSocket connection for {client_info}")
+
+    async def receiver():
+        while True:
+            try:
+                data = await websocket.receive_text()
+            except WebSocketDisconnect:
+                break
+            try:
+                payload = json.loads(data)
+            except Exception:
+                logger.warning(f"Invalid WS payload from {client_info}: {data}")
+                continue
+            mtype = payload.get("type")
+            if mtype in ("chat", "chat_request"):
+                text = payload.get("message") or payload.get("content", "")
+                thread_id = payload.get("thread_id") or payload.get("threadId")
+                is_c1 = False
+            elif mtype in ("thesys_bridge", "c1_action"):
+                text = payload.get("prompt", {}).get("content", "")
+                thread_id = payload.get("thread_id") or payload.get("threadId")
+                is_c1 = True
+            else:
+                logger.warning(f"Unknown WS message type from {client_info}: {mtype}")
+                continue
+            thread_id = thread_id or str(uuid.uuid4())
+            try:
+                await _process_chat_logic(text, thread_id, is_c1_action=is_c1, app_state=websocket.scope["app"].state)
+            except Exception as e:
+                logger.error(f"WS chat processing error for {client_info}: {e}", exc_info=True)
+
+    await websocket.send_text(json.dumps({"type": "connection_ack", "message": "WebSocket connection established!"}))
+
+    send_task = asyncio.create_task(sender())
+    recv_task = asyncio.create_task(receiver())
+    done, pending = await asyncio.wait({send_task, recv_task}, return_when=asyncio.FIRST_COMPLETED)
+    for task in pending:
+        task.cancel()
+    logger.info(f"Closing WebSocket connection for {client_info}")
 
 def create_streaming_response(content: str):
     """

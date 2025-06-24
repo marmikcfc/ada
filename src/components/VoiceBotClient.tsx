@@ -812,32 +812,20 @@ const VoiceBotClient: React.FC = () => {
     console.log('Action from C1Component received in VoiceBotClient:', action);
     
     try {
-      // Set loading state
       setIsLoading(true);
-      
-      // Use the HTTP endpoint with ThesysBridgeRequest format
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          prompt: { content: action.llmFriendlyMessage },
-          threadId: threadListManager.selectedThreadId,
-          responseId: crypto.randomUUID()
-        }),
-      });
-      
-      if (!response.ok) {
-        throw new Error(`HTTP error: ${response.status}`);
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        throw new Error('WebSocket not connected');
       }
-      
-      const result = await response.json();
-      console.log('C1Component action sent successfully:', result);
-      console.log('Response will be delivered via WebSocket');
-      
-      // The user message and enhanced response will come through WebSocket
-      // No need to manually add them here
+
+      ws.send(JSON.stringify({
+        type: 'thesys_bridge',
+        prompt: { content: action.llmFriendlyMessage },
+        threadId: threadListManager.selectedThreadId,
+        responseId: crypto.randomUUID(),
+      }));
+
+      console.log('C1Component action sent via WebSocket');
       
     } catch (error) {
       console.error('Error sending C1Component action:', error);
@@ -873,33 +861,18 @@ const VoiceBotClient: React.FC = () => {
     console.log('Endpoint: /api/chat-enhanced');
     
     try {
-      // Call the enhanced chat endpoint for full enhancement pipeline
-      const response = await fetch('/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          message: message,
-          thread_id: threadListManager.selectedThreadId
-        }),
-      });
-
-      console.log('Response status:', response.status);
-      console.log('Response ok:', response.ok);
-
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error('Response error text:', errorText);
-        throw new Error(`HTTP error! status: ${response.status}, body: ${errorText}`);
+      const ws = wsRef.current;
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        throw new Error('WebSocket not connected');
       }
 
-      const result = await response.json();
-      console.log('Text message sent successfully:', result);
-      console.log('Expected: User message and enhanced response will come via WebSocket');
-      
-      // The user message and enhanced response will come through WebSocket
-      // No need to manually add them here as they're handled by the enhancement pipeline
+      ws.send(JSON.stringify({
+        type: 'chat',
+        message: message,
+        thread_id: threadListManager.selectedThreadId,
+      }));
+
+      console.log('Text message sent via WebSocket');
       
     } catch (error) {
       console.error('=== ERROR SENDING TEXT MESSAGE ===');
