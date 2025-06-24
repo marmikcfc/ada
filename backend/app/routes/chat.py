@@ -150,13 +150,20 @@ async def chat_enhanced(request: Union[ChatRequest, ThesysBridgeRequest], fastap
         # Fetch updated conversation history for downstream processors
         conversation_history = await chat_history_manager.get_recent_history(thread_id)
         
+        # Generate a unique message_id for streaming correlation
+        message_id = str(uuid.uuid4())
+        
         # Step 4: Send response through enhancement pipeline (like voice messages)
         await enqueue_raw_llm_output(
             assistant_response=response,
             history=conversation_history,
-            metadata={"source": "text_chat", "thread_id": thread_id}
+            metadata={
+                "source": "text_chat", 
+                "thread_id": thread_id,
+                "message_id": message_id  # Add message_id for streaming correlation
+            }
         )
-        logger.info(f"Enqueued response to enhancement pipeline")
+        logger.info(f"Enqueued response to enhancement pipeline with message_id: {message_id}")
         
         return {
             "status": "processing",

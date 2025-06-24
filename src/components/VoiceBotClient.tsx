@@ -10,6 +10,15 @@ const VoiceBotClient: React.FC = () => {
   const wsRef = useRef<WebSocket | null>(null);
   const threadManagerRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
+  
+  // Use refs for immediate accumulation of streaming content
+  const streamingContentRef = useRef<string>('');
+  const streamingMessageIdRef = useRef<string | null>(null);
+  // Keep a state variable to trigger re-renders in GenerativeUIChat
+  const [isStreamingActive, setIsStreamingActive] = useState<boolean>(false);
+  // Lightweight counter to force re-render on each incoming chunk
+  const [streamTick, setStreamTick] = useState<number>(0);
+  
   const wsConnectionIdRef = useRef<string>(`ws-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`);
   const [wsConnectionState, setWsConnectionState] = useState<'connecting' | 'connected' | 'disconnected' | 'error'>('disconnected');
   
@@ -287,7 +296,7 @@ const VoiceBotClient: React.FC = () => {
         try {
           // The context is often a JSON string with escaped quotes
           // First unescape it
-          const unescapedContext = contextData.replace(/\\"/g, '"');
+          const unescapedContext = contextData.replace(/\\\"/g, '"');
           parsedContext = JSON.parse(unescapedContext);
         } catch (e) {
           console.log('Could not parse context as JSON, using as string');
@@ -605,6 +614,88 @@ const VoiceBotClient: React.FC = () => {
 
           threadManagerRef.current.appendMessages(userMessage);
           
+        } else if (data.type === 'c1_token') {
+          /* -----------------------------------------------------------
+           *  Streaming C1Component chunks handler
+           * --------------------------------------------------------- */
+          const msgId = data.id;
+          if (typeof msgId === 'string') {
+            console.log(`[WS:${connectionId}] Processing c1_token for message ID: ${msgId}`);
+            
+            // Check if this is the first chunk for this message ID
+            if (streamingMessageIdRef.current !== msgId) {
+              console.log(`[WS:${connectionId}] First c1_token chunk for message ${msgId}`);
+              
+              // Initialize streaming state with refs (immediate updates)
+              streamingMessageIdRef.current = msgId;
+              streamingContentRef.current = data.content || '';
+              
+              // Set streaming active flag to trigger UI update
+              setIsStreamingActive(true);
+              // Trigger first render with initial chunk
+              setStreamTick(t => t + 1);
+            } else {
+              // Accumulate content for subsequent chunks
+              console.log(`[WS:${connectionId}] Accumulating content for streaming message ${msgId}`);
+              streamingContentRef.current += (data.content || '');
+              // Force re-render so UI reflects new chunk
+              setStreamTick(t => t + 1);
+            }
+          }
+        } else if (data.type === 'chat_done') {
+          /* -----------------------------------------------------------
+           *  End-of-stream marker
+           * --------------------------------------------------------- */
+          const msgId = data.id;
+          if (typeof msgId === 'string' && streamingMessageIdRef.current === msgId) {
+            console.log(`[WS:${connectionId}] Received chat_done for message ${msgId}`);
+            
+            // Format the final content
+            const fullContent = streamingContentRef.current;
+            const formattedContent = fullContent.includes('<content>') ? 
+              fullContent : 
+              formatAssistantMessage(fullContent);
+            
+            // Create the final message with accumulated content
+            const finalMessage = {
+              id: msgId,
+              role: 'assistant' as const,
+              message: [{
+                type: 'template' as const,
+                name: 'c1',
+                templateProps: {
+                  content: formattedContent
+                }
+              }]
+            };
+            
+            // Add final message to threadManager **after a tiny delay**
+            // – lets the streaming bubble un-mount first, preventing duplicate keys.
+            if (threadManagerRef.current) {
+              setTimeout(() => {
+                try {
+                  threadManagerRef.current.appendMessages(finalMessage);
+                  console.log(
+                    `[WS:${connectionId}] Added final message to threadManager (delayed)`,
+                  );
+                } catch (err) {
+                  console.error(
+                    `[WS:${connectionId}] Failed to append final message:`,
+                    err,
+                  );
+                }
+              }, 100); // 0.1 s is visually imperceptible but avoids React warnings
+            }
+            
+            // Reset streaming state
+            streamingMessageIdRef.current = null;
+            streamingContentRef.current = '';
+            setIsStreamingActive(false);
+            
+            // Streaming finished – remove any loading indicators
+            setIsEnhancing(false);
+            setIsLoading(false);
+          }
         } else if (data.type === 'enhancement_started') {
           // Slow path (visualisation) signalled it is working on UI
           console.log(`[WS:${connectionId}] Enhancement in progress – showing indicator`);
@@ -857,9 +948,13 @@ const VoiceBotClient: React.FC = () => {
         isLoading={isLoading}
         isVoiceLoading={isVoiceLoading}
         isEnhancing={isEnhancing}
+        // Pass streaming state to GenerativeUIChat
+        streamingContent={streamingContentRef.current}
+        streamingMessageId={streamingMessageIdRef.current}
+        isStreamingActive={isStreamingActive}
       />
     </div>
   );
 };
 
-export default VoiceBotClient; 
+export default VoiceBotClient;

@@ -18,7 +18,7 @@ import logging
 import json
 import uuid
 import difflib
-from typing import Dict, List, Any, Optional, Set
+from typing import Dict, List, Any, Optional, Set, AsyncGenerator
 from weakref import WeakSet
 
 from openai import AsyncOpenAI
@@ -140,6 +140,47 @@ class VisualizationProcessor:
         self.running = False
         self.task = None
 
+    # ------------------------------------------------------------------ #
+    #  Streaming helper                                                  #
+    # ------------------------------------------------------------------ #
+    async def stream_thesys_response(
+        self,
+        messages_for_thesys: List[Dict[str, Any]],
+    ) -> AsyncGenerator[str, None]:
+        """
+        Stream a Thesys Visualize API response and yield payload chunks.
+
+        Args:
+            messages_for_thesys: OpenAI-compatible message list prepared
+                                 for the Thesys model.
+
+        Yields:
+            str – incremental fragments of the C1Component payload.
+        """
+        if not self.thesys_client:
+            logger.warning("Thesys client not initialised – cannot stream UI.")
+            return
+
+        try:
+            stream = await self.thesys_client.chat.completions.create(
+                messages=messages_for_thesys,
+                model=config.model.thesys_model,
+                stream=True,
+            )
+
+            async for chunk in stream:
+                # Thesys returns delta objects identical to OpenAI format
+                if chunk.choices[0].delta and chunk.choices[0].delta.content:
+                    yield chunk.choices[0].delta.content
+
+        except Exception as e:
+            # Log and silently terminate the generator so callers can fall back
+            logger.error(
+                f"Visualization processor: Error while streaming Thesys response: {e}",
+                exc_info=True,
+            )
+            return
+
     async def start(self):
         """Start the visualization processor as a background task"""
         if self.running:
@@ -256,8 +297,8 @@ class VisualizationProcessor:
                 # ------------------------------------------------------------------ #
                 # We do this **only** for the voice path and **only** when the MCP
                 # agent asked for `displayEnhancement=True`.  The frontend uses
-                # this interim message to show a subtle “Generating enhanced
-                # display…” indicator until the final <voice_response> arrives.
+                # this interim message to show a subtle "Generating enhanced
+                # display…" indicator until the final <voice_response> arrives.
                 if(display_enhancement):
                     enhancement_started_msg = create_enhancement_started()
                     await enqueue_llm_message(enhancement_started_msg)
@@ -332,15 +373,38 @@ class VisualizationProcessor:
                                 if msg.get("role") in ["user", "assistant"]:
                                     messages_for_thesys.append({"role": msg["role"], "content": msg["content"]})
                         messages_for_thesys.append({"role": "assistant", "content": display_text})
-                        # Call Thesys Visualize API
-                        completion = await self.thesys_client.chat.completions.create(
-                            messages=messages_for_thesys,
-                            model=config.model.thesys_model,
-                            stream=False
-                        )
-
-                        visualized_ui_payload = completion.choices[0].message.content
-                        logger.info(f"Visualization processor: Received UI payload from Thesys")
+                        
+                        # Get a unique message_id for correlation (use from metadata if available)
+                        assistant_message_id = metadata.get("message_id", str(uuid.uuid4()))
+                        
+                        # Always use streaming mode
+                        logger.info(f"Visualization processor: Using streaming mode for Thesys API (message_id={assistant_message_id})")
+                        
+                        # Initialize an empty payload to accumulate chunks
+                        visualized_ui_payload = ""
+                        
+                        # Stream chunks from Thesys API
+                        chunk_count = 0
+                        async for chunk in self.stream_thesys_response(messages_for_thesys):
+                            chunk_count += 1
+                            # Accumulate the full payload for final response
+                            visualized_ui_payload += chunk
+                            
+                            # Send chunk to frontend via WebSocket
+                            await enqueue_llm_message(create_c1_token(
+                                id=assistant_message_id,
+                                content=chunk
+                            ))
+                            
+                            # Respect chunk delay setting if configured
+                            if config.streaming.c1_streaming_chunk_delay > 0:
+                                await asyncio.sleep(config.streaming.c1_streaming_chunk_delay)
+                        
+                        logger.info(f"Visualization processor: Streamed {chunk_count} chunks for message_id={assistant_message_id}")
+                        
+                        # Send completion signal
+                        await enqueue_llm_message(create_chat_done(id=assistant_message_id))
+                        logger.info(f"Visualization processor: Sent chat_done for message_id={assistant_message_id}")
 
                     except Exception as e:
                         logger.error(f"Visualization processor: Error calling Thesys Visualize API: {e}", exc_info=True)
@@ -354,6 +418,22 @@ class VisualizationProcessor:
                             }
                         }
                         visualized_ui_payload = f'<content>{json.dumps(error_component)}</content>'
+                        
+                        # Send error message directly since streaming failed
+                        if source == "text_chat":
+                            thread_id = metadata.get("thread_id")
+                            message_for_frontend = create_text_chat_response(
+                                content=visualized_ui_payload,
+                                thread_id=thread_id
+                            )
+                        else:
+                            message_for_frontend = create_voice_response(
+                                content=visualized_ui_payload,
+                                voice_text=""
+                            )
+                        
+                        await enqueue_llm_message(message_for_frontend)
+                        logger.info(f"Visualization processor: Sent error message due to streaming failure")
                 elif not skip_sending:
                     logger.info("Visualization processor: No enhancement needed or Thesys unavailable, creating simple text card...")
 
@@ -378,26 +458,22 @@ class VisualizationProcessor:
                         }
                     }
                     visualized_ui_payload = f'<content>{json.dumps(simple_card)}</content>'
-
-                if source == "text_chat":
-                    thread_id = metadata.get("thread_id")
-                    message_for_frontend = create_text_chat_response(
-                        content=visualized_ui_payload,
-                        thread_id=thread_id
-                    )
-                else:
-                
-                    message_for_frontend = create_voice_response(
-                        content=visualized_ui_payload,
-                        voice_text=""
-                    )
-                assistant_message_id = metadata.get("message_id", str(uuid.uuid4()))
-                await enqueue_llm_message(create_chat_done(id=assistant_message_id))
-                logger.info(f"Prepared message for frontend with ID: {message_for_frontend.get('id')}")
-                await enqueue_llm_message(message_for_frontend)
-                logger.info("Successfully sent full payload to frontend queue")
-
-
+                    
+                    # For simple cards, send directly without streaming
+                    if source == "text_chat":
+                        thread_id = metadata.get("thread_id")
+                        message_for_frontend = create_text_chat_response(
+                            content=visualized_ui_payload,
+                            thread_id=thread_id
+                        )
+                    else:
+                        message_for_frontend = create_voice_response(
+                            content=visualized_ui_payload,
+                            voice_text=""
+                        )
+                    
+                    await enqueue_llm_message(message_for_frontend)
+                    logger.info(f"Visualization processor: Sent simple card message")
 
             except asyncio.CancelledError:
                 # Don't mark task as done when cancelled - just propagate the cancellation

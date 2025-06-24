@@ -35,6 +35,12 @@ interface GenerativeUIChatProps {
     isVoiceLoading?: boolean;
     /** True while slow-path visual enhancement is generating UI. */
     isEnhancing?: boolean;
+    /** Current streaming raw C1Component XML (accumulated). */
+    streamingContent?: string;
+    /** Message-ID for the content being streamed. */
+    streamingMessageId?: string | null;
+    /** Flag: a stream is in progress (slow-path visual). */
+    isStreamingActive?: boolean;
 }
 
 const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
@@ -49,7 +55,10 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
     isVoiceConnectionLoading,
     isLoading,
     isVoiceLoading,
-    isEnhancing
+    isEnhancing,
+    streamingContent = '',
+    streamingMessageId = null,
+    isStreamingActive = false
 }) => {
     const [messages, setMessages] = useState<Message[]>([]);
     const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -151,6 +160,33 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
                         </CustomChatMessage>
                     ))}
                     
+                    {/* Live-streaming bubble (appears while slow-path chunks arrive) */}
+                    {isStreamingActive &&
+                        streamingMessageId &&
+                        streamingContent.trim().length > 0 && (
+                        <CustomChatMessage
+                            /* Prefix with `streaming-` so it never
+                               collides with a real ThreadManager ID */
+                            key={`streaming-${streamingMessageId}`}
+                            message={{
+                                id: `streaming-${streamingMessageId}`,
+                                role: 'assistant',
+                                c1Content: streamingContent,
+                                timestamp: new Date(),
+                            }}
+                            isLast={true}
+                            isStreaming={true}
+                            hasVoiceOver={false}
+                        >
+                            <C1Component
+                                c1Response={streamingContent}
+                                isStreaming={true}
+                                // No updateMessage handler here – buffer handled in VoiceBotClient
+                                onAction={handleC1ComponentAction}
+                            />
+                        </CustomChatMessage>
+                    )}
+
                     {/* Loading indicator */}
                     {(isEnhancing ?? false) || (isLoading ?? false) || (isVoiceLoading ?? false) ? (
                         <div className="loading-indicator">

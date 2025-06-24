@@ -4,9 +4,9 @@ import { v4 as uuidv4 } from 'uuid';
 
 type StreamState = {
   id: string;
-  text: string;
-  ui: string;
-  done: boolean;
+  text: string;        // incremental plain-text tokens from assistant
+  c1Content: string;   // incremental C1Component string
+  done: boolean;       // stream finished flag
 };
 
 export function useWebSocketChat(
@@ -38,10 +38,45 @@ export function useWebSocketChat(
       if (type === 'voice_response') {
         if (id && typeof content === 'string') {
           // Push a completed UI-only stream
-          setStreams(prev => [...prev, { id, text: '', ui: content, done: true }]);
+          setStreams(prev => [...prev, { id, text: '', c1Content: content, done: true }]);
         }
         return;
       }
+
+      // ------------------------------------------------------------------
+      // New streaming message types for C1Component chunks
+      // ------------------------------------------------------------------
+      if (type === 'c1_streaming_start') {
+        // Initialise a placeholder if it doesn't already exist
+        setStreams(prev => {
+          if (prev.some(s => s.id === id)) return prev;
+          return [...prev, { id, text: '', c1Content: '', done: false }];
+        });
+        return;
+      }
+
+      if (type === 'c1_chunk') {
+        setStreams(prev => {
+          const idx = prev.findIndex(s => s.id === id);
+          if (idx < 0) return prev; // unknown stream
+          const s = prev[idx];
+          const updated = { ...s, c1Content: s.c1Content + (content || '') };
+          return [...prev.slice(0, idx), updated, ...prev.slice(idx + 1)];
+        });
+        return;
+      }
+
+      if (type === 'c1_streaming_done') {
+        setStreams(prev => {
+          const idx = prev.findIndex(s => s.id === id);
+          if (idx < 0) return prev;
+          const s = prev[idx];
+          const updated = { ...s, done: true };
+          return [...prev.slice(0, idx), updated, ...prev.slice(idx + 1)];
+        });
+        return;
+      }
+
       setStreams(prev => {
         const idx = prev.findIndex(s => s.id === id);
         if (type === 'chat_token' && idx >= 0) {
@@ -49,9 +84,9 @@ export function useWebSocketChat(
           const updated = { ...s, text: s.text + content };
           return [...prev.slice(0, idx), updated, ...prev.slice(idx + 1)];
         }
-        if (type === 'c1_token' && idx >= 0) {
+        if (type === 'c1_token' && idx >= 0) { // legacy non-streaming chunk
           const s = prev[idx];
-          const updated = { ...s, ui: s.ui + content };
+          const updated = { ...s, c1Content: s.c1Content + content };
           return [...prev.slice(0, idx), updated, ...prev.slice(idx + 1)];
         }
         if (type === 'chat_done' && idx >= 0) {
@@ -76,14 +111,14 @@ export function useWebSocketChat(
     if (!ws || ws.readyState !== WebSocket.OPEN) return;
     const id = uuidv4();
     // initialize new stream slot
-    setStreams(prev => [...prev, { id, text: '', ui: '', done: false }]);
+    setStreams(prev => [...prev, { id, text: '', c1Content: '', done: false }]);
     ws.send(JSON.stringify({ type: 'chat_request', id, content: text }));
     return id;
   }, []);
 
   // Allow manual UI updates (e.g. from C1Component partial edits)
-  const updateUI = useCallback((id: string, ui: string) => {
-    setStreams(prev => prev.map(s => s.id === id ? { ...s, ui } : s));
+  const updateUI = useCallback((id: string, c1: string) => {
+    setStreams(prev => prev.map(s => s.id === id ? { ...s, c1Content: c1 } : s));
   }, []);
 
   return { streams, sendChat, updateUI };
