@@ -11,6 +11,9 @@
     "test": "jest"
   },
   "dependencies": {
+    "@crayonai/react-ui": "^0.7.9",
+    "@crayonai/stream": "^0.6.4",
+    "@crayonai/react-core": "^0.7.4",
     "@daily-co/realtime-ai-daily": "^0.2.3",
     "@pipecat-ai/client-js": "^0.3.5",
     "@pipecat-ai/client-react": "^0.3.5",
