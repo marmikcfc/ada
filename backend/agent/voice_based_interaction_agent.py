@@ -41,8 +41,8 @@ load_dotenv(override=True)
 
 def load_voice_agent_prompt() -> str:
     """Load the voice agent system prompt from the prompts directory and inject available tools."""
-    prompt_path = os.path.join(os.path.dirname(__file__), "..", "prompts", "voice_agent_system.txt")
-    mcp_config_path = os.path.join(os.path.dirname(__file__), "..", "mcp_servers.json")
+    prompt_path = os.path.join(os.path.dirname(__file__), "..", "..", "prompts", "voice_agent_system.txt")
+    mcp_config_path = os.path.join(os.path.dirname(__file__), "..", "..", "mcp_servers.json")
     
     try:
         # Load the base prompt template

@@ -38,7 +38,7 @@ from app.webrtc import router as webrtc_router, close_all_connections, get_prebu
 from app.vis_processor import create_visualization_processor
 
 # Import MCP client
-from enhanced_mcp_client import EnhancedMCPClient
+from agent.enhanced_mcp_client_agent import EnhancedMCPClient
 
 # Import chat history manager (shared across the whole backend)
 from app.chat_history_manager import chat_history_manager

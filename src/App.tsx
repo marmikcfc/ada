@@ -1,5 +1,13 @@
 import "./App.css";
-import VoiceBotClient from './components/VoiceBotClient';
+/**
+ * Import the demo page that lets us toggle between
+ *  • bubbleEnabled = true  (floating widget)
+ *  • bubbleEnabled = false (full-screen chat)
+ *
+ * TestPage lives next to this file so we can iterate quickly without
+ * having to rebuild the SDK bundle each change.
+ */
+import TestPage from "./TestPage";
 
 function App() {
   //const [greetMsg, setGreetMsg] = useState("");
@@ -12,7 +20,8 @@ function App() {
 
   return (
     <div className="App">
-      <VoiceBotClient />
+      {/* Render the interactive test page */}
+      <TestPage />
     </div>
   );
 }

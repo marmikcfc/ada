@@ -29,7 +29,7 @@ from app.queues import (
     enqueue_raw_llm_output,
     create_text_chat_response
 )
-from enhanced_mcp_client import EnhancedMCPClient
+from agent.enhanced_mcp_client_agent import EnhancedMCPClient
 from utils.thesys_prompts import format_thesys_messages_for_visualize
 
 logger = logging.getLogger(__name__)

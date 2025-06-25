@@ -358,7 +358,7 @@ class VisualizationProcessor:
                             f"- **{t.name}**: {t.description}"
                             for t in tools
                         ])
-                        base_prompt = load_thesys_prompt("thesys_visualize_system")
+                        base_prompt = load_thesys_prompt("visualization_system_prompt")
                         dynamic_system_prompt = (
                             f"{base_prompt}\n\n"
                             "Available server-side tools for interactivity:\n"
