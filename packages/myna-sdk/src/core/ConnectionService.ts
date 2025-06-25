@@ -3,7 +3,9 @@ import {
   ConnectionState, 
   VoiceConnectionState, 
   Message,
-  MCPEndpoint
+  MCPEndpoint,
+  UserMessage,
+  AssistantMessage
 } from '../types';
 
 /**
@@ -45,8 +47,16 @@ interface WebRTCOptions {
  * ConnectionService manages WebRTC and WebSocket connections for the Myna SDK
  */
 export class ConnectionService extends EventEmitter {
-  private webrtcURL: string;
-  private websocketURL: string;
+  /**
+   * Underlying endpoints are useful for consumers (e.g. `useMynaClient`)
+   * to detect when the connection target has actually changed so they
+   * can decide whether to reuse or recreate the service instance.
+   *
+   * Mark them as **public readonly** so they can be inspected but never
+   * mutated from the outside.
+   */
+  public readonly webrtcURL: string;
+  public readonly websocketURL: string;
   private mcpEndpoints?: MCPEndpoint[];
   private autoReconnect: boolean;
   private reconnectInterval: number;
@@ -321,6 +331,49 @@ export class ConnectionService extends EventEmitter {
   }
 
   /**
+   * Parses assistant message content, extracting C1Component JSON if present.
+   */
+  private _parseAssistantContent(rawContent: string): { c1Content?: string, textContent?: string } {
+    // Ensure we have a string
+    if (typeof rawContent !== 'string') {
+      return { textContent: JSON.stringify(rawContent) };
+    }
+
+    /* --------------------------------------------------------------
+     * 1. Decode HTML entities (&lt;, &gt;, &quot;, etc.)
+     * ------------------------------------------------------------ */
+    const decoded = (() => {
+      // Small, DOM-based decoder works in all browsers / Electron / Tauri
+      try {
+        const txt = document.createElement('textarea');
+        txt.innerHTML = rawContent;
+        return txt.value;
+      } catch {
+        // Fallback – very small subset we actually see
+        return rawContent
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&#39;/g, "'")
+          .replace(/&amp;/g, '&');
+      }
+    })();
+
+    /* --------------------------------------------------------------
+     * 2. Extract inner JSON wrapped by <content> … </content>
+     * ------------------------------------------------------------ */
+    // Use a single back-slash in the character class and closing tag; the
+    // double-escaped version broke esbuild parsing.
+    const match = decoded.match(/<content>([\s\S]*?)<\/content>/);
+    if (match && match[1]) {
+      return { c1Content: match[1] };
+    }
+
+    // No <content> wrapper → treat as plain text
+    return { textContent: decoded };
+  }
+
+  /**
    * Handle WebSocket message event
    */
   private handleWebSocketMessage(event: MessageEvent): void {
@@ -336,51 +389,45 @@ export class ConnectionService extends EventEmitter {
           break;
           
         case 'immediate_voice_response':
-          // Fast-path message that arrives before enhancement
-          console.log(`[WS:${this.wsConnectionId}] Received immediate voice response message:`, data);
-          this.emit(ConnectionEvent.MESSAGE_RECEIVED, {
-            id: data.id || crypto.randomUUID(),
-            role: 'assistant',
-            content: data.content,
-            isVoiceOverOnly: data.isVoiceOverOnly || false,
-            timestamp: new Date()
-          });
-          break;
-          
         case 'voice_response':
-          // Handle voice response messages from the visualization processor
-          console.log(`[WS:${this.wsConnectionId}] Received voice response message:`, data);
-          this.emit(ConnectionEvent.MESSAGE_RECEIVED, {
+        case 'text_chat_response': {
+          console.log(`[WS:${this.wsConnectionId}] Received ${data.type} message:`, data);
+          const { c1Content, textContent } = this._parseAssistantContent(data.content);
+          const assistantMessage: AssistantMessage = {
             id: data.id || crypto.randomUUID(),
             role: 'assistant',
-            content: data.content,
-            isVoiceOverOnly: data.isVoiceOverOnly || false,
+            content: textContent,
+            c1Content: c1Content,
+            hasVoiceOver: data.isVoiceOverOnly || false,
             timestamp: new Date()
-          });
+          };
+          this.emit(ConnectionEvent.MESSAGE_RECEIVED, assistantMessage);
           break;
+        }
           
-        case 'text_chat_response':
-          // Handle text chat response messages from the visualization processor
-          console.log(`[WS:${this.wsConnectionId}] Received text chat response message:`, data);
-          this.emit(ConnectionEvent.MESSAGE_RECEIVED, {
-            id: data.id || crypto.randomUUID(),
-            role: 'assistant',
-            content: data.content,
-            timestamp: new Date()
-          });
-          break;
-          
-        case 'user_transcription':
-          // Handle user voice transcription messages
+        case 'user_transcription': {
           console.log(`[WS:${this.wsConnectionId}] Received user transcription message:`, data);
-          this.emit(ConnectionEvent.TRANSCRIPTION, {
+          // Only process final transcriptions into messages
+          if (data.final === false) break;
+
+          const userMessage: UserMessage = {
             id: data.id || crypto.randomUUID(),
-            text: data.text || data.content,
-            final: data.final || false
+            role: 'user',
+            content: data.content,
+            timestamp: new Date()
+          };
+          this.emit(ConnectionEvent.MESSAGE_RECEIVED, userMessage);
+          
+          // Also emit the raw transcription event for other potential uses
+          this.emit(ConnectionEvent.TRANSCRIPTION, {
+            id: data.id,
+            text: data.content,
+            final: true
           });
           break;
+        }
           
-        case 'c1_token':
+        case 'c1_token': {
           // Streaming C1Component chunks handler
           const msgId = data.id;
           if (typeof msgId === 'string') {
@@ -413,14 +460,37 @@ export class ConnectionService extends EventEmitter {
             }
           }
           break;
+        }
           
-        case 'chat_done':
+        case 'chat_done': {
           // End-of-stream marker
           const doneId = data.id;
           if (typeof doneId === 'string' && this.streamingMessageId === doneId) {
             console.log(`[WS:${this.wsConnectionId}] Received chat_done for message ${doneId}`);
-            
-            // Emit streaming done event
+
+            /* ----------------------------------------------------------------
+             * 1. Build **final assistant message** from the accumulated stream
+             * ---------------------------------------------------------------- */
+            if (this.streamingContent.trim().length > 0) {
+              const { c1Content, textContent } = this._parseAssistantContent(
+                this.streamingContent,
+              );
+
+              const finalAssistant: AssistantMessage = {
+                id: doneId,
+                role: 'assistant',
+                content: textContent,
+                c1Content,
+                timestamp: new Date(),
+              };
+
+              // Surface to consumers before we clear the buffer
+              this.emit(ConnectionEvent.MESSAGE_RECEIVED, finalAssistant);
+            }
+
+            /* ----------------------------------------------------------------
+             * 2. Notify listeners that streaming is complete
+             * ---------------------------------------------------------------- */
             this.emit(ConnectionEvent.STREAMING_DONE, {
               id: doneId,
               content: this.streamingContent
@@ -431,6 +501,7 @@ export class ConnectionService extends EventEmitter {
             this.streamingContent = '';
           }
           break;
+        }
           
         case 'enhancement_started':
           // Slow path (visualisation) signalled it is working on UI
@@ -484,11 +555,15 @@ export class ConnectionService extends EventEmitter {
         this.emit(ConnectionEvent.VOICE_STATE_CHANGED, 'user-stopped');
       } else if (msg.type === 'bot-started-speaking') {
         this.emit(ConnectionEvent.VOICE_STATE_CHANGED, 'bot-started');
-      } else if (msg.type === 'user_transcription') {
-        this.emit(ConnectionEvent.TRANSCRIPTION, {
-          text: msg.text || msg.content,
-          final: msg.final || false
-        });
+      } else if (msg.type === 'user_transcription' && msg.data?.final) {
+        // When a final transcript arrives via WebRTC, treat it like a message
+        const userMessage: UserMessage = {
+            id: crypto.randomUUID(),
+            role: 'user',
+            content: msg.data.text,
+            timestamp: new Date(msg.data.timestamp)
+        };
+        this.emit(ConnectionEvent.MESSAGE_RECEIVED, userMessage);
       }
     } catch (err) {
       console.error('Error parsing transcript JSON:', err);

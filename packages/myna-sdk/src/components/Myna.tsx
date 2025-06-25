@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { MynaProps } from '../types';
 import { useMynaClient } from '../hooks/useMynaClient';
 import ChatButton from './ChatButton';
@@ -26,13 +26,19 @@ const Myna: React.FC<MynaProps> = ({
   const audioRef = useRef<HTMLAudioElement>(null);
   
   // Initialize client with connection settings
-  const client = useMynaClient({
-    webrtcURL,
-    websocketURL,
-    mcpEndpoints: options.mcpEndpoints,
-    autoConnect: true,
-    initialThreadId: undefined,
-  });
+  const clientOptions = useMemo(
+    () => ({
+      webrtcURL,
+      websocketURL,
+      mcpEndpoints: options.mcpEndpoints,
+      autoConnect: true,
+      initialThreadId: undefined,
+    }),
+    // re-create **only** when these primitive values change
+    [webrtcURL, websocketURL, options.mcpEndpoints]
+  );
+
+  const client = useMynaClient(clientOptions);
   
   // Apply audio stream to audio element when available
   useEffect(() => {
@@ -80,6 +86,9 @@ const Myna: React.FC<MynaProps> = ({
       {/* Chat window - shown when chat is open or bubbleEnabled is false */}
       {(isChatOpen || !bubbleEnabled) && (
         <ChatWindow
+          /* Floating mode when bubbleEnabled === true */
+          isFloating={bubbleEnabled}
+          /* Only provide close handler when operating as floating widget */
           onClose={bubbleEnabled ? handleChatClose : undefined}
           messages={client.messages}
           isLoading={client.isLoading}

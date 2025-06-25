@@ -121,7 +121,11 @@ export interface ChatButtonProps {
  * Props for the ChatWindow component
  */
 export interface ChatWindowProps {
-  onClose: () => void;
+  /**
+   * Callback invoked when the user requests the window to close / minimise.
+   * Optional because full-screen mode (bubbleEnabled = false) does not need it.
+   */
+  onClose?: () => void;
   messages: Message[];
   isLoading: boolean;
   isVoiceLoading: boolean;
@@ -134,6 +138,12 @@ export interface ChatWindowProps {
   isStreamingActive?: boolean;
   theme?: Partial<ThemeTokens>;
   showThreadManager?: boolean;
+  /**
+   * When true the window behaves as a floating widget (slides in/out).
+   * When false it renders full-screen / inline.  Provided by Myna
+   * internally based on the `bubbleEnabled` prop.
+   */
+  isFloating?: boolean;
 }
 
 /**

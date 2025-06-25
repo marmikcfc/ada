@@ -24,6 +24,8 @@ export interface ExtendedChatWindowProps extends ChatWindowProps {
   style?: CSSProperties;
   /** Additional CSS class names */
   className?: string;
+  /** When true acts as a floating widget (slide-in). False = full-screen */
+  isFloating?: boolean;
 }
 
 /**
@@ -50,6 +52,7 @@ const ChatWindow: React.FC<ExtendedChatWindowProps> = ({
   logoUrl,
   style,
   className = '',
+  isFloating = true,
 }) => {
   // Merge custom theme with default theme
   const mergedTheme = createTheme(theme);
@@ -84,17 +87,29 @@ const ChatWindow: React.FC<ExtendedChatWindowProps> = ({
     console.log('Message updated:', messageId, updatedContent);
   };
   
-  // Combined styles for the chat window
+  // Combined styles for the chat window – adapt to floating/full-screen
   const windowStyles: CSSProperties = {
     position: 'fixed',
-    bottom: '24px',
-    right: '24px',
-    width,
-    height,
+    ...(isFloating
+      ? {
+          bottom: '24px',
+          right: '24px',
+          width,
+          height,
+          borderRadius: cssVars['--myna-radius-lg'],
+          boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)',
+          // slide-in animation
+          animation: 'myna-slide-in 0.25s ease-out',
+        }
+      : {
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          borderRadius: 0,
+        }),
     backgroundColor: cssVars['--myna-color-surface'],
     color: cssVars['--myna-color-text'],
-    borderRadius: cssVars['--myna-radius-lg'],
-    boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)',
     display: 'flex',
     flexDirection: 'column',
     overflow: 'hidden',
@@ -193,6 +208,12 @@ const ChatWindow: React.FC<ExtendedChatWindowProps> = ({
       0%, 80%, 100% { transform: scale(0); }
       40% { transform: scale(1); }
     }
+
+    /* slide-in animation for floating mode */
+    @keyframes myna-slide-in {
+      from { transform: translateX(110%); }
+      to { transform: translateX(0); }
+    }
   `;
   
   // Thread manager styles (if enabled)
@@ -232,7 +253,12 @@ const ChatWindow: React.FC<ExtendedChatWindowProps> = ({
               <span style={{ fontWeight: 500 }}>{agentName}</span>
             </div>
           )}
-          <button 
+          {/* Show close / minimise button **only** when the parent supplied
+              an `onClose` callback – i.e. when we are in floating-widget mode.
+              In full-screen/inline mode (`isFloating === false`) the window
+              should not render a close icon. */}
+          {onClose && (
+            <button 
             className="myna-close-button" 
             style={closeButtonStyles} 
             onClick={onClose}
@@ -243,6 +269,7 @@ const ChatWindow: React.FC<ExtendedChatWindowProps> = ({
               <line x1="6" y1="6" x2="18" y2="18"></line>
             </svg>
           </button>
+          )}
         </div>
         
         {/* Main content area */}

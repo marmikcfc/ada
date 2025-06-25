@@ -23,10 +23,14 @@
     "@tauri-apps/plugin-websocket": "^2.3.0",
     "@thesysai/genui-sdk": "^0.6.15",
     "jotai": "^2.12.4",
+    "myna-sdk": "workspace:*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "uuid": "^9.0.1"
   },
+  "workspaces": [
+    "packages/*"
+  ],
   "devDependencies": {
     "@tauri-apps/cli": "^2",
     "@testing-library/jest-dom": "^6.4.2",

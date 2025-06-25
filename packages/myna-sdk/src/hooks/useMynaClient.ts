@@ -37,7 +37,7 @@ export function useMynaClient(options: UseMynaClientOptions): MynaClient & {
   isStreamingActive: boolean;
   audioStream: MediaStream | null;
 } {
-  // Connection service instance
+  // Connection service instance stored in a ref to persist across renders
   const connectionServiceRef = useRef<ConnectionService | null>(null);
   
   // Thread ID
@@ -63,17 +63,31 @@ export function useMynaClient(options: UseMynaClientOptions): MynaClient & {
   // Audio stream
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
 
-  // Initialize connection service
+  // Destructure only the properties from options that should trigger a re-connection
+  const { webrtcURL, websocketURL, autoConnect = true } = options;
+
+  // Effect to manage the connection lifecycle
   useEffect(() => {
-    const connectionService = new ConnectionService(options);
-    connectionServiceRef.current = connectionService;
+    // Prevent creating a new service if one already exists for the same URLs
+    if (connectionServiceRef.current && 
+        connectionServiceRef.current.webrtcURL === webrtcURL &&
+        connectionServiceRef.current.websocketURL === websocketURL) {
+      return;
+    }
+
+    // If a service exists but URLs have changed, disconnect the old one first
+    if (connectionServiceRef.current) {
+      connectionServiceRef.current.disconnect();
+      connectionServiceRef.current.removeAllListeners();
+    }
+
+    console.log('Initializing new ConnectionService...');
+    const newService = new ConnectionService({ webrtcURL, websocketURL });
+    connectionServiceRef.current = newService;
     
-    // Set up event listeners
-    connectionService.on(ConnectionEvent.STATE_CHANGED, (state: ConnectionState) => {
-      setConnectionState(state);
-    });
-    
-    connectionService.on(ConnectionEvent.VOICE_STATE_CHANGED, (state: VoiceConnectionState | string) => {
+    // Set up event listeners for the new service
+    const handleStateChange = (state: ConnectionState) => setConnectionState(state);
+    const handleVoiceStateChange = (state: VoiceConnectionState | string) => {
       if (state === 'user-stopped') {
         setIsVoiceLoading(true);
       } else if (state === 'bot-started') {
@@ -81,76 +95,78 @@ export function useMynaClient(options: UseMynaClientOptions): MynaClient & {
       } else if (typeof state === 'string' && ['connected', 'connecting', 'disconnected'].includes(state)) {
         setVoiceState(state as VoiceConnectionState);
       }
-    });
-    
-    connectionService.on(ConnectionEvent.MESSAGE_RECEIVED, (message: Message) => {
+    };
+    const handleMessageReceived = (message: Message) => {
       setMessages(prev => [...prev, message]);
-      // Reset loading state when message is received
       setIsLoading(false);
-    });
-    
-    connectionService.on(ConnectionEvent.TRANSCRIPTION, (transcript: { text: string, final?: boolean, id?: string }) => {
-      if (transcript.final && transcript.text) {
-        // Add user message to history when final transcript is received
-        setMessages(prev => [...prev, {
-          id: transcript.id || crypto.randomUUID(),
-          role: 'user',
-          content: transcript.text,
-          timestamp: new Date()
-        }]);
-      }
-    });
-    
-    connectionService.on(ConnectionEvent.STREAMING_STARTED, (data: { id: string, content: string }) => {
+      setIsEnhancing(false);
+    };
+    const handleTranscription = (transcript: { text: string, final?: boolean, id?: string }) => {
+      // MESSAGE_RECEIVED is already emitted by ConnectionService for the
+      // final user transcription, so we no longer need to duplicate the
+      // message here.  Keep this handler only for potential side-effects
+      // (e.g. live transcript display in the future).
+    };
+    const handleStreamingStarted = (data: { id: string, content: string }) => {
       setStreamingMessageId(data.id);
       setStreamingContent(data.content);
       setIsStreamingActive(true);
-    });
-    
-    connectionService.on(ConnectionEvent.STREAMING_CHUNK, (data: { id: string, accumulatedContent: string }) => {
+      // Enhancement (slow-path) has now produced its first token,
+      // so we can hide the “Generating enhanced display…” indicator.
+      setIsEnhancing(false);
+    };
+    const handleStreamingChunk = (data: { id: string, accumulatedContent: string }) => {
       setStreamingContent(data.accumulatedContent);
-    });
-    
-    connectionService.on(ConnectionEvent.STREAMING_DONE, () => {
+    };
+    const handleStreamingDone = () => {
+      // The final message is added via MESSAGE_RECEIVED, so just reset streaming state
       setStreamingMessageId(null);
       setStreamingContent('');
       setIsStreamingActive(false);
-    });
-    
-    connectionService.on(ConnectionEvent.ENHANCEMENT_STARTED, () => {
-      setIsEnhancing(true);
-    });
-    
-    connectionService.on(ConnectionEvent.AUDIO_STREAM, (stream: MediaStream) => {
-      setAudioStream(stream);
-    });
-    
-    connectionService.on(ConnectionEvent.ERROR, (error: Error) => {
-      console.error('Connection error:', error);
-      // Reset loading states on error
+    };
+    const handleEnhancementStarted = () => setIsEnhancing(true);
+    const handleAudioStream = (stream: MediaStream) => setAudioStream(stream);
+    const handleError = (error: Error) => {
+      console.error('Connection service error:', error);
       setIsLoading(false);
       setIsVoiceLoading(false);
       setIsEnhancing(false);
-    });
+    };
+
+    newService.on(ConnectionEvent.STATE_CHANGED, handleStateChange);
+    newService.on(ConnectionEvent.VOICE_STATE_CHANGED, handleVoiceStateChange);
+    newService.on(ConnectionEvent.MESSAGE_RECEIVED, handleMessageReceived);
+    newService.on(ConnectionEvent.TRANSCRIPTION, handleTranscription);
+    newService.on(ConnectionEvent.STREAMING_STARTED, handleStreamingStarted);
+    newService.on(ConnectionEvent.STREAMING_CHUNK, handleStreamingChunk);
+    newService.on(ConnectionEvent.STREAMING_DONE, handleStreamingDone);
+    newService.on(ConnectionEvent.ENHANCEMENT_STARTED, handleEnhancementStarted);
+    newService.on(ConnectionEvent.AUDIO_STREAM, handleAudioStream);
+    newService.on(ConnectionEvent.ERROR, handleError);
     
     // Auto-connect if enabled
-    if (options.autoConnect) {
-      connectionService.connectWebSocket().catch(error => {
+    if (autoConnect) {
+      newService.connectWebSocket().catch(error => {
         console.error('Error auto-connecting WebSocket:', error);
       });
     }
     
-    // Cleanup on unmount
+    // Cleanup function to run when component unmounts or dependencies change
     return () => {
-      connectionService.disconnect();
-      connectionService.removeAllListeners();
+      console.log("Cleaning up and disconnecting ConnectionService...");
+      if (connectionServiceRef.current) {
+        connectionServiceRef.current.disconnect();
+        connectionServiceRef.current.removeAllListeners();
+        connectionServiceRef.current = null;
+      }
     };
-  }, [options]);
+  }, [webrtcURL, websocketURL, autoConnect]); // Only re-run if these fundamental props change
 
   // Send a text message
   const sendText = useCallback((message: string) => {
     if (!connectionServiceRef.current) {
-      throw new Error('Connection service not initialized');
+      console.error('Cannot send message: Connection service not initialized');
+      return;
     }
     
     if (!message.trim()) {
@@ -158,10 +174,7 @@ export function useMynaClient(options: UseMynaClientOptions): MynaClient & {
     }
     
     try {
-      // Set loading state
       setIsLoading(true);
-      
-      // Add user message to history
       const userMessage = {
         id: crypto.randomUUID(),
         role: 'user' as const,
@@ -169,8 +182,6 @@ export function useMynaClient(options: UseMynaClientOptions): MynaClient & {
         timestamp: new Date()
       };
       setMessages(prev => [...prev, userMessage]);
-      
-      // Send message via connection service
       connectionServiceRef.current.sendChatMessage(message, threadId);
     } catch (error) {
       console.error('Error sending text message:', error);
@@ -181,14 +192,12 @@ export function useMynaClient(options: UseMynaClientOptions): MynaClient & {
   // Send a C1Component action
   const sendC1Action = useCallback((action: { llmFriendlyMessage: string, humanFriendlyMessage: string }) => {
     if (!connectionServiceRef.current) {
-      throw new Error('Connection service not initialized');
+      console.error('Cannot send C1 action: Connection service not initialized');
+      return;
     }
     
     try {
-      // Set loading state
       setIsLoading(true);
-      
-      // Add user action to history with human-friendly message
       if (action.humanFriendlyMessage) {
         const userAction = {
           id: crypto.randomUUID(),
@@ -198,8 +207,6 @@ export function useMynaClient(options: UseMynaClientOptions): MynaClient & {
         };
         setMessages(prev => [...prev, userAction]);
       }
-      
-      // Send action via connection service
       connectionServiceRef.current.sendC1Action(action, threadId);
     } catch (error) {
       console.error('Error sending C1 action:', error);
@@ -210,9 +217,9 @@ export function useMynaClient(options: UseMynaClientOptions): MynaClient & {
   // Start voice connection
   const startVoice = useCallback(async () => {
     if (!connectionServiceRef.current) {
-      throw new Error('Connection service not initialized');
+      console.error('Cannot start voice: Connection service not initialized');
+      return;
     }
-    
     try {
       await connectionServiceRef.current.connectVoice();
     } catch (error) {
@@ -222,8 +229,8 @@ export function useMynaClient(options: UseMynaClientOptions): MynaClient & {
 
   // Stop voice connection
   const stopVoice = useCallback(() => {
-    if (!connectionServiceRef.current) {
-      connectionServiceRef.current?.disconnectVoice();
+    if (connectionServiceRef.current) {
+      connectionServiceRef.current.disconnectVoice();
     }
   }, []);
 
