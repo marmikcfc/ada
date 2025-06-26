@@ -41,6 +41,25 @@ export interface MynaOptions {
   agentName?: string;
   /** Logo URL shown next to the agent name */
   logoUrl?: string;
+  /** Thread manager configuration */
+  threadManager?: {
+    /** Whether to enable persistence to localStorage */
+    enablePersistence?: boolean;
+    /** Custom storage key for localStorage */
+    storageKey?: string;
+    /** Maximum number of threads to display */
+    maxThreads?: number;
+    /** Whether to auto-generate thread titles */
+    autoGenerateTitles?: boolean;
+    /** Whether to show the create thread button */
+    showCreateButton?: boolean;
+    /** Whether to allow thread deletion */
+    allowThreadDeletion?: boolean;
+    /** Whether thread manager starts collapsed */
+    initiallyCollapsed?: boolean;
+    /** Custom thread title generator function */
+    generateTitle?: (firstMessage: string) => string;
+  };
 }
 
 /**
@@ -206,7 +225,9 @@ export interface UserMessage extends BaseMessage {
 export interface AssistantMessage extends BaseMessage {
   role: 'assistant';
   content?: string;
+  /** C1Component content for rich display */
   c1Content?: string;
+  /** Whether this message has voice-over audio */
   hasVoiceOver?: boolean;
 }
 
@@ -252,4 +273,73 @@ export interface MynaClient {
   messages: Message[];
   connectionState: ConnectionState;
   voiceState: VoiceConnectionState;
+}
+
+/**
+ * Thread management types
+ */
+export interface Thread {
+  id: string;
+  title: string;
+  createdAt: Date;
+  updatedAt: Date;
+  messageCount: number;
+  lastMessage?: string;
+  isActive?: boolean;
+}
+
+/**
+ * Thread summary for display in thread list
+ */
+export interface ThreadSummary {
+  id: string;
+  title: string;
+  lastMessage: string;
+  updatedAt: Date;
+  messageCount: number;
+  isActive: boolean;
+}
+
+/**
+ * Thread manager configuration
+ */
+export interface ThreadManagerOptions {
+  /** Maximum number of threads to display */
+  maxThreads?: number;
+  /** Whether to auto-generate thread titles */
+  autoGenerateTitles?: boolean;
+  /** Whether to show thread creation button */
+  showCreateButton?: boolean;
+  /** Whether to show thread deletion option */
+  allowThreadDeletion?: boolean;
+}
+
+/**
+ * Props for the ThreadManager component
+ */
+export interface ThreadManagerProps {
+  /** List of available threads */
+  threads: ThreadSummary[];
+  /** Currently active thread ID */
+  activeThreadId?: string;
+  /** Callback when a thread is selected */
+  onThreadSelect: (threadId: string) => void;
+  /** Callback when a new thread is created */
+  onCreateThread: () => void;
+  /** Callback when a thread is deleted */
+  onDeleteThread?: (threadId: string) => void;
+  /** Callback when a thread is renamed */
+  onRenameThread?: (threadId: string, newTitle: string) => void;
+  /** Whether thread creation is in progress */
+  isCreatingThread?: boolean;
+  /** Whether threads are loading */
+  isLoading?: boolean;
+  /** Thread manager configuration */
+  options?: ThreadManagerOptions;
+  /** Custom theme */
+  theme?: Partial<ThemeTokens>;
+  /** Additional CSS styles */
+  style?: React.CSSProperties;
+  /** Additional CSS class names */
+  className?: string;
 }

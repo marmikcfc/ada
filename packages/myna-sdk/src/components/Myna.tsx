@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { MynaProps } from '../types';
 import { useMynaClient } from '../hooks/useMynaClient';
-import ChatButton from './ChatButton';
+import BubbleWidget from './BubbleWidget';
 import ChatWindow from './ChatWindow';
 import { createTheme } from '../theming/defaultTheme';
 
@@ -68,17 +68,23 @@ const Myna: React.FC<MynaProps> = ({
       client.startVoice();
     }
   };
+
+  // Handle mic toggle from bubble widget
+  const handleMicToggle = () => {
+    handleToggleVoice();
+  };
   
   return (
     <>
       {/* Hidden audio element for voice output */}
       <audio ref={audioRef} autoPlay style={{ display: 'none' }} />
       
-      {/* Chat button - shown only when bubbleEnabled is true and chat is not open */}
+      {/* Bubble widget - shown only when bubbleEnabled is true and chat is not open */}
       {bubbleEnabled && !isChatOpen && (
-        <ChatButton
-          onClick={handleChatButtonClick}
-          isOpen={isChatOpen}
+        <BubbleWidget
+          onChatClick={handleChatButtonClick}
+          onMicToggle={handleMicToggle}
+          isMicActive={client.voiceState === 'connected'}
           theme={theme}
         />
       )}
@@ -104,6 +110,15 @@ const Myna: React.FC<MynaProps> = ({
           showThreadManager={showThreadManager}
           agentName={options.agentName || "AI Assistant"}
           logoUrl={options.logoUrl}
+          threadManagerOptions={{
+            enablePersistence: options.threadManager?.enablePersistence ?? true,
+            storageKey: options.threadManager?.storageKey ?? 'myna-chat-threads',
+            maxThreads: options.threadManager?.maxThreads ?? 50,
+            autoGenerateTitles: options.threadManager?.autoGenerateTitles ?? true,
+            showCreateButton: options.threadManager?.showCreateButton ?? true,
+            allowThreadDeletion: options.threadManager?.allowThreadDeletion ?? true,
+            initiallyCollapsed: options.threadManager?.initiallyCollapsed ?? false,
+          }}
         />
       )}
     </>

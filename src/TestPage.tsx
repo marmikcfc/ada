@@ -21,7 +21,7 @@ const TestPage: React.FC = () => {
 
   return (
     <div className="test-page">
-      {/* Header with mode toggle */}
+      {/* Header with mode toggle - Fixed positioning with high z-index */}
       <header style={headerStyle}>
         <h1>Myna SDK Test Page</h1>
         <div style={toggleContainerStyle}>
@@ -69,6 +69,7 @@ const TestPage: React.FC = () => {
         webrtcURL="/api/offer"
         websocketURL={getWebSocketURL()}
         bubbleEnabled={bubbleEnabled}
+        showThreadManager={true}
         options={{
           agentName: "Myna Test Assistant",
           logoUrl: "/favicon.ico",
@@ -132,30 +133,37 @@ const TestPage: React.FC = () => {
   );
 };
 
-// Inline styles
-const headerStyle: React.CSSProperties = {
-  backgroundColor: '#f8fafc',
-  borderBottom: '1px solid #e2e8f0',
-  padding: '16px 24px',
+// Styles defined here to maintain consistency
+const headerStyle = {
+  position: 'fixed' as const,
+  top: 0,
+  left: 0,
+  right: 0,
+  height: '64px',
+  backgroundColor: '#ffffff',
+  borderBottom: '1px solid #e5e7eb',
   display: 'flex',
+  alignItems: 'center',
   justifyContent: 'space-between',
-  alignItems: 'center',
+  padding: '0 24px',
+  zIndex: 15000, // Higher than Myna components (ChatWindow: 10000, BubbleWidget: 9999)
+  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
 };
 
-const toggleContainerStyle: React.CSSProperties = {
+const toggleContainerStyle = {
   display: 'flex',
   alignItems: 'center',
 };
 
-const toggleSwitchStyle: React.CSSProperties = {
-  position: 'relative',
+const toggleSwitchStyle = {
+  position: 'relative' as const,
   display: 'inline-block',
   width: '60px',
   height: '34px',
 };
 
-const toggleSliderStyle: React.CSSProperties = {
-  position: 'absolute',
+const toggleSliderStyle = {
+  position: 'absolute' as const,
   cursor: 'pointer',
   top: 0,
   left: 0,
@@ -166,24 +174,24 @@ const toggleSliderStyle: React.CSSProperties = {
   borderRadius: '34px',
 };
 
-const contentStyle: React.CSSProperties = {
-  maxWidth: '1200px',
-  margin: '0 auto',
+const contentStyle = {
+  marginTop: '80px', // Account for fixed header height + spacing
   padding: '24px',
+  minHeight: 'calc(100vh - 80px)',
 };
 
-const cardContainerStyle: React.CSSProperties = {
+const cardContainerStyle = {
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-  gap: '24px',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
+  gap: '20px',
   marginTop: '24px',
 };
 
-const cardStyle: React.CSSProperties = {
-  backgroundColor: '#f8fafc',
+const cardStyle = {
+  padding: '20px',
+  backgroundColor: '#f9fafb',
   borderRadius: '8px',
-  padding: '24px',
-  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+  border: '1px solid #e5e7eb',
 };
 
 export default TestPage;

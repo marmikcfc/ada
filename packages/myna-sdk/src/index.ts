@@ -10,12 +10,15 @@ export { default as Myna } from './components/Myna';
 
 // Headless hooks
 export { useMynaClient } from './hooks/useMynaClient';
+export { useThreadManager } from './hooks/useThreadManager';
 
 // Core components for customization
 export { default as ChatButton } from './components/ChatButton';
+export { default as BubbleWidget } from './components/BubbleWidget';
 export { default as ChatWindow } from './components/ChatWindow';
 export { default as CustomChatMessage } from './components/CustomChatMessage';
 export { default as CustomChatComposer } from './components/CustomChatComposer';
+export { default as ThreadManager } from './components/ThreadManager';
 
 // Core services
 export { ConnectionService, ConnectionEvent } from './core/ConnectionService';
@@ -51,6 +54,12 @@ export type {
   ChatComposerProps,
   VoiceButtonProps,
   
+  // Thread Management
+  Thread,
+  ThreadSummary,
+  ThreadManagerOptions,
+  ThreadManagerProps,
+  
   // Theming
   ThemeTokens,
   
@@ -63,3 +72,11 @@ export type {
   ComponentOverrides,
   VisualizationContext
 } from './types';
+
+// Export thread manager hook types
+export type {
+  UseThreadManagerOptions,
+  ThreadManagerState,
+  ThreadManagerActions,
+  UseThreadManagerResult,
+} from './hooks/useThreadManager';
