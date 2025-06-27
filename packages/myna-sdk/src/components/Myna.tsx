@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { MynaProps } from '../types';
+import { MynaProps, ComponentOverrides, ChatButtonProps, ChatWindowProps } from '../types';
 import { useMynaClient } from '../hooks/useMynaClient';
 import BubbleWidget from './BubbleWidget';
 import ChatWindow from './ChatWindow';
+import ChatButton from './ChatButton';
 import { createTheme } from '../theming/defaultTheme';
 
 /**
@@ -10,7 +11,7 @@ import { createTheme } from '../theming/defaultTheme';
  * 
  * Renders either a floating chat button or a detailed chat interface
  * based on the bubbleEnabled prop, and manages the overall state using
- * the useMynaClient hook.
+ * the useMynaClient hook. Supports complete component overrides.
  */
 const Myna: React.FC<MynaProps> = ({
   webrtcURL,
@@ -50,6 +51,9 @@ const Myna: React.FC<MynaProps> = ({
   // Get theme from options or use default
   const theme = options.theme ? createTheme(options.theme) : undefined;
   
+  // Get component overrides from options
+  const componentOverrides = options.components || {};
+  
   // Handle chat button click
   const handleChatButtonClick = () => {
     setIsChatOpen(true);
@@ -74,40 +78,62 @@ const Myna: React.FC<MynaProps> = ({
     handleToggleVoice();
   };
   
+  // Component resolution - use override if provided, otherwise use default
+  const ChatButtonComponent = componentOverrides.ChatButton || ChatButton;
+  const ChatWindowComponent = componentOverrides.ChatWindow || ChatWindow;
+  
+  // Props for the chat button (bubble or regular)
+  const chatButtonProps: ChatButtonProps = {
+    onClick: handleChatButtonClick,
+    isOpen: isChatOpen,
+    theme,
+  };
+  
+  // Props for the chat window
+  const chatWindowProps: ChatWindowProps = {
+    /* Floating mode when bubbleEnabled === true */
+    isFloating: bubbleEnabled,
+    /* Only provide close handler when operating as floating widget */
+    onClose: bubbleEnabled ? handleChatClose : undefined,
+    messages: client.messages,
+    isLoading: client.isLoading,
+    isVoiceLoading: client.isVoiceLoading,
+    isEnhancing: client.isEnhancing,
+    onSendMessage: client.sendText,
+    onToggleVoice: handleToggleVoice,
+    isVoiceConnected: client.voiceState === 'connected',
+    streamingContent: client.streamingContent,
+    streamingMessageId: client.streamingMessageId,
+    isStreamingActive: client.isStreamingActive,
+    theme,
+    showThreadManager,
+  };
+  
   return (
     <>
       {/* Hidden audio element for voice output */}
       <audio ref={audioRef} autoPlay style={{ display: 'none' }} />
       
-      {/* Bubble widget - shown only when bubbleEnabled is true and chat is not open */}
+      {/* Chat button - shown only when bubbleEnabled is true and chat is not open */}
       {bubbleEnabled && !isChatOpen && (
-        <BubbleWidget
-          onChatClick={handleChatButtonClick}
-          onMicToggle={handleMicToggle}
-          isMicActive={client.voiceState === 'connected'}
-          theme={theme}
-        />
+        // Use either the default BubbleWidget or custom ChatButton override
+        componentOverrides.ChatButton ? (
+          <ChatButtonComponent {...chatButtonProps} />
+        ) : (
+          <BubbleWidget
+            onChatClick={handleChatButtonClick}
+            onMicToggle={handleMicToggle}
+            isMicActive={client.voiceState === 'connected'}
+            theme={theme}
+          />
+        )
       )}
       
       {/* Chat window - shown when chat is open or bubbleEnabled is false */}
       {(isChatOpen || !bubbleEnabled) && (
-        <ChatWindow
-          /* Floating mode when bubbleEnabled === true */
-          isFloating={bubbleEnabled}
-          /* Only provide close handler when operating as floating widget */
-          onClose={bubbleEnabled ? handleChatClose : undefined}
-          messages={client.messages}
-          isLoading={client.isLoading}
-          isVoiceLoading={client.isVoiceLoading}
-          isEnhancing={client.isEnhancing}
-          onSendMessage={client.sendText}
-          onToggleVoice={handleToggleVoice}
-          isVoiceConnected={client.voiceState === 'connected'}
-          streamingContent={client.streamingContent}
-          streamingMessageId={client.streamingMessageId}
-          isStreamingActive={client.isStreamingActive}
-          theme={theme}
-          showThreadManager={showThreadManager}
+        <ChatWindowComponent
+          {...chatWindowProps}
+          // Extended props for ChatWindow
           agentName={options.agentName || "AI Assistant"}
           logoUrl={options.logoUrl}
           threadManagerOptions={{
@@ -119,6 +145,8 @@ const Myna: React.FC<MynaProps> = ({
             allowThreadDeletion: options.threadManager?.allowThreadDeletion ?? true,
             initiallyCollapsed: options.threadManager?.initiallyCollapsed ?? false,
           }}
+          // Pass component overrides to ChatWindow for sub-components
+          componentOverrides={componentOverrides}
         />
       )}
     </>

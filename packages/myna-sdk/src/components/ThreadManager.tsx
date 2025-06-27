@@ -21,6 +21,7 @@ const ThreadManager: React.FC<ThreadManagerProps> = ({
   theme,
   style,
   className = '',
+  hideHeader = false,
 }) => {
   // State for editing thread titles
   const [editingThreadId, setEditingThreadId] = useState<string | null>(null);
@@ -260,6 +261,10 @@ const ThreadManager: React.FC<ThreadManagerProps> = ({
       opacity: 0.9;
     }
     
+    .new-conversation-item:hover {
+      background-color: ${cssVars['--myna-color-background']} !important;
+    }
+    
     .action-button:hover {
       background-color: rgba(255, 255, 255, 0.2);
     }
@@ -279,40 +284,11 @@ const ThreadManager: React.FC<ThreadManagerProps> = ({
       <style>{hoverStyles}</style>
       <div className={`myna-thread-manager ${className}`} style={containerStyles}>
         {/* Header */}
-        <div className="myna-thread-manager-header" style={headerStyles}>
-          <h3 style={titleStyles}>Conversations</h3>
-          {showCreateButton && (
-            <button
-              className="create-button"
-              style={createButtonStyles}
-              onClick={handleCreateThread}
-              disabled={isCreatingThread}
-              title="Create new thread"
-            >
-              {isCreatingThread ? (
-                <>
-                  <div style={{ 
-                    width: '12px', 
-                    height: '12px', 
-                    border: '2px solid rgba(255,255,255,0.3)',
-                    borderTop: '2px solid white',
-                    borderRadius: '50%',
-                    animation: 'spin 1s linear infinite'
-                  }} />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                  New
-                </>
-              )}
-            </button>
-          )}
-        </div>
+        {!hideHeader && (
+          <div className="myna-thread-manager-header" style={headerStyles}>
+            <h3 style={titleStyles}>Conversations</h3>
+          </div>
+        )}
 
         {/* Thread List */}
         <div className="myna-thread-list" style={threadListStyles}>
@@ -329,108 +305,156 @@ const ThreadManager: React.FC<ThreadManagerProps> = ({
               }} />
               Loading threads...
             </div>
-          ) : threads.length === 0 ? (
-            <div style={emptyStateStyles}>
-              <svg 
-                width="48" 
-                height="48" 
-                viewBox="0 0 24 24" 
-                fill="none" 
-                stroke="currentColor" 
-                strokeWidth="1.5"
-                style={{ marginBottom: '12px', opacity: 0.5 }}
-              >
-                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
-              </svg>
-              <p style={{ margin: 0, fontSize: cssVars['--myna-font-size-sm'] }}>
-                No conversations yet
-              </p>
-              {showCreateButton && (
-                <p style={{ margin: '4px 0 0 0', fontSize: cssVars['--myna-font-size-xs'], opacity: 0.8 }}>
-                  Click "New" to start your first conversation
-                </p>
-              )}
-            </div>
           ) : (
-            threads.slice(0, maxThreads).map((thread) => (
+            <>
+              {/* New Conversation Button Row */}
               <div
-                key={thread.id}
-                className={`thread-item ${thread.isActive ? 'active' : ''}`}
-                style={getThreadItemStyles(thread.isActive)}
-                onClick={() => handleThreadSelect(thread.id)}
+                className="new-conversation-item"
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  padding: cssVars['--myna-spacing-md'],
+                  cursor: 'pointer',
+                  borderRadius: cssVars['--myna-radius-md'],
+                  backgroundColor: 'transparent',
+                  transition: 'background-color 0.2s ease',
+                  border: `1px dashed ${cssVars['--myna-color-border']}`,
+                  marginBottom: cssVars['--myna-spacing-sm'],
+                }}
+                onClick={handleCreateThread}
               >
-                <div style={threadContentStyles}>
-                  {editingThreadId === thread.id ? (
-                    <input
-                      ref={editInputRef}
-                      type="text"
-                      value={editTitle}
-                      onChange={(e) => setEditTitle(e.target.value)}
-                      onBlur={handleFinishEdit}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter') handleFinishEdit();
-                        if (e.key === 'Escape') {
-                          setEditingThreadId(null);
-                          setEditTitle('');
-                        }
-                      }}
-                      style={editInputStyles}
-                      onClick={(e) => e.stopPropagation()}
-                    />
-                  ) : (
-                    <h4 style={threadTitleStyles}>{thread.title}</h4>
-                  )}
-                  <div style={threadMetaStyles}>
-                    {thread.lastMessage && (
-                      <div style={{ marginBottom: '2px' }}>{thread.lastMessage}</div>
-                    )}
-                    <div>
-                      {thread.messageCount} message{thread.messageCount !== 1 ? 's' : ''} · {formatRelativeTime(thread.updatedAt)}
-                    </div>
-                  </div>
+                <div style={{
+                  width: '24px',
+                  height: '24px',
+                  borderRadius: '50%',
+                  backgroundColor: cssVars['--myna-color-primary'],
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  marginRight: cssVars['--myna-spacing-sm'],
+                  flexShrink: 0,
+                }}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                  </svg>
                 </div>
-
-                {/* Thread Actions - Always show on active thread or on hover */}
-                <div 
-                  className="thread-actions" 
-                  style={{
-                    ...threadActionsStyles,
-                    opacity: thread.isActive ? 1 : threadActionsStyles.opacity, // Always show for active thread
-                  }}
-                >
-                  {onRenameThread && (
-                    <button
-                      className="action-button"
-                      style={actionButtonStyles}
-                      onClick={(e) => handleStartEdit(thread.id, thread.title, e)}
-                      title="Rename thread"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
-                      </svg>
-                    </button>
-                  )}
-                  {allowThreadDeletion && onDeleteThread && (
-                    <button
-                      className="action-button delete-button"
-                      style={{
-                        ...actionButtonStyles,
-                        // Make delete button more visible for non-active threads
-                        color: thread.isActive ? 'rgba(255, 255, 255, 0.8)' : '#ef4444',
-                      }}
-                      onClick={(e) => handleDeleteThread(thread.id, e)}
-                      title="Delete thread"
-                    >
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                        <polyline points="3 6 5 6 21 6"></polyline>
-                        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
-                      </svg>
-                    </button>
-                  )}
+                <div style={{
+                  flex: 1,
+                  fontSize: cssVars['--myna-font-size-sm'],
+                  color: cssVars['--myna-color-text'],
+                  fontWeight: '500',
+                }}>
+                  {isCreatingThread ? 'Creating conversation...' : 'New conversation'}
                 </div>
               </div>
-            ))
+
+              {/* Existing Threads */}
+              {threads.length === 0 ? (
+                <div style={emptyStateStyles}>
+                  <svg 
+                    width="48" 
+                    height="48" 
+                    viewBox="0 0 24 24" 
+                    fill="none" 
+                    stroke="currentColor" 
+                    strokeWidth="1.5"
+                    style={{ marginBottom: '12px', opacity: 0.5 }}
+                  >
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                  </svg>
+                  <p style={{ margin: 0, fontSize: cssVars['--myna-font-size-sm'] }}>
+                    No conversations yet
+                  </p>
+                  <p style={{ margin: '4px 0 0 0', fontSize: cssVars['--myna-font-size-xs'], opacity: 0.8 }}>
+                    Click "New conversation" above to get started
+                  </p>
+                </div>
+              ) : (
+                // Filter out duplicate threads and limit to maxThreads
+                threads
+                  .filter((thread, index, self) => 
+                    index === self.findIndex(t => t.title === thread.title && t.id === thread.id)
+                  )
+                  .slice(0, maxThreads)
+                  .map((thread) => (
+                    <div
+                      key={thread.id}
+                      className={`thread-item ${thread.isActive ? 'active' : ''}`}
+                      style={getThreadItemStyles(thread.isActive)}
+                      onClick={() => handleThreadSelect(thread.id)}
+                    >
+                      <div style={threadContentStyles}>
+                        {editingThreadId === thread.id ? (
+                          <input
+                            ref={editInputRef}
+                            type="text"
+                            value={editTitle}
+                            onChange={(e) => setEditTitle(e.target.value)}
+                            onBlur={handleFinishEdit}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleFinishEdit();
+                              if (e.key === 'Escape') {
+                                setEditingThreadId(null);
+                                setEditTitle('');
+                              }
+                            }}
+                            style={editInputStyles}
+                            onClick={(e) => e.stopPropagation()}
+                          />
+                        ) : (
+                          <h4 style={threadTitleStyles}>{thread.title}</h4>
+                        )}
+                        <div style={threadMetaStyles}>
+                          {thread.lastMessage && (
+                            <div style={{ marginBottom: '2px' }}>{thread.lastMessage}</div>
+                          )}
+                          <div>
+                            {thread.messageCount} message{thread.messageCount !== 1 ? 's' : ''} · {formatRelativeTime(thread.updatedAt)}
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Thread Actions - Always show on active thread or on hover */}
+                      <div 
+                        className="thread-actions" 
+                        style={{
+                          ...threadActionsStyles,
+                          opacity: thread.isActive ? 1 : threadActionsStyles.opacity, // Always show for active thread
+                        }}
+                      >
+                        {/* Edit button */}
+                        <button
+                          className="action-button edit-button"
+                          style={actionButtonStyles}
+                          onClick={(e) => handleStartEdit(thread.id, thread.title, e)}
+                          title="Rename thread"
+                        >
+                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                            <path d="M18.5 2.5a2.12 2.12 0 0 1 3 3L12 15l-4 1 1-4Z"></path>
+                          </svg>
+                        </button>
+
+                        {/* Delete button */}
+                        {allowThreadDeletion && (
+                          <button
+                            className="action-button delete-button"
+                            style={{ ...actionButtonStyles, marginLeft: '4px' }}
+                            onClick={(e) => handleDeleteThread(thread.id, e)}
+                            title="Delete thread"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                              <polyline points="3,6 5,6 21,6"></polyline>
+                              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                            </svg>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  ))
+              )}
+            </>
           )}
         </div>
 

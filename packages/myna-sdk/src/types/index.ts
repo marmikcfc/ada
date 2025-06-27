@@ -342,4 +342,6 @@ export interface ThreadManagerProps {
   style?: React.CSSProperties;
   /** Additional CSS class names */
   className?: string;
+  /** Whether to hide the header (useful when embedded with custom header) */
+  hideHeader?: boolean;
 }

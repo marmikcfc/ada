@@ -1,6 +1,6 @@
 import React, { CSSProperties, useEffect, useRef, useState } from 'react';
 import { ThemeProvider } from '@crayonai/react-ui';
-import { ChatWindowProps } from '../types';
+import { ChatWindowProps, ComponentOverrides } from '../types';
 import { createTheme, themeToCssVars } from '../theming/defaultTheme';
 import CustomChatMessage from './CustomChatMessage';
 import CustomChatComposer from './CustomChatComposer';
@@ -39,6 +39,8 @@ export interface ExtendedChatWindowProps extends ChatWindowProps {
     /** Whether thread manager starts collapsed */
     initiallyCollapsed?: boolean;
   };
+  /** Component overrides for sub-components */
+  componentOverrides?: Partial<ComponentOverrides>;
 }
 
 /**
@@ -67,6 +69,7 @@ const ChatWindow: React.FC<ExtendedChatWindowProps> = ({
   className = '',
   isFloating = true,
   threadManagerOptions = {},
+  componentOverrides = {},
 }) => {
   // State for thread manager collapse
   const [isThreadManagerCollapsed, setIsThreadManagerCollapsed] = useState(
@@ -174,6 +177,10 @@ const ChatWindow: React.FC<ExtendedChatWindowProps> = ({
     }
   };
 
+  // Component resolution - use override if provided, otherwise use default
+  const ChatMessageComponent = componentOverrides?.ChatMessage || CustomChatMessage;
+  const ChatComposerComponent = componentOverrides?.ChatComposer || CustomChatComposer;
+  
   // Toggle thread manager collapse
   const toggleThreadManagerCollapse = () => {
     setIsThreadManagerCollapsed(!isThreadManagerCollapsed);
@@ -491,6 +498,7 @@ const ChatWindow: React.FC<ExtendedChatWindowProps> = ({
                         borderRight: 'none', // Remove border since parent handles it
                         height: '100%',
                       }}
+                      hideHeader={true}
                     />
                   </div>
                 </>
@@ -503,7 +511,7 @@ const ChatWindow: React.FC<ExtendedChatWindowProps> = ({
             {/* Messages container */}
             <div className="myna-messages-container" style={messagesContainerStyles} ref={chatContainerRef}>
               {messages.map((message, index) => (
-                <CustomChatMessage
+                <ChatMessageComponent
                   key={message.id}
                   message={message}
                   isLast={index === messages.length - 1}
@@ -519,14 +527,14 @@ const ChatWindow: React.FC<ExtendedChatWindowProps> = ({
                       onAction={handleC1ComponentAction}
                     />
                   )}
-                </CustomChatMessage>
+                </ChatMessageComponent>
               ))}
               
               {/* Live-streaming bubble (appears while slow-path chunks arrive) */}
               {isStreamingActive &&
                 streamingMessageId &&
                 streamingContent.trim().length > 0 && (
-                <CustomChatMessage
+                <ChatMessageComponent
                   /* Prefix with `streaming-` so it never
                      collides with a real message ID */
                   key={`streaming-${streamingMessageId}`}
@@ -545,7 +553,7 @@ const ChatWindow: React.FC<ExtendedChatWindowProps> = ({
                     isStreaming={true}
                     onAction={handleC1ComponentAction}
                   />
-                </CustomChatMessage>
+                </ChatMessageComponent>
               )}
 
               {/* Loading indicator */}
@@ -570,12 +578,13 @@ const ChatWindow: React.FC<ExtendedChatWindowProps> = ({
             </div>
 
             {/* Composer */}
-            <CustomChatComposer
+            <ChatComposerComponent
               onSendMessage={onSendMessage}
               disabled={(isLoading ?? false) || (isVoiceLoading ?? false)}
               isLoading={(isLoading ?? false) || (isVoiceLoading ?? false)}
               onToggleVoiceConnection={onToggleVoice}
               isVoiceConnected={isVoiceConnected}
+              componentOverrides={componentOverrides}
             />
           </div>
         </div>

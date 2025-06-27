@@ -1,204 +1,274 @@
-# Myna SDK – Drop-in Voice & Chat Assistant for the Web
+# Myna SDK
 
-**Myna** turns Ada’s dual-path interaction engine into a _100 kB_ (gz) JavaScript/TypeScript SDK that any SaaS product can embed as a floating widget, an onboarding coach, or a fully bespoke voice interface.
+A lightweight, fully-customizable JavaScript/TypeScript SDK for voice and chat interfaces with **complete component override capabilities**.
 
----
+## ✨ **New in v2.0: Complete Customization**
 
-## ① Installation
+- 🎨 **Component Override System** - Replace any UI component with your own
+- 🧵 **Enhanced Thread Manager** - Improved conversation management  
+- 📦 **Default Component Access** - Extend existing components easily
+- 🎯 **No Breaking Changes** - All existing code continues to work
 
-```bash
-# npm
-npm i myna-sdk
+## 🚀 **Quick Start**
 
-# pnpm
-pnpm add myna-sdk
-
-# yarn
-yarn add myna-sdk
-```
-
-Myna ships **ESM**, **CJS** and **`.d.ts`** bundles – pick whichever your bundler prefers.  
-Peer deps: `react >= 16.8`, `react-dom`.
-
----
-
-## ② Quick Start – 3 lines
-
+### **Basic Usage**
 ```tsx
 import { Myna } from 'myna-sdk';
 
-export default function App() {
+function App() {
   return (
     <Myna
       webrtcURL="/api/offer"
-      websocketURL="wss://api.my-backend.com/ws/messages"
+      websocketURL="wss://api.example.com/ws/messages"
     />
   );
 }
 ```
 
-The default export renders a **floating chat button** (bottom-right).  
-Clicking the button expands a fully-featured chat+voice window.  
-Nothing to configure server-side apart from exposing the 2 endpoints above.
+### **With Custom Components**
+```tsx
+import { Myna, ComponentOverrides } from 'myna-sdk';
 
----
+const customComponents: Partial<ComponentOverrides> = {
+  ChatButton: MyCustomButton,
+  ChatMessage: MyCustomMessage,
+};
 
-## ③ `<Myna/>` Props
+function App() {
+  return (
+    <Myna
+      webrtcURL="/api/offer"  
+      websocketURL="wss://api.example.com/ws/messages"
+      options={{
+        components: customComponents,
+        theme: customTheme,
+      }}
+    />
+  );
+}
+```
 
-| Prop | Type | Default | Description |
-|------|------|---------|-------------|
-| `webrtcURL` | `string` | – | HTTP POST endpoint for SDP offer/answer (voice path). |
-| `websocketURL` | `string` | – | WS endpoint for chat / streaming messages. |
-| `bubbleEnabled` | `boolean` | `true` | If `false` the full chat window renders inline (no floating bubble). |
-| `showThreadManager` | `boolean` | `false` | Toggle conversation list sidebar. |
-| `options` | `MynaOptions` | `{}` | See below. |
+## 🎨 **Component Override System**
 
-### `MynaOptions`
+Replace any part of the interface while keeping all functionality:
 
-```ts
-type MynaOptions = {
+| Component | Replaces | Use Case |
+|-----------|----------|----------|
+| `ChatButton` | Floating chat button | Custom branding, positioning |
+| `ChatWindow` | Entire chat interface | Complete redesign |
+| `ChatMessage` | Message bubbles | Custom styling, avatars |
+| `ChatComposer` | Input area | Enhanced features, emojis |
+| `VoiceButton` | Voice toggle | Custom animations, states |
+
+### **Quick Example**
+```tsx
+// Custom gradient chat button
+const GradientButton: React.FC<ChatButtonProps> = ({ onClick, isOpen }) => (
+  <button
+    onClick={onClick}
+    style={{
+      background: 'linear-gradient(45deg, #ff6b6b, #4ecdc4)',
+      // ... your custom styles
+    }}
+  >
+    {isOpen ? '✕' : '💬'}
+  </button>
+);
+
+// Use it
+<Myna options={{ components: { ChatButton: GradientButton } }} />
+```
+
+## 🧵 **Enhanced Thread Manager**
+
+Improved conversation management with:
+
+- ✅ **"New conversation" dedicated button** with visual distinction
+- ✅ **Duplicate prevention** - automatic filtering
+- ✅ **Better UX** - cleaner interface and interactions
+- ✅ **Header control** - hide/show internal headers
+
+```tsx
+<Myna 
+  showThreadManager={true}
+  options={{
+    threadManager: {
+      initiallyCollapsed: false,
+      allowThreadDeletion: true,
+      maxThreads: 50,
+    }
+  }}
+/>
+```
+
+## 📚 **Documentation**
+
+### **Getting Started**
+- **[Component Overrides Quick Start](./docs/myna-sdk-component-overrides-quick-start.md)** - 5-minute setup guide
+- **[Release Notes](./docs/myna-sdk-release-notes.md)** - Complete v2.0 feature overview
+
+### **Guides**
+- **[Customization Guide](./docs/myna-sdk-customization.md)** - Complete theming and component guide
+- **[API Reference](./docs/myna-sdk-api-reference.md)** - All interfaces and props
+- **[Examples](./docs/myna-sdk-examples.md)** - Real-world implementation patterns
+
+### **Support**
+- **[Troubleshooting](./docs/myna-sdk-troubleshooting.md)** - Common issues and solutions
+
+## 🎯 **Features**
+
+### **Core Capabilities**
+- 🎤 **Voice Communication** - WebRTC-based real-time audio
+- 💬 **Text Chat** - Rich messaging with C1Component support
+- 🧵 **Thread Management** - Conversation history and persistence
+- 🎨 **Complete Customization** - Override any component
+- 📱 **Responsive Design** - Works on desktop and mobile
+
+### **Customization Options**
+- 🎨 **Theme System** - Colors, typography, spacing, borders
+- 🧩 **Component Overrides** - Replace any UI component
+- 🔧 **Headless Mode** - Build completely custom interfaces
+- 📦 **Default Components** - Extend existing implementations
+
+### **Developer Experience**
+- 🛠️ **TypeScript Support** - Full type safety
+- 📖 **Comprehensive Docs** - Guides, examples, and API reference
+- ⚡ **Quick Setup** - Working in minutes
+- 🔄 **No Breaking Changes** - Seamless upgrades
+
+## 🛠️ **Installation**
+
+```bash
+npm install myna-sdk
+```
+
+### **Peer Dependencies**
+```bash
+npm install react react-dom
+```
+
+## 🔧 **Configuration Options**
+
+```tsx
+interface MynaOptions {
+  // Component customization
+  components?: Partial<ComponentOverrides>;
+  
+  // Visual theming
+  theme?: Partial<ThemeTokens>;
+  
+  // Agent configuration
+  agentName?: string;
+  logoUrl?: string;
+  
+  // Thread management
+  threadManager?: {
+    enablePersistence?: boolean;
+    maxThreads?: number;
+    allowThreadDeletion?: boolean;
+    initiallyCollapsed?: boolean;
+  };
+  
+  // Technical integration
+  mcpEndpoints?: MCPEndpoint[];
   visualization?: {
     provider: 'default' | 'custom' | 'none';
-    render?: (
-      msg: AssistantMessage,
-      ctx: VisualizationContext
-    ) => React.ReactNode;
+    render?: (msg: AssistantMessage) => React.ReactNode;
   };
-  designSystem?: 'default' | 'shadcn';
-  theme?: Partial<ThemeTokens>;
-  mcpEndpoints?: { name: string; url: string; apiKey?: string }[];
-  components?: Partial<ComponentOverrides>;
-  agentName?: string; // header label
-  logoUrl?: string;   // header avatar
-};
+}
 ```
 
-Use `components` to inject your own `ChatButton`, `ChatWindow`, etc.  
-Use `theme` or `designSystem="shadcn"` for visual consistency.
+## 📱 **Usage Patterns**
 
----
-
-## ④ Headless API – `useMynaClient`
-
-```ts
-import { useMynaClient } from 'myna-sdk';
-
-const {
-  sendText,            // (msg: string) => void
-  startVoice,          // () => void
-  stopVoice,           // () => void
-  messages,            // Message[]
-  connectionState,     // 'connected' | ...
-  voiceState,          // 'connected' | ...
-  isLoading, isVoiceLoading, isEnhancing,
-  streamingContent, streamingMessageId, isStreamingActive,
-  audioStream,         // MediaStream | null
-} = useMynaClient({
-  webrtcURL: '/api/offer',
-  websocketURL: 'wss://…/ws/messages',
-  autoConnect: true,
-});
-```
-
-Build any UI you like – tables, 3-D canvases, toasts – while the hook handles reconnection logic, streaming assembly, voice device negotiation, etc.
-
----
-
-## ⑤ Connection Service Events
-
-`ConnectionService` under the hood emits:
-
-| Event | Payload |
-|-------|---------|
-| `state_changed` | `'connected' \| 'connecting' \| …` |
-| `voice_state_changed` | same as above _or_ `'user-stopped' / 'bot-started'` |
-| `message_received` | `Message` |
-| `streaming_started` / `streaming_chunk` / `streaming_done` | `{ id, content }` |
-| `transcription` | `{ text, final }` |
-| `enhancement_started` | void |
-| `audio_stream` | `MediaStream` |
-
-Subscribe via `connectionService.on(Event, cb)`.
-
----
-
-## ⑥ Theming & Design Systems
-
+### **E-commerce Support Widget**
 ```tsx
-import {
-  Myna,
-  createTheme,
-  darkTheme,
-  themeToCssVars,
-} from 'myna-sdk';
+<Myna
+  webrtcURL="/api/offer"
+  websocketURL="wss://api.shop.com/ws/support"
+  options={{
+    agentName: "Shopping Assistant",
+    theme: ecommerceTheme,
+    components: { ChatButton: BrandedButton },
+  }}
+/>
+```
+
+### **SaaS Customer Support**
+```tsx
+<Myna
+  bubbleEnabled={false} // Full-screen mode
+  showThreadManager={true}
+  options={{
+    agentName: "Support Team",
+    threadManager: { allowThreadDeletion: true },
+    components: { ChatWindow: SaaSChatWindow },
+  }}
+/>
+```
+
+### **Mobile-Optimized Chat**
+```tsx
+<Myna
+  options={{
+    components: {
+      ChatButton: MobileChatButton,
+      ChatWindow: MobileChatWindow,
+      ChatMessage: MobileMessage,
+    },
+    theme: mobileTheme,
+  }}
+/>
+```
+
+## 🌟 **Examples**
+
+### **Basic Theme Customization**
+```tsx
+import { createTheme } from 'myna-sdk';
 
 const brandTheme = createTheme({
-  colors: { primary: '#6366f1' }, // indigo
-  borderRadius: { lg: '1rem' },
+  colors: {
+    primary: '#6366f1',
+    secondary: '#8b5cf6',
+    background: '#f8fafc',
+  },
+  borderRadius: {
+    lg: '1rem',
+  },
 });
 
-<Myna
-  webrtcURL="…"
-  websocketURL="…"
-  options={{ theme: brandTheme }}
-/>;
+<Myna options={{ theme: brandTheme }} />
 ```
 
-`themeToCssVars()` lets you dump tokens into global/style-tag variables for CSS overrides.
-
----
-
-## ⑦ Examples
-
-### 1 · Floating Widget
-
+### **Extending Default Components**
 ```tsx
-<Myna
-  webrtcURL="/api/offer"
-  websocketURL={makeWsURL()}
-  options={{ agentName: 'Support Bot', logoUrl: '/logo.svg' }}
-/>
+import { DefaultChatButton } from 'myna-sdk';
+
+const NotificationButton: React.FC<ChatButtonProps> = (props) => (
+  <div style={{ position: 'relative' }}>
+    <DefaultChatButton {...props} />
+    <NotificationBadge count={3} />
+  </div>
+);
 ```
 
-### 2 · Inline Chat (no bubble)
-
+### **Conditional Overrides**
 ```tsx
-<Myna
-  webrtcURL="/api/offer"
-  websocketURL={makeWsURL()}
-  bubbleEnabled={false}
-/>
+const overrides = useMemo(() => {
+  return isMobile ? mobileComponents : desktopComponents;
+}, [isMobile]);
+
+<Myna options={{ components: overrides }} />
 ```
 
-### 3 · Custom UI (Headless)
+## 🤝 **Contributing**
 
-See **`packages/myna-sdk/examples/headless-custom.tsx`** for a 100-line complete replica using Tailwind.
+We welcome contributions! Please see our contributing guidelines for details.
 
----
+## 📄 **License**
 
-## ⑧ Build / Bundle Size
-
-`tsup` builds **esm** + **cjs** bundles with `size-limit` CI guard:  
-**≤ 100 kB gzipped** for default export (verified every PR).
+MIT License - see LICENSE file for details.
 
 ---
 
-## ⑨ Troubleshooting & FAQ
-
-| Problem | Fix |
-|---------|-----|
-| “Mic permission denied” | Ask user to allow mic; fallback to text only. |
-| Widget doesn’t appear | Check that React is bundled once, verify peer dep versions. |
-| No voice playback | Ensure `/api/offer` reachable over HTTPS/WSS, firewall allows UDP. |
-| CORS errors | Add `Access-Control-Allow-Origin: *` (or your domain) on backend. |
-
----
-
-## ⑩ Roadmap (public)
-
-- **Offline ASR/TTS** (was out-of-scope MVP).  
-- **Mobile wrappers** (React Native, Capacitor).  
-- **Analytics hooks** (`onMessage`, `onOpen`, `onClose`).  
-- **Vue / Svelte bindings** via thin wrappers.
-
-[LICENSE](./LICENSE) • MIT    |   © 2025 Myna Team
+**Ready to get started?** Check out the **[Component Overrides Quick Start](./docs/myna-sdk-component-overrides-quick-start.md)** for a 5-minute setup guide.

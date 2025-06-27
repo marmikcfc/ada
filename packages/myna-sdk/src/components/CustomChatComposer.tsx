@@ -1,5 +1,5 @@
 import React, { useState, useRef, KeyboardEvent, CSSProperties } from 'react';
-import { ChatComposerProps } from '../types';
+import { ChatComposerProps, ComponentOverrides, VoiceButtonProps } from '../types';
 import { createTheme, themeToCssVars } from '../theming/defaultTheme';
 
 /**
@@ -16,6 +16,8 @@ export interface ExtendedChatComposerProps extends ChatComposerProps {
   onStartVoiceChat?: () => void;
   /** Handler for stopping voice chat */
   onStopVoiceChat?: () => void;
+  /** Component overrides for sub-components */
+  componentOverrides?: Partial<ComponentOverrides>;
 }
 
 /**
@@ -32,6 +34,7 @@ const CustomChatComposer: React.FC<ExtendedChatComposerProps> = ({
   isVoiceActive = false,
   onStartVoiceChat,
   onStopVoiceChat,
+  componentOverrides,
 }) => {
   const [message, setMessage] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -143,6 +146,55 @@ const CustomChatComposer: React.FC<ExtendedChatComposerProps> = ({
     transition: 'opacity 0.2s ease',
   };
 
+  // Default VoiceButton component
+  const DefaultVoiceButton: React.FC<VoiceButtonProps> = ({ onClick, isConnected, isConnecting }) => (
+  <button
+    className={`myna-connect-voice-button ${isConnected ? 'myna-connected' : ''}`}
+    onClick={onClick}
+    disabled={disabled}
+    title={isConnected ? 'Disconnect Voice' : 'Connect Voice'}
+    style={voiceButtonStyles}
+  >
+    {isConnected ? (
+      <svg 
+        width="24" 
+        height="24" 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="#dc2626" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+      >
+        <line x1="1" y1="1" x2="23" y2="23"></line>
+        <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path>
+        <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path>
+        <line x1="12" y1="19" x2="12" y2="23"></line>
+        <line x1="8" y1="23" x2="16" y2="23"></line>
+      </svg>
+    ) : (
+      <svg 
+        width="24" 
+        height="24" 
+        viewBox="0 0 24 24" 
+        fill="none" 
+        stroke="#28a745" 
+        strokeWidth="2" 
+        strokeLinecap="round" 
+        strokeLinejoin="round"
+      >
+        <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+        <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+        <line x1="12" y1="19" x2="12" y2="23"></line>
+        <line x1="8" y1="23" x2="16" y2="23"></line>
+      </svg>
+    )}
+  </button>
+);
+
+// Component resolution - use override if provided, otherwise use default
+const VoiceButtonComponent = componentOverrides?.VoiceButton || DefaultVoiceButton;
+
   return (
     <div className={`myna-chat-composer ${className}`} style={composerContainerStyles}>
       <div className="myna-composer-container" style={innerContainerStyles}>
@@ -191,48 +243,11 @@ const CustomChatComposer: React.FC<ExtendedChatComposerProps> = ({
           </button>
           {/* Voice Connect Button */}
           {onToggleVoiceConnection && (
-            <button
-              className={`myna-connect-voice-button ${isVoiceConnected ? 'myna-connected' : ''}`}
+            <VoiceButtonComponent
               onClick={handleToggleVoiceConnectionClick}
-              disabled={disabled}
-              title={isVoiceConnected ? 'Disconnect Voice' : 'Connect Voice'}
-              style={voiceButtonStyles}
-            >
-              {isVoiceConnected ? (
-                <svg 
-                  width="24" 
-                  height="24" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="#dc2626" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                >
-                  <line x1="1" y1="1" x2="23" y2="23"></line>
-                  <path d="M9 9v3a3 3 0 0 0 5.12 2.12M15 9.34V4a3 3 0 0 0-5.94-.6"></path>
-                  <path d="M17 16.95A7 7 0 0 1 5 12v-2m14 0v2a7 7 0 0 1-.11 1.23"></path>
-                  <line x1="12" y1="19" x2="12" y2="23"></line>
-                  <line x1="8" y1="23" x2="16" y2="23"></line>
-                </svg>
-              ) : (
-                <svg 
-                  width="24" 
-                  height="24" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  stroke="#28a745" 
-                  strokeWidth="2" 
-                  strokeLinecap="round" 
-                  strokeLinejoin="round"
-                >
-                  <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
-                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
-                  <line x1="12" y1="19" x2="12" y2="23"></line>
-                  <line x1="8" y1="23" x2="16" y2="23"></line>
-                </svg>
-              )}
-            </button>
+              isConnected={isVoiceConnected}
+              isConnecting={false}
+            />
           )}
         </div>
       </div>

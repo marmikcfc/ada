@@ -8,7 +8,16 @@
 // Main component
 export { default as Myna } from './components/Myna';
 
-// Headless hooks
+// Default components (for overriding/extending)
+export {
+  DefaultChatButton,
+  DefaultChatWindow,
+  DefaultChatMessage,
+  DefaultChatComposer,
+  DefaultBubbleWidget,
+} from './components/defaults';
+
+// Hooks for headless usage
 export { useMynaClient } from './hooks/useMynaClient';
 export { useThreadManager } from './hooks/useThreadManager';
 
@@ -72,6 +81,14 @@ export type {
   ComponentOverrides,
   VisualizationContext
 } from './types';
+
+// Extended component props (re-exported from defaults)
+export type {
+  ExtendedChatWindowProps,
+  ExtendedChatComposerProps,
+  ExtendedChatMessageProps,
+  BubbleWidgetProps,
+} from './components/defaults';
 
 // Export thread manager hook types
 export type {
