@@ -4,9 +4,28 @@ import {
   useThreadListManager,
 } from '@thesysai/genui-sdk'; // C1Component is used internally by ChatMessageRenderer
 import GenerativeUIChat from './GenerativeUIChat'; // Import the new component
+import FullscreenLayout from './FullscreenLayout'; // Import the new fullscreen layout
 import '@crayonai/react-ui/styles/index.css';
 
-const VoiceBotClient: React.FC = () => {
+export interface VoiceBotClientConfig {
+  agentName?: string;
+  agentSubtitle?: string;
+  logoUrl?: string;
+  backgroundColor?: string;
+  primaryColor?: string;
+  accentColor?: string;
+  threadManagerTitle?: string;
+  enableThreadManager?: boolean;
+  startCallButtonText?: string;
+  endCallButtonText?: string;
+  connectingText?: string;
+}
+
+interface VoiceBotClientProps {
+  config?: VoiceBotClientConfig;
+}
+
+const VoiceBotClient: React.FC<VoiceBotClientProps> = ({ config = {} }) => {
   const wsRef = useRef<WebSocket | null>(null);
   const threadManagerRef = useRef<any>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -898,35 +917,48 @@ const VoiceBotClient: React.FC = () => {
   }, [threadListManager.selectedThreadId, createErrorMessage]);
 
   return (
-    <div style={{ height: '100vh', width: '100%', position: 'relative' }}>
-      {/* Remove Voice Controls Overlay from here */}
+    <>
       {/* Hidden audio element for voice output */}
       <audio ref={audioRef} autoPlay style={{ display: 'none' }} />
-      <GenerativeUIChat
-        threadManager={threadManager} // from @thesysai/genui-sdk
-        agentName="Voice Assistant"
-        logoUrl="/favicon.ico" // Ensure this path is correct in your public folder
-        onSendMessage={handleSendTextMessage} // Add text message handler
-        onC1Action={handleC1ComponentAction} // Pass the handler
-        // Pass voice connect/disconnect logic and state to GenerativeUIChat
-        onToggleVoiceConnection={() => {
+      
+      <FullscreenLayout
+        // Voice state
+        isVoiceConnected={voiceStatus === 'connected'}
+        isVoiceLoading={voiceStatus === 'connecting'}
+        onToggleVoice={() => {
           if (voiceStatus === 'connected') {
             disconnectVoice();
           } else if (voiceStatus === 'disconnected') {
             connectVoice();
           }
         }}
-        isVoiceConnected={voiceStatus === 'connected'}
-        isVoiceConnectionLoading={voiceStatus === 'connecting'}
+        
+        // Chat state
+        threadManager={threadManager}
+        onSendMessage={handleSendTextMessage}
+        onC1Action={handleC1ComponentAction}
         isLoading={isLoading}
-        isVoiceLoading={isVoiceLoading}
         isEnhancing={isEnhancing}
-        // Pass streaming state to GenerativeUIChat
         streamingContent={streamingContentRef.current}
         streamingMessageId={streamingMessageIdRef.current}
         isStreamingActive={isStreamingActive}
+        
+        // Configuration
+        config={{
+          agentName: config.agentName || "Eleven",
+          agentSubtitle: config.agentSubtitle || "How can I help you today?",
+          logoUrl: config.logoUrl || "/favicon.ico",
+          backgroundColor: config.backgroundColor || "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          primaryColor: config.primaryColor || "#667eea",
+          accentColor: config.accentColor || "#5a67d8",
+          threadManagerTitle: config.threadManagerTitle || "Conversations",
+          enableThreadManager: config.enableThreadManager ?? true,
+          startCallButtonText: config.startCallButtonText || "Start a call",
+          endCallButtonText: config.endCallButtonText || "End call",
+          connectingText: config.connectingText || "Connecting...",
+        }}
       />
-    </div>
+    </>
   );
 };
 

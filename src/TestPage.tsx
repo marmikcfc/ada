@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import './App.css';
 // Import directly from the source files until the package is properly built
 import Myna from "../packages/myna-sdk/src/components/Myna";
+// Import our new fullscreen layout component
+import VoiceBotClient from "./components/VoiceBotClient";
 
 /**
  * TestPage component to demonstrate both modes of the Myna SDK:
@@ -21,13 +23,71 @@ const TestPage: React.FC = () => {
 
   return (
     <div className="test-page">
-      {/* Header with mode toggle - Fixed positioning with high z-index */}
-      <header style={headerStyle}>
-        <h1>Myna SDK Test Page</h1>
-        <div style={toggleContainerStyle}>
-          <span style={{ marginRight: '12px' }}>
-            Mode: <strong>{bubbleEnabled ? 'Floating Widget' : 'Full Screen'}</strong>
-          </span>
+      {/* Show header and content only in bubble mode */}
+      {bubbleEnabled && (
+        <>
+          {/* Header with mode toggle - Fixed positioning with high z-index */}
+          <header style={headerStyle}>
+            <h1>Myna SDK Test Page</h1>
+            <div style={toggleContainerStyle}>
+              <span style={{ marginRight: '12px' }}>
+                Mode: <strong>{bubbleEnabled ? 'Floating Widget' : 'Full Screen'}</strong>
+              </span>
+              <label className="toggle-switch" style={toggleSwitchStyle}>
+                <input
+                  type="checkbox"
+                  checked={bubbleEnabled}
+                  onChange={() => setBubbleEnabled(!bubbleEnabled)}
+                />
+                <span className="toggle-slider" style={toggleSliderStyle}></span>
+              </label>
+            </div>
+          </header>
+
+          {/* Demo content area */}
+          <div style={contentStyle}>
+            <h2>Demo Content</h2>
+            <p>
+              This page demonstrates the Myna SDK in {bubbleEnabled ? 'floating widget' : 'full screen'} mode.
+              {bubbleEnabled && ' Look for the chat button in the bottom-right corner.'}
+            </p>
+            <div style={cardContainerStyle}>
+              {Array.from({ length: 3 }).map((_, i) => (
+                <div key={i} style={cardStyle}>
+                  <h3>Sample Card {i + 1}</h3>
+                  <p>This is placeholder content to demonstrate how the chat interface interacts with page content.</p>
+                </div>
+              ))}
+            </div>
+            <div style={{ marginTop: '24px' }}>
+              <h3>Current Settings:</h3>
+              <ul>
+                <li><strong>bubbleEnabled:</strong> {bubbleEnabled.toString()}</li>
+                <li><strong>webrtcURL:</strong> /api/offer</li>
+                <li><strong>websocketURL:</strong> {getWebSocketURL()}</li>
+              </ul>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* Fullscreen mode toggle - always visible */}
+      {!bubbleEnabled && (
+        <div style={{
+          position: 'fixed',
+          top: '16px',
+          right: '16px',
+          zIndex: 20000,
+          background: 'rgba(255, 255, 255, 0.9)',
+          backdropFilter: 'blur(12px)',
+          borderRadius: '12px',
+          padding: '8px 16px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px'
+        }}>
+          <span style={{ fontSize: '14px', fontWeight: '500' }}>Exit Fullscreen</span>
           <label className="toggle-switch" style={toggleSwitchStyle}>
             <input
               type="checkbox"
@@ -37,44 +97,37 @@ const TestPage: React.FC = () => {
             <span className="toggle-slider" style={toggleSliderStyle}></span>
           </label>
         </div>
-      </header>
+      )}
 
-      {/* Demo content area */}
-      <div style={contentStyle}>
-        <h2>Demo Content</h2>
-        <p>
-          This page demonstrates the Myna SDK in {bubbleEnabled ? 'floating widget' : 'full screen'} mode.
-          {bubbleEnabled && ' Look for the chat button in the bottom-right corner.'}
-        </p>
-        <div style={cardContainerStyle}>
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} style={cardStyle}>
-              <h3>Sample Card {i + 1}</h3>
-              <p>This is placeholder content to demonstrate how the chat interface interacts with page content.</p>
-            </div>
-          ))}
-        </div>
-        <div style={{ marginTop: '24px' }}>
-          <h3>Current Settings:</h3>
-          <ul>
-            <li><strong>bubbleEnabled:</strong> {bubbleEnabled.toString()}</li>
-            <li><strong>webrtcURL:</strong> /api/offer</li>
-            <li><strong>websocketURL:</strong> {getWebSocketURL()}</li>
-          </ul>
-        </div>
-      </div>
-
-      {/* Myna component */}
-      <Myna
-        webrtcURL="/api/offer"
-        websocketURL={getWebSocketURL()}
-        bubbleEnabled={bubbleEnabled}
-        showThreadManager={true}
-        options={{
-          agentName: "Myna Test Assistant",
-          logoUrl: "/favicon.ico",
-        }}
-      />
+      {/* Conditionally render Myna component or our FullscreenLayout */}
+      {bubbleEnabled ? (
+        <Myna
+          webrtcURL="/api/offer"
+          websocketURL={getWebSocketURL()}
+          bubbleEnabled={bubbleEnabled}
+          showThreadManager={true}
+          options={{
+            agentName: "Myna Test Assistant",
+            logoUrl: "/favicon.ico",
+          }}
+        />
+      ) : (
+        <VoiceBotClient 
+          config={{
+            agentName: "Ada",
+            agentSubtitle: "Your intelligent AI assistant",
+            logoUrl: "/favicon.ico",
+            backgroundColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            primaryColor: "#667eea",
+            accentColor: "#5a67d8",
+            threadManagerTitle: "Chat History",
+            enableThreadManager: true,
+            startCallButtonText: "🎤 Start Voice Chat",
+            endCallButtonText: "🔇 End Voice Chat",
+            connectingText: "Connecting to Ada...",
+          }}
+        />
+      )}
 
       {/* Styles */}
       <style>{`
