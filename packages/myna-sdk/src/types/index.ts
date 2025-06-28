@@ -14,6 +14,8 @@ export interface MynaProps {
   bubbleEnabled?: boolean;
   /** Whether to show the thread manager sidebar */
   showThreadManager?: boolean;
+  /** Whether to allow fullscreen mode (shows fullscreen button in bubble hover menu) */
+  allowFullScreen?: boolean;
   /** Additional configuration options */
   options?: MynaOptions;
 }
@@ -39,8 +41,26 @@ export interface MynaOptions {
   components?: Partial<ComponentOverrides>;
   /** Friendly display name for the agent (used in header) */
   agentName?: string;
+  /** Agent subtitle for fullscreen mode */
+  agentSubtitle?: string;
   /** Logo URL shown next to the agent name */
   logoUrl?: string;
+  /** Background color/gradient for fullscreen mode */
+  backgroundColor?: string;
+  /** Primary color for fullscreen mode theming */
+  primaryColor?: string;
+  /** Accent color for fullscreen mode theming */
+  accentColor?: string;
+  /** Thread manager title in fullscreen mode */
+  threadManagerTitle?: string;
+  /** Whether to enable thread manager in fullscreen mode */
+  enableThreadManager?: boolean;
+  /** Text for start call button */
+  startCallButtonText?: string;
+  /** Text for end call button */
+  endCallButtonText?: string;
+  /** Text shown while connecting */
+  connectingText?: string;
   /** Thread manager configuration */
   threadManager?: {
     /** Whether to enable persistence to localStorage */

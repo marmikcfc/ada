@@ -8,6 +8,14 @@
 // Main component
 export { default as Myna } from './components/Myna';
 
+// Fullscreen components
+export { default as FullscreenLayout } from './components/FullscreenLayout';
+export { default as FullscreenModal } from './components/FullscreenModal';
+export { default as VoiceBotFullscreenLayout } from './components/VoiceBotFullscreenLayout';
+export { default as AnimatedBlob } from './components/AnimatedBlob';
+
+// Note: FullscreenModal has been replaced by FullscreenLayout
+
 // Default components (for overriding/extending)
 export {
   DefaultChatButton,
@@ -89,6 +97,14 @@ export type {
   ExtendedChatMessageProps,
   BubbleWidgetProps,
 } from './components/defaults';
+
+// Note: FullscreenModalProps has been replaced by FullscreenLayoutProps
+
+// Fullscreen layout props and configuration
+export type { 
+  FullscreenLayoutProps, 
+  FullscreenLayoutConfig 
+} from './components/FullscreenLayout';
 
 // Export thread manager hook types
 export type {

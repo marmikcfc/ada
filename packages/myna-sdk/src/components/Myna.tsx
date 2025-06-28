@@ -4,6 +4,8 @@ import { useMynaClient } from '../hooks/useMynaClient';
 import BubbleWidget from './BubbleWidget';
 import ChatWindow from './ChatWindow';
 import ChatButton from './ChatButton';
+import FullscreenModal from './FullscreenModal';
+import VoiceBotFullscreenLayout from './VoiceBotFullscreenLayout';
 import { createTheme } from '../theming/defaultTheme';
 
 /**
@@ -18,10 +20,14 @@ const Myna: React.FC<MynaProps> = ({
   websocketURL,
   bubbleEnabled = true,
   showThreadManager = false,
+  allowFullScreen = false,
   options = {}
 }) => {
   // State for chat window visibility
   const [isChatOpen, setIsChatOpen] = useState(!bubbleEnabled);
+  
+  // State for fullscreen modal
+  const [isFullscreenOpen, setIsFullscreenOpen] = useState(false);
   
   // Audio element for voice playback
   const audioRef = useRef<HTMLAudioElement>(null);
@@ -35,7 +41,6 @@ const Myna: React.FC<MynaProps> = ({
       autoConnect: true,
       initialThreadId: undefined,
     }),
-    // re-create **only** when these primitive values change
     [webrtcURL, websocketURL, options.mcpEndpoints]
   );
 
@@ -76,6 +81,15 @@ const Myna: React.FC<MynaProps> = ({
   // Handle mic toggle from bubble widget
   const handleMicToggle = () => {
     handleToggleVoice();
+  };
+
+  // Handle fullscreen toggle
+  const handleFullscreenOpen = () => {
+    setIsFullscreenOpen(true);
+  };
+
+  const handleFullscreenClose = () => {
+    setIsFullscreenOpen(false);
   };
   
   // Component resolution - use override if provided, otherwise use default
@@ -124,6 +138,8 @@ const Myna: React.FC<MynaProps> = ({
             onChatClick={handleChatButtonClick}
             onMicToggle={handleMicToggle}
             isMicActive={client.voiceState === 'connected'}
+            onFullScreenClick={allowFullScreen ? handleFullscreenOpen : undefined}
+            allowFullScreen={allowFullScreen}
             theme={theme}
           />
         )
@@ -149,6 +165,47 @@ const Myna: React.FC<MynaProps> = ({
           componentOverrides={componentOverrides}
         />
       )}
+      
+      {/* Fullscreen modal with VoiceBotClient-style experience */}
+      <FullscreenModal
+        isOpen={isFullscreenOpen}
+        onClose={handleFullscreenClose}
+      >
+        <VoiceBotFullscreenLayout
+          isVoiceConnected={client.voiceState === 'connected'}
+          isVoiceLoading={client.voiceState === 'connecting'}
+          onToggleVoice={handleToggleVoice}
+          onSendMessage={client.sendText}
+          messages={client.messages}
+          onC1Action={(action: any) => {
+            // Handle C1 actions - for now just send the human-friendly message
+            if (action.humanFriendlyMessage) {
+              client.sendText(action.humanFriendlyMessage);
+            }
+          }}
+          isLoading={client.isLoading}
+          isEnhancing={client.isEnhancing}
+          streamingContent={client.streamingContent}
+          streamingMessageId={client.streamingMessageId}
+          isStreamingActive={client.isStreamingActive}
+          config={{
+            agentName: options.agentName || "Ada",
+            agentSubtitle: options.agentSubtitle || "How can I help you today?",
+            logoUrl: options.logoUrl || "/favicon.ico",
+            backgroundColor: options.backgroundColor || "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+            primaryColor: options.primaryColor || "#667eea",
+            accentColor: options.accentColor || "#5a67d8",
+            threadManagerTitle: options.threadManagerTitle || "Conversations",
+            enableThreadManager: options.enableThreadManager ?? true,
+            startCallButtonText: options.startCallButtonText || "Start a call",
+            endCallButtonText: options.endCallButtonText || "End call",
+            connectingText: options.connectingText || "Connecting...",
+            webrtcURL,
+            websocketURL,
+          }}
+          onClose={handleFullscreenClose}
+        />
+      </FullscreenModal>
     </>
   );
 };

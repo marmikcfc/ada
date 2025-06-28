@@ -1,0 +1,405 @@
+.fullscreen-layout {
+  display: grid;
+  grid-template-columns: auto 1fr 400px;
+  height: 100vh;
+  width: 100vw;
+  /* Background will be set via inline styles for configurability */
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+}
+
+/* Left Column - Thread Manager */
+.thread-manager-column {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-right: 1px solid rgba(255, 255, 255, 0.2);
+  transition: width 0.3s ease;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.thread-manager-column.collapsed {
+  width: 60px;
+}
+
+.thread-manager-column.expanded {
+  width: 300px;
+}
+
+/* Collapsed Thread Manager */
+.thread-manager-collapsed {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16px 8px;
+  height: 100%;
+  gap: 12px;
+}
+
+.expand-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  color: #4a5568;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.expand-button:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #2d3748;
+}
+
+.quick-create-button {
+  background: var(--primary-color, #667eea);
+  border: none;
+  border-radius: 50%;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  margin-top: auto;
+  margin-bottom: 16px;
+}
+
+.quick-create-button:hover {
+  background: var(--accent-color, #5a67d8);
+  transform: scale(1.05);
+}
+
+/* Expanded Thread Manager */
+.thread-manager-expanded {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.thread-manager-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+.thread-manager-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.collapse-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: #718096;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.collapse-button:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: #4a5568;
+}
+
+.thread-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px;
+}
+
+.create-thread-button {
+  width: 100%;
+  background: var(--primary-color, #667eea);
+  border: none;
+  border-radius: 8px;
+  padding: 12px;
+  color: white;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  transition: all 0.2s ease;
+}
+
+.create-thread-button:hover {
+  background: var(--accent-color, #5a67d8);
+  transform: translateY(-1px);
+}
+
+.empty-state {
+  text-align: center;
+  color: #718096;
+  padding: 24px 16px;
+}
+
+.empty-state p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.thread-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  margin-bottom: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid transparent;
+  position: relative;
+}
+
+.thread-item:hover {
+  background: rgba(255, 255, 255, 0.8);
+  border-color: color-mix(in srgb, var(--primary-color, #667eea) 20%, transparent);
+  transform: translateX(2px);
+}
+
+.thread-item.active {
+  background: color-mix(in srgb, var(--primary-color, #667eea) 10%, transparent);
+  border-color: var(--primary-color, #667eea);
+}
+
+.thread-item:hover .thread-actions {
+  opacity: 1;
+}
+
+.thread-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.thread-title {
+  font-size: 14px;
+  font-weight: 500;
+  color: #2d3748;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-bottom: 2px;
+}
+
+.thread-meta {
+  font-size: 12px;
+  color: #718096;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.thread-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.action-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  color: #718096;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.action-button:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #4a5568;
+}
+
+.action-button.delete:hover {
+  background: rgba(245, 101, 101, 0.1);
+  color: #f56565;
+}
+
+/* Middle Column - Blob */
+.blob-column {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  background: transparent;
+  overflow: hidden;
+}
+
+.fullscreen-blob {
+  width: 100%;
+  max-width: 500px;
+  height: 500px;
+  margin-bottom: 32px;
+}
+
+.agent-branding {
+  text-align: center;
+  margin-bottom: 32px;
+  z-index: 10;
+}
+
+.agent-name {
+  font-size: 48px;
+  font-weight: 700;
+  color: white;
+  margin: 0 0 8px 0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.agent-subtitle {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.9);
+  margin: 0;
+  font-weight: 400;
+}
+
+/* Right Column - Chat */
+.chat-column {
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(20px);
+  border-left: 1px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chat-header {
+  padding: 16px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
+  background: rgba(255, 255, 255, 0.8);
+}
+
+.chat-header-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.chat-logo {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.chat-agent-name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.chat-content {
+  flex: 1;
+  overflow: hidden;
+  background: white;
+}
+
+/* Responsive Design */
+@media (max-width: 1200px) {
+  .fullscreen-layout {
+    grid-template-columns: auto 1fr 350px;
+  }
+  
+  .agent-name {
+    font-size: 36px;
+  }
+  
+  .agent-subtitle {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .fullscreen-layout {
+    grid-template-columns: auto 1fr;
+  }
+  
+  .chat-column {
+    display: none;
+  }
+  
+  .thread-manager-column.expanded {
+    width: 250px;
+  }
+  
+  .agent-name {
+    font-size: 28px;
+  }
+  
+  .fullscreen-blob {
+    max-width: 300px;
+    height: 300px;
+  }
+}
+
+/* Scrollbar Styling */
+.thread-list::-webkit-scrollbar {
+  width: 6px;
+}
+
+.thread-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.05);
+  border-radius: 3px;
+}
+
+.thread-list::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+}
+
+.thread-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+/* Loading animations */
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+.thread-item.loading {
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+/* Focus styles for accessibility */
+.expand-button:focus,
+.collapse-button:focus,
+.action-button:focus,
+.create-thread-button:focus {
+  outline: 2px solid var(--primary-color, #667eea);
+  outline-offset: 2px;
+}
+
+.thread-item:focus {
+  outline: 2px solid var(--primary-color, #667eea);
+  outline-offset: -2px;
+} 

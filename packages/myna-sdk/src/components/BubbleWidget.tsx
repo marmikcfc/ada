@@ -11,6 +11,10 @@ export interface BubbleWidgetProps {
   onMicToggle: () => void;
   /** Whether the mic is currently active */
   isMicActive: boolean;
+  /** Handler for when the fullscreen button is clicked */
+  onFullScreenClick?: () => void;
+  /** Whether to show the fullscreen button */
+  allowFullScreen?: boolean;
   /** Custom theme */
   theme?: any;
   /** Additional CSS styles */
@@ -20,15 +24,17 @@ export interface BubbleWidgetProps {
 }
 
 /**
- * A floating bubble widget that reveals chat and mic controls on hover
+ * A floating bubble widget that reveals chat and mic controls on hover in a circular pattern
  * 
  * Positioned at right-center of the viewport, attached to the right border.
- * On hover, shows vertical controls above and below the main bubble.
+ * On hover, shows controls arranged in a circular pattern around the main bubble.
  */
 const BubbleWidget: React.FC<BubbleWidgetProps> = ({
   onChatClick,
   onMicToggle,
   isMicActive,
+  onFullScreenClick,
+  allowFullScreen = false,
   theme,
   style,
   className = '',
@@ -40,24 +46,30 @@ const BubbleWidget: React.FC<BubbleWidgetProps> = ({
   const mergedTheme = createTheme(theme);
   const cssVars = themeToCssVars(mergedTheme);
   
-  // Base styles for the bubble container
+  // Base styles for the bubble container - now positioned relatively for circular layout
   const containerStyles: CSSProperties = {
     position: 'fixed',
     top: '50%',
-    right: '0px', // Attach to right border
+    right: '0px', // Even further from edge to ensure space for all buttons
     transform: 'translateY(-50%)',
+    width: '100px', // Compact container
+    height: '100px', // Compact container
     display: 'flex',
-    flexDirection: 'column',
     alignItems: 'center',
+    flexDirection: 'column',
     zIndex: 9999,
     ...style,
   };
   
   // Styles for the main bubble
   const bubbleStyles: CSSProperties = {
+    position: 'absolute',
+    top: '50%',
+    right: '0px', // Attach to right edge of container
+    transform: 'translateY(-50%)',
     width: '50px',
     height: '50px',
-    borderRadius: '50%',
+    borderRadius: '50%', // Full circular for better appearance
     backgroundColor: cssVars['--myna-color-primary'],
     display: 'flex',
     alignItems: 'center',
@@ -67,14 +79,14 @@ const BubbleWidget: React.FC<BubbleWidgetProps> = ({
     color: '#ffffff',
     transition: 'transform 0.2s ease, box-shadow 0.2s ease',
     zIndex: 2,
-    // Add slight border radius only on the left side for edge attachment
     borderTopRightRadius: '0',
     borderBottomRightRadius: '0',
     order: 2, // Middle position
   };
   
-  // Styles for the control buttons
+  // Base styles for the control buttons
   const controlButtonStyles: CSSProperties = {
+    position: 'absolute',
     width: '40px',
     height: '40px',
     borderRadius: '50%',
@@ -86,49 +98,69 @@ const BubbleWidget: React.FC<BubbleWidgetProps> = ({
     color: cssVars['--myna-color-text'],
     transition: 'transform 0.3s ease, opacity 0.3s ease, background-color 0.2s ease',
     border: 'none',
-    padding: 0,
+    padding: 10,
     boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
-    // Add slight border radius only on the left side for edge attachment
-    borderTopRightRadius: '0',
-    borderBottomRightRadius: '0',
+    zIndex: 1,
   };
   
-  // Top control (Chat) styles
-  const topControlStyles: CSSProperties = {
+  // Chat button positioned above the main bubble
+  const chatControlStyles: CSSProperties = {
     ...controlButtonStyles,
-    transform: isHovered ? 'translateY(0)' : 'translateY(100%)',
+    top: '5px', // Close to top of container
+    right: '5px', // Aligned with bubble
+    transform: isHovered ? 'translateY(0) scale(1)' : 'translateY(10px) scale(0.8)',
     opacity: isHovered ? 1 : 0,
     pointerEvents: isHovered ? 'auto' : 'none',
-    marginBottom: '8px',
-    order: 1, // Top position
+    marginTop: '-25px',
+    order: 1,
   };
   
-  // Bottom control (Mic) styles
-  const bottomControlStyles: CSSProperties = {
+  // Fullscreen button positioned to the left of the main bubble
+  const fullscreenControlStyles: CSSProperties = {
     ...controlButtonStyles,
-    transform: isHovered ? 'translateY(0)' : 'translateY(-100%)',
+    top: '50%',
+    right: '55px', // Position to left of bubble within container bounds
+    transform: isHovered 
+      ? 'translateY(-50%) translateX(0) scale(1)' 
+      : 'translateY(-50%) translateX(10px) scale(0.8)',
     opacity: isHovered ? 1 : 0,
     pointerEvents: isHovered ? 'auto' : 'none',
-    marginTop: '8px',
-    order: 3, // Bottom position
+    display: allowFullScreen ? 'flex' : 'none',
+  };
+  
+  // Mic button positioned below the main bubble
+  const micControlStyles: CSSProperties = {
+    ...controlButtonStyles,
+    bottom: '5px', // Close to bottom of container
+    right: '5px', // Aligned with bubble
+    transform: isHovered ? 'translateY(0) scale(1)' : 'translateY(-10px) scale(0.8)',
+    opacity: isHovered ? 1 : 0,
+    pointerEvents: isHovered ? 'auto' : 'none',
     backgroundColor: isMicActive ? cssVars['--myna-color-primary'] : cssVars['--myna-color-surface'],
     color: isMicActive ? '#ffffff' : cssVars['--myna-color-text'],
+    marginBottom: '-25px',
   };
   
   // Hover styles for the control buttons
   const hoverStyles = `
     .control-button:hover {
       background-color: rgba(0, 0, 0, 0.05);
+      transform: scale(1.1) !important;
     }
     
     .bubble:hover {
-      transform: scale(1.05);
+      transform: translateY(-50%) scale(1.05) !important;
       box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
     }
     
     .mic-active:hover {
       background-color: ${cssVars['--myna-color-primary']} !important;
       opacity: 0.9;
+    }
+    
+    .fullscreen-button:hover {
+      background-color: rgba(0, 0, 0, 0.05);
+      transform: translateY(-50%) translateX(0) scale(1.1) !important;
     }
   `;
   
@@ -167,6 +199,22 @@ const BubbleWidget: React.FC<BubbleWidgetProps> = ({
     </svg>
   );
   
+  // Fullscreen icon SVG
+  const fullscreenIcon = (
+    <svg 
+      width="18" 
+      height="18" 
+      viewBox="0 0 24 24" 
+      fill="none" 
+      stroke="currentColor" 
+      strokeWidth="2" 
+      strokeLinecap="round" 
+      strokeLinejoin="round"
+    >
+      <path d="M3 7V3h4M21 7V3h-4M3 17v4h4M21 17v4h-4" />
+    </svg>
+  );
+
   // Main bubble icon - Using a more distinctive assistant/help icon
   const bubbleIcon = (
     <svg 
@@ -193,17 +241,29 @@ const BubbleWidget: React.FC<BubbleWidgetProps> = ({
         onMouseEnter={() => setIsHovered(true)}
         onMouseLeave={() => setIsHovered(false)}
       >
-        {/* Top control (Chat) */}
+        {/* Chat button - positioned above the main bubble */}
         <button 
           className="control-button"
-          style={topControlStyles}
+          style={chatControlStyles}
           onClick={onChatClick}
           aria-label="Open chat"
         >
           {chatIcon}
         </button>
         
-        {/* Main bubble */}
+        {/* Fullscreen button - positioned to the left of the main bubble */}
+        {allowFullScreen && onFullScreenClick && (
+          <button 
+            className="control-button fullscreen-button"
+            style={fullscreenControlStyles}
+            onClick={onFullScreenClick}
+            aria-label="Open fullscreen"
+          >
+            {fullscreenIcon}
+          </button>
+        )}
+        
+        {/* Main bubble - positioned at the right edge */}
         <div 
           className="bubble"
           style={bubbleStyles}
@@ -213,10 +273,10 @@ const BubbleWidget: React.FC<BubbleWidgetProps> = ({
           {bubbleIcon}
         </div>
         
-        {/* Bottom control (Mic) */}
+        {/* Mic button - positioned below the main bubble */}
         <button 
           className={`control-button ${isMicActive ? 'mic-active' : ''}`}
-          style={bottomControlStyles}
+          style={micControlStyles}
           onClick={onMicToggle}
           aria-label={isMicActive ? "Stop recording" : "Start recording"}
         >

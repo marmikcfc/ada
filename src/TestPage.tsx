@@ -1,20 +1,13 @@
-import React, { useState } from 'react';
+import React from 'react';
 import './App.css';
 // Import directly from the source files until the package is properly built
 import Myna from "../packages/myna-sdk/src/components/Myna";
-// Import our new fullscreen layout component
-import VoiceBotClient from "./components/VoiceBotClient";
 
 /**
- * TestPage component to demonstrate both modes of the Myna SDK:
- * - bubbleEnabled=true: Floating chat widget with slide-in panel
- * - bubbleEnabled=false: Full-screen chat interface
+ * TestPage component to demonstrate the Myna SDK with floating widget + fullscreen modal
  */
 const TestPage: React.FC = () => {
-  // State to toggle between modes
-  const [bubbleEnabled, setBubbleEnabled] = useState(true);
-  
-  // WebSocket URL construction (same as in App.tsx)
+  // WebSocket URL construction
   const getWebSocketURL = (): string => {
     const { protocol, hostname } = window.location;
     const wsProtocol = protocol === "https:" ? "wss" : "ws";
@@ -23,170 +16,100 @@ const TestPage: React.FC = () => {
 
   return (
     <div className="test-page">
-      {/* Show header and content only in bubble mode */}
-      {bubbleEnabled && (
-        <>
-          {/* Header with mode toggle - Fixed positioning with high z-index */}
-          <header style={headerStyle}>
-            <h1>Myna SDK Test Page</h1>
-            <div style={toggleContainerStyle}>
-              <span style={{ marginRight: '12px' }}>
-                Mode: <strong>{bubbleEnabled ? 'Floating Widget' : 'Full Screen'}</strong>
-              </span>
-              <label className="toggle-switch" style={toggleSwitchStyle}>
-                <input
-                  type="checkbox"
-                  checked={bubbleEnabled}
-                  onChange={() => setBubbleEnabled(!bubbleEnabled)}
-                />
-                <span className="toggle-slider" style={toggleSliderStyle}></span>
-              </label>
-            </div>
-          </header>
+      {/* Header */}
+      <header style={headerStyle}>
+        <h1>Myna SDK Test Page</h1>
+        <div style={headerInfoStyle}>
+          <span>Mode: <strong>Floating Widget with Fullscreen</strong></span>
+        </div>
+      </header>
 
-          {/* Demo content area */}
-          <div style={contentStyle}>
-            <h2>Demo Content</h2>
-            <p>
-              This page demonstrates the Myna SDK in {bubbleEnabled ? 'floating widget' : 'full screen'} mode.
-              {bubbleEnabled && ' Look for the chat button in the bottom-right corner.'}
-            </p>
-            <div style={cardContainerStyle}>
-              {Array.from({ length: 3 }).map((_, i) => (
-                <div key={i} style={cardStyle}>
-                  <h3>Sample Card {i + 1}</h3>
-                  <p>This is placeholder content to demonstrate how the chat interface interacts with page content.</p>
-                </div>
-              ))}
+      {/* Demo content area */}
+      <div style={contentStyle}>
+        <h2>Demo Content</h2>
+        <p>
+          This page demonstrates the Myna SDK with a floating widget in the bottom-right corner.
+          Click the fullscreen button in the widget to open the full experience!
+        </p>
+        
+        <div style={featuresStyle}>
+          <h3>Features Available:</h3>
+          <ul>
+            <li>🎤 <strong>Voice Chat:</strong> Click the mic button to start voice conversations</li>
+            <li>💬 <strong>Text Chat:</strong> Click the chat button for text-based conversations</li>
+            <li>🖥️ <strong>Fullscreen Mode:</strong> Click the fullscreen button for the immersive experience</li>
+            <li>📱 <strong>Responsive Design:</strong> Works on desktop and mobile devices</li>
+          </ul>
+        </div>
+        
+        <div style={cardContainerStyle}>
+          {Array.from({ length: 3 }).map((_, i) => (
+            <div key={i} style={cardStyle}>
+              <h3>Sample Card {i + 1}</h3>
+              <p>This is placeholder content to demonstrate how the chat interface interacts with page content.</p>
             </div>
-            <div style={{ marginTop: '24px' }}>
-              <h3>Current Settings:</h3>
-              <ul>
-                <li><strong>bubbleEnabled:</strong> {bubbleEnabled.toString()}</li>
-                <li><strong>webrtcURL:</strong> /api/offer</li>
-                <li><strong>websocketURL:</strong> {getWebSocketURL()}</li>
-              </ul>
+          ))}
+        </div>
+        
+        <div style={settingsStyle}>
+          <h3>Current Settings:</h3>
+          <div style={settingsGridStyle}>
+            <div style={settingItemStyle}>
+              <strong>WebRTC URL:</strong>
+              <span>/api/offer</span>
+            </div>
+            <div style={settingItemStyle}>
+              <strong>WebSocket URL:</strong>
+              <span>/ws/messages</span>
+            </div>
+            <div style={settingItemStyle}>
+              <strong>Agent Name:</strong>
+              <span>Ada</span>
+            </div>
+            <div style={settingItemStyle}>
+              <strong>Fullscreen:</strong>
+              <span>✅ Enabled</span>
             </div>
           </div>
-        </>
-      )}
-
-      {/* Fullscreen mode toggle - always visible */}
-      {!bubbleEnabled && (
-        <div style={{
-          position: 'fixed',
-          top: '16px',
-          right: '16px',
-          zIndex: 20000,
-          background: 'rgba(255, 255, 255, 0.9)',
-          backdropFilter: 'blur(12px)',
-          borderRadius: '12px',
-          padding: '8px 16px',
-          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px'
-        }}>
-          <span style={{ fontSize: '14px', fontWeight: '500' }}>Exit Fullscreen</span>
-          <label className="toggle-switch" style={toggleSwitchStyle}>
-            <input
-              type="checkbox"
-              checked={bubbleEnabled}
-              onChange={() => setBubbleEnabled(!bubbleEnabled)}
-            />
-            <span className="toggle-slider" style={toggleSliderStyle}></span>
-          </label>
         </div>
-      )}
+      </div>
 
-      {/* Conditionally render Myna component or our FullscreenLayout */}
-      {bubbleEnabled ? (
-        <Myna
-          webrtcURL="/api/offer"
-          websocketURL={getWebSocketURL()}
-          bubbleEnabled={bubbleEnabled}
-          showThreadManager={true}
-          options={{
-            agentName: "Myna Test Assistant",
-            logoUrl: "/favicon.ico",
-          }}
-        />
-      ) : (
-        <VoiceBotClient 
-          config={{
-            agentName: "Ada",
-            agentSubtitle: "Your intelligent AI assistant",
-            logoUrl: "/favicon.ico",
-            backgroundColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            primaryColor: "#667eea",
-            accentColor: "#5a67d8",
-            threadManagerTitle: "Chat History",
-            enableThreadManager: true,
-            startCallButtonText: "🎤 Start Voice Chat",
-            endCallButtonText: "🔇 End Voice Chat",
-            connectingText: "Connecting to Ada...",
-          }}
-        />
-      )}
+      {/* Myna SDK Component */}
+      <Myna
+        webrtcURL="/api/offer"
+        websocketURL="/ws/messages"
+        bubbleEnabled={true}
+        showThreadManager={true}
+        allowFullScreen={true}
+        options={{
+          agentName: "Ada",
+          agentSubtitle: "Your intelligent AI assistant",
+          logoUrl: "/favicon.ico",
+          backgroundColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+          primaryColor: "#667eea",
+          accentColor: "#5a67d8",
+          threadManagerTitle: "Chat History",
+          enableThreadManager: true,
+          startCallButtonText: "🎤 Start Voice Chat",
+          endCallButtonText: "🔇 End Voice Chat",
+          connectingText: "Connecting to Ada...",
+        }}
+      />
 
-      {/* Styles */}
+      {/* Global styles */}
       <style>{`
         body {
           margin: 0;
           padding: 0;
           font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-        }
-        
-        .toggle-switch {
-          position: relative;
-          display: inline-block;
-          width: 60px;
-          height: 34px;
-        }
-        
-        .toggle-switch input {
-          opacity: 0;
-          width: 0;
-          height: 0;
-        }
-        
-        .toggle-slider {
-          position: absolute;
-          cursor: pointer;
-          top: 0;
-          left: 0;
-          right: 0;
-          bottom: 0;
-          background-color: #ccc;
-          transition: .4s;
-          border-radius: 34px;
-        }
-        
-        .toggle-slider:before {
-          position: absolute;
-          content: "";
-          height: 26px;
-          width: 26px;
-          left: 4px;
-          bottom: 4px;
-          background-color: white;
-          transition: .4s;
-          border-radius: 50%;
-        }
-        
-        input:checked + .toggle-slider {
-          background-color: #2563eb;
-        }
-        
-        input:checked + .toggle-slider:before {
-          transform: translateX(26px);
+          background-color: #f8fafc;
         }
       `}</style>
     </div>
   );
 };
 
-// Styles defined here to maintain consistency
+// Updated styles
 const headerStyle = {
   position: 'fixed' as const,
   top: 0,
@@ -199,52 +122,74 @@ const headerStyle = {
   alignItems: 'center',
   justifyContent: 'space-between',
   padding: '0 24px',
-  zIndex: 15000, // Higher than Myna components (ChatWindow: 10000, BubbleWidget: 9999)
+  zIndex: 15000,
   boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
 };
 
-const toggleContainerStyle = {
+const headerInfoStyle = {
   display: 'flex',
   alignItems: 'center',
-};
-
-const toggleSwitchStyle = {
-  position: 'relative' as const,
-  display: 'inline-block',
-  width: '60px',
-  height: '34px',
-};
-
-const toggleSliderStyle = {
-  position: 'absolute' as const,
-  cursor: 'pointer',
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  backgroundColor: '#ccc',
-  transition: '.4s',
-  borderRadius: '34px',
+  fontSize: '14px',
+  color: '#6b7280',
 };
 
 const contentStyle = {
-  marginTop: '80px', // Account for fixed header height + spacing
+  marginTop: '80px',
   padding: '24px',
   minHeight: 'calc(100vh - 80px)',
+  maxWidth: '1200px',
+  margin: '80px auto 0',
+};
+
+const featuresStyle = {
+  marginTop: '32px',
+  padding: '24px',
+  backgroundColor: '#ffffff',
+  borderRadius: '12px',
+  border: '1px solid #e5e7eb',
+  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
 };
 
 const cardContainerStyle = {
   display: 'grid',
   gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))',
   gap: '20px',
-  marginTop: '24px',
+  marginTop: '32px',
 };
 
 const cardStyle = {
-  padding: '20px',
+  padding: '24px',
+  backgroundColor: '#ffffff',
+  borderRadius: '12px',
+  border: '1px solid #e5e7eb',
+  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+  transition: 'transform 0.2s ease, box-shadow 0.2s ease',
+};
+
+const settingsStyle = {
+  marginTop: '32px',
+  padding: '24px',
+  backgroundColor: '#ffffff',
+  borderRadius: '12px',
+  border: '1px solid #e5e7eb',
+  boxShadow: '0 1px 3px rgba(0, 0, 0, 0.1)',
+};
+
+const settingsGridStyle = {
+  display: 'grid',
+  gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+  gap: '16px',
+  marginTop: '16px',
+};
+
+const settingItemStyle = {
+  display: 'flex',
+  justifyContent: 'space-between',
+  alignItems: 'center',
+  padding: '12px 16px',
   backgroundColor: '#f9fafb',
   borderRadius: '8px',
-  border: '1px solid #e5e7eb',
+  fontSize: '14px',
 };
 
 export default TestPage;
