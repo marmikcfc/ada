@@ -93,12 +93,8 @@ async def _process_chat_logic(message: str, thread_id: str, *, is_c1_action: boo
         await chat_history_manager.add_user_message(thread_id, message)
 
     # Step 1: Send user message to WebSocket immediately
-    user_message_for_frontend = create_user_transcription(
-        content=message,
-        id=str(uuid.uuid4())
-    )
-    await enqueue_llm_message(user_message_for_frontend)
-    logger.info(f"Enqueued user message to WebSocket: {message}")
+    # For text chat, don't echo user message back (frontend already displays it)
+    # Only voice transcriptions need to be sent back to frontend as user_transcription
 
     # Gather recent history for context
     conversation_history = await chat_history_manager.get_recent_history(thread_id)
