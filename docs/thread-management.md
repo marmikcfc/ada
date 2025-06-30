@@ -2,7 +2,7 @@
 
 ## Overview
 
-The Myna SDK now includes comprehensive thread management capabilities allowing users to:
+The Genux SDK now includes comprehensive thread management capabilities allowing users to:
 
 - Create new conversation threads
 - Switch between existing threads  
@@ -12,10 +12,10 @@ The Myna SDK now includes comprehensive thread management capabilities allowing 
 
 ## Quick Start
 
-### Enable in Myna Component
+### Enable in Genux Component
 
 ```tsx
-<Myna
+<Genux
   webrtcURL="..."
   websocketURL="..."
   showThreadManager={true}
@@ -26,7 +26,7 @@ The Myna SDK now includes comprehensive thread management capabilities allowing 
 ### Custom Implementation
 
 ```tsx
-import { useThreadManager, ThreadManager } from 'myna-sdk';
+import { useThreadManager, ThreadManager } from 'genux-sdk';
 
 const threadManager = useThreadManager({
   enablePersistence: true,

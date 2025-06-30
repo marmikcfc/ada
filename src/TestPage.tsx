@@ -1,10 +1,10 @@
 import React from 'react';
 import './App.css';
 // Import directly from the source files until the package is properly built
-import Myna from "../packages/myna-sdk/src/components/Myna";
+import Genux from "../packages/genux-sdk/src/components/Genux";
 
 /**
- * TestPage component to demonstrate the Myna SDK with floating widget + fullscreen modal
+ * TestPage component to demonstrate the Genux SDK with floating widget + fullscreen modal
  */
 const TestPage: React.FC = () => {
   // WebSocket URL construction
@@ -18,7 +18,7 @@ const TestPage: React.FC = () => {
     <div className="test-page">
       {/* Header */}
       <header style={headerStyle}>
-        <h1>Myna SDK Test Page</h1>
+        <h1>Genux SDK Test Page</h1>
         <div style={headerInfoStyle}>
           <span>Mode: <strong>Floating Widget with Fullscreen</strong></span>
         </div>
@@ -28,7 +28,7 @@ const TestPage: React.FC = () => {
       <div style={contentStyle}>
         <h2>Demo Content</h2>
         <p>
-          This page demonstrates the Myna SDK with a floating widget in the bottom-right corner.
+          This page demonstrates the Genux SDK with a floating widget in the bottom-right corner.
           Click the fullscreen button in the widget to open the full experience!
         </p>
         
@@ -74,8 +74,8 @@ const TestPage: React.FC = () => {
         </div>
       </div>
 
-      {/* Myna SDK Component */}
-      <Myna
+      {/* Genux SDK Component */}
+      <Genux
         webrtcURL="/api/offer"
         websocketURL="/ws/messages"
         bubbleEnabled={true}
