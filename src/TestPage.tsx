@@ -84,7 +84,7 @@ const TestPage: React.FC = () => {
         options={{
           agentName: "Ada",
           agentSubtitle: "Your intelligent AI assistant",
-          logoUrl: "/favicon.ico",
+          logoUrl: "/ada-brain-icon.svg",
           backgroundColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
           primaryColor: "#667eea",
           accentColor: "#5a67d8",

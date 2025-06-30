@@ -56,7 +56,7 @@ const FullscreenModal: React.FC<FullscreenModalProps> = ({ isOpen, onClose, chil
           onClick={onClose}
           style={{
             position: 'absolute',
-            top: '20px',
+            top: '10px',
             right: '20px',
             zIndex: 10001,
             background: 'rgba(255, 255, 255, 0.9)',

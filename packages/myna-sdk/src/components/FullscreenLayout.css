@@ -1,6 +1,6 @@
 .fullscreen-layout {
   display: grid;
-  grid-template-columns: auto 1fr 400px;
+  grid-template-columns: auto 1fr 760px;
   height: 100vh;
   width: 100vw;
   /* Background will be set via inline styles for configurability */
@@ -63,17 +63,34 @@
   height: 36px;
   cursor: pointer;
   color: white;
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   transition: all 0.2s ease;
   margin-top: auto;
   margin-bottom: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
 .quick-create-button:hover {
   background: var(--accent-color, #5a67d8);
   transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.quick-create-button svg {
+  color: white;
+  fill: none;
+  stroke: white;
+  stroke-width: 2.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.quick-create-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
 }
 
 /* Expanded Thread Manager */
@@ -322,7 +339,7 @@
 /* Responsive Design */
 @media (max-width: 1200px) {
   .fullscreen-layout {
-    grid-template-columns: auto 1fr 350px;
+    grid-template-columns: auto 1fr 420px;
   }
   
   .agent-name {

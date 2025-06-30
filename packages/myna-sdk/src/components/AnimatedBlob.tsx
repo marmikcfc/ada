@@ -29,6 +29,51 @@ const AnimatedBlob: React.FC<AnimatedBlobProps> = ({
   const meshRef = useRef<THREE.Mesh>();
   const animationIdRef = useRef<number>();
   const [isInteracting, setIsInteracting] = useState(false);
+  
+  // Waveform state
+  const [waveformData, setWaveformData] = useState<number[]>(Array(32).fill(0));
+  const waveformRef = useRef<number[]>(Array(32).fill(0));
+
+  // Generate animated waveform data
+  useEffect(() => {
+    let animationId: number;
+    
+    const updateWaveform = () => {
+      const time = Date.now() * 0.001;
+      const newWaveform = Array(32).fill(0).map((_, i) => {
+        const angle = (i / 32) * Math.PI * 2;
+        let amplitude = 0.1;
+        
+        if (isVoiceConnected) {
+          // Active voice - more dynamic waveform
+          amplitude = 0.3 + Math.sin(time * 3 + angle * 2) * 0.2 + 
+                     Math.sin(time * 5 + angle * 3) * 0.1 +
+                     Math.sin(time * 7 + angle) * 0.05;
+        } else if (isVoiceLoading) {
+          // Loading state - pulsing waveform
+          amplitude = 0.2 + Math.sin(time * 4) * 0.1;
+        } else {
+          // Idle state - subtle breathing effect
+          amplitude = 0.1 + Math.sin(time * 1.5) * 0.05;
+        }
+        
+        return Math.max(0, amplitude);
+      });
+      
+      waveformRef.current = newWaveform;
+      setWaveformData([...newWaveform]);
+      
+      animationId = requestAnimationFrame(updateWaveform);
+    };
+    
+    updateWaveform();
+    
+    return () => {
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    };
+  }, [isVoiceConnected, isVoiceLoading]);
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -320,6 +365,62 @@ const AnimatedBlob: React.FC<AnimatedBlobProps> = ({
     }
   }, []);
 
+  // Circular waveform component
+  const CircularWaveform = () => {
+    const radius = 180;
+    const centerX = 200;
+    const centerY = 200;
+    const barWidth = 3;
+    const maxBarHeight = 40;
+    
+    return (
+      <svg
+        width="400"
+        height="400"
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          pointerEvents: 'none',
+          zIndex: 1
+        }}
+      >
+        {waveformData.map((amplitude, index) => {
+          const angle = (index / waveformData.length) * 2 * Math.PI - Math.PI / 2;
+          const barHeight = amplitude * maxBarHeight;
+          
+          // Inner position (closer to center)
+          const innerX = centerX + Math.cos(angle) * (radius - barHeight / 2);
+          const innerY = centerY + Math.sin(angle) * (radius - barHeight / 2);
+          
+          // Outer position (further from center)
+          const outerX = centerX + Math.cos(angle) * (radius + barHeight / 2);
+          const outerY = centerY + Math.sin(angle) * (radius + barHeight / 2);
+          
+          return (
+            <line
+              key={index}
+              x1={innerX}
+              y1={innerY}
+              x2={outerX}
+              y2={outerY}
+              stroke={
+                isVoiceConnected 
+                  ? `rgba(239, 68, 68, ${0.6 + amplitude * 0.4})` 
+                  : isVoiceLoading
+                    ? `rgba(251, 191, 36, ${0.4 + amplitude * 0.4})`
+                    : `rgba(255, 255, 255, ${0.3 + amplitude * 0.3})`
+              }
+              strokeWidth={barWidth}
+              strokeLinecap="round"
+            />
+          );
+        })}
+      </svg>
+    );
+  };
+
   return (
     <div 
       className={`animated-blob-container ${className}`}
@@ -344,79 +445,57 @@ const AnimatedBlob: React.FC<AnimatedBlobProps> = ({
         onMouseLeave={handleMouseLeave}
       />
       
-      {/* Overlay content similar to 11ai */}
+      {/* Circular Waveform */}
+      <CircularWaveform />
+      
+      {/* Overlay content */}
       <div 
         style={{
           position: 'absolute',
           inset: 0,
           display: 'flex',
-          flexDirection: 'column',
+          flexDirection: 'row',
           alignItems: 'center',
           justifyContent: 'center',
-          gap: '16px',
+          gap: '5px', // Increased spacing between button and text
           pointerEvents: 'none'
         }}
       >
-        {/* Start call button */}
-        {onToggleVoice && (
-          <button
-            onClick={onToggleVoice}
-            disabled={isVoiceLoading}
-            style={{
-              pointerEvents: 'auto',
-              position: 'relative',
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              whiteSpace: 'nowrap',
-              fontSize: '14px',
-              fontWeight: '500',
-              transition: 'all 0.3s ease',
-              border: '1px solid rgba(255, 255, 255, 0.2)',
-              borderRadius: '50px',
-              width: '144px',
-              padding: '6px',
-              height: 'auto',
-              backgroundColor: 'rgba(255, 255, 255, 0.8)',
-              backdropFilter: 'blur(12px)',
-              boxShadow: '0 8px 30px rgba(0, 0, 0, 0.12)',
-              cursor: isVoiceLoading ? 'not-allowed' : 'pointer',
-              opacity: isVoiceLoading ? 0.6 : 1
-            }}
-          >
-            <span 
+
+        <span 
               style={{
-                marginRight: '6px',
-                width: '32px',
-                height: '32px',
-                backgroundColor: isVoiceConnected ? '#ef4444' : '#000',
+                marginRight: '8px', // Increased margin
+                width: '40px', // Increased size
+                height: '40px', // Increased size
+                backgroundColor: isVoiceConnected ? '#ef4444' : '#1f2937',
                 borderRadius: '50%',
                 color: '#fff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                transition: 'background-color 0.3s ease'
+                transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+                boxShadow: '0 4px 12px rgba(0, 0, 0, 0.2)', // Added shadow to icon circle
               }}
             >
               {isVoiceLoading ? (
                 <div 
                   style={{
-                    width: '16px',
-                    height: '16px',
-                    border: '2px solid rgba(255, 255, 255, 0.3)',
-                    borderTop: '2px solid #fff',
+                    width: '20px', // Increased spinner size
+                    height: '20px',
+                    border: '3px solid rgba(255, 255, 255, 0.3)', // Thicker spinner
+                    borderTop: '3px solid #fff',
                     borderRadius: '50%',
                     animation: 'spin 1s linear infinite'
                   }}
                 />
               ) : (
                 <svg 
-                  width="16" 
-                  height="16" 
+                  width="20" // Increased icon size
+                  height="20" 
                   viewBox="0 0 24 24" 
                   fill="none" 
                   stroke="currentColor" 
-                  strokeWidth="2"
+                  strokeWidth="2.5" // Thicker stroke
                   strokeLinecap="round" 
                   strokeLinejoin="round"
                 >
@@ -428,7 +507,42 @@ const AnimatedBlob: React.FC<AnimatedBlobProps> = ({
                 </svg>
               )}
             </span>
-            <span style={{ paddingRight: '10px', color: '#000' }}>
+
+        {/* Enhanced start call button */}
+        {onToggleVoice && (
+          <button
+            onClick={onToggleVoice}
+            disabled={isVoiceLoading}
+            style={{
+              pointerEvents: 'auto',
+              position: 'relative',
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              whiteSpace: 'nowrap',
+              fontSize: '16px', // Increased font size
+              fontWeight: '600', // Bolder font
+              transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+              border: '2px solid rgba(255, 255, 255, 0.3)', // Thicker border
+              borderRadius: '50px',
+              width: '180px', // Increased width
+              padding: '12px 8px', // Increased padding
+              height: 'auto',
+              backgroundColor: 'rgba(255, 255, 255, 0.95)', // More opaque
+              backdropFilter: 'blur(20px)', // Stronger blur
+              boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1)', // Enhanced shadow
+              cursor: isVoiceLoading ? 'not-allowed' : 'pointer',
+              opacity: isVoiceLoading ? 0.7 : 1,
+              transform: isInteracting ? 'scale(1.05)' : 'scale(1)', // Hover scale effect
+            }}
+          >
+
+            <span style={{ 
+              paddingRight: '12px', // Increased padding
+              color: '#1f2937', // Darker text
+              fontWeight: '600', // Bolder text
+              letterSpacing: '0.5px' // Added letter spacing for elegance
+            }}>
               {isVoiceLoading ? connectingText : isVoiceConnected ? endCallButtonText : startCallButtonText}
             </span>
           </button>

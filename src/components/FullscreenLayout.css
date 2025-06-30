@@ -1,6 +1,6 @@
 .fullscreen-layout {
   display: grid;
-  grid-template-columns: auto 1fr 400px;
+  grid-template-columns: auto 1fr 350px;
   height: 100vh;
   width: 100vw;
   /* Background will be set via inline styles for configurability */
@@ -324,7 +324,7 @@
 /* Responsive Design */
 @media (max-width: 1200px) {
   .fullscreen-layout {
-    grid-template-columns: auto 1fr 350px;
+    grid-template-columns: auto 1fr 470px;
   }
   
   .agent-name {

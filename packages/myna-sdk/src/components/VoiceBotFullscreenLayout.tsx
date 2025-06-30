@@ -323,7 +323,7 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
         />
         
         {/* Agent name display */}
-        <div className="agent-branding">
+        <div className="agent-branding" style={{ marginTop: '48px' }}>
           <h1 className="agent-name">{agentName}</h1>
           <p className="agent-subtitle">{agentSubtitle}</p>
         </div>
@@ -355,8 +355,6 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
             streamingContent={streamingContent}
             streamingMessageId={streamingMessageId}
             isStreamingActive={isStreamingActive}
-            config={config}
-            onClose={onClose}
           />
         </div>
       </div>
