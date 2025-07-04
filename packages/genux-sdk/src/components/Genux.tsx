@@ -7,7 +7,7 @@ import ChatButton from './ChatButton';
 import FullscreenModal from './FullscreenModal';
 import VoiceBotFullscreenLayout from './VoiceBotFullscreenLayout';
 import { createTheme } from '../theming/defaultTheme';
-
+import "./thesys-css.css";
 /**
  * Main Genux component - the entry point for the SDK
  * 

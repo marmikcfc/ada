@@ -5,6 +5,8 @@ interface AnimatedBlobProps {
   isVoiceConnected?: boolean;
   isVoiceLoading?: boolean;
   onToggleVoice?: () => void;
+  /** Optional callback to pause/resume voice without disconnecting */
+  onTogglePause?: () => void;
   className?: string;
   style?: React.CSSProperties;
   startCallButtonText?: string;
@@ -16,6 +18,8 @@ const AnimatedBlob: React.FC<AnimatedBlobProps> = ({
   isVoiceConnected = false,
   isVoiceLoading = false,
   onToggleVoice,
+  /** Optional callback to pause/resume voice without disconnecting */
+  onTogglePause,
   className = '',
   style = {},
   startCallButtonText = 'Start a call',
@@ -29,10 +33,20 @@ const AnimatedBlob: React.FC<AnimatedBlobProps> = ({
   const meshRef = useRef<THREE.Mesh>();
   const animationIdRef = useRef<number>();
   const [isInteracting, setIsInteracting] = useState(false);
+  // Local paused state (used if parent doesn't control it)
+  const [isPausedInternal, setIsPausedInternal] = useState(false);
   
   // Waveform state
   const [waveformData, setWaveformData] = useState<number[]>(Array(32).fill(0));
   const waveformRef = useRef<number[]>(Array(32).fill(0));
+
+  // If disconnected, reset paused flag to false to keep UI consistent
+  const isVoicePaused = isVoiceConnected ? isPausedInternal : false;
+  useEffect(() => {
+    if (!isVoiceConnected) {
+      setIsPausedInternal(false);
+    }
+  }, [isVoiceConnected]);
 
   // Generate animated waveform data
   useEffect(() => {
@@ -365,6 +379,14 @@ const AnimatedBlob: React.FC<AnimatedBlobProps> = ({
     }
   }, []);
 
+  // Handle pause / resume click
+  const handleTogglePause = useCallback(() => {
+    // Toggle internal state for immediate UI feedback
+    setIsPausedInternal((prev) => !prev);
+    // Notify parent (if any) to actually pause/resume audio streaming
+    onTogglePause?.();
+  }, [onTogglePause]);
+
   // Circular waveform component
   const CircularWaveform = () => {
     const radius = 180;
@@ -545,6 +567,43 @@ const AnimatedBlob: React.FC<AnimatedBlobProps> = ({
             }}>
               {isVoiceLoading ? connectingText : isVoiceConnected ? endCallButtonText : startCallButtonText}
             </span>
+          </button>
+        )}
+
+        {/* Pause / Resume Button (visible when connected and not loading) */}
+        {isVoiceConnected && !isVoiceLoading && (
+          <button
+            onClick={handleTogglePause}
+            style={{
+              pointerEvents: 'auto',
+              width: '56px',
+              height: '56px',
+              borderRadius: '50%',
+              border: '2px solid rgba(255, 255, 255, 0.3)',
+              backgroundColor: 'rgba(255, 255, 255, 0.95)',
+              backdropFilter: 'blur(20px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 12px 40px rgba(0, 0, 0, 0.15), 0 4px 12px rgba(0, 0, 0, 0.1)',
+              marginLeft: '12px',
+              cursor: 'pointer',
+              transition: 'all 0.2s ease',
+            }}
+            aria-label={isVoicePaused ? 'Resume voice' : 'Pause voice'}
+          >
+            {isVoicePaused ? (
+              // Play icon
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            ) : (
+              // Pause icon
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="6" y1="4" x2="6" y2="20" />
+                <line x1="18" y1="4" x2="18" y2="20" />
+              </svg>
+            )}
           </button>
         )}
       </div>

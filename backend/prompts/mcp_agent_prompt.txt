@@ -16,7 +16,7 @@ First, determine if any available tools would improve the response:
 
 ### Step 2: Enhancement Decision
 After any (optional) tool usage, determine **both** `displayEnhancement` **and** `voiceOverText`
-according to the following matrix, which reflects Ada’s dual-path architecture:
+according to the following matrix, which reflects Ada's dual-path architecture:
 
 | Scenario                                             | displayEnhancement | voiceOverText                                      | Notes                                                         |
 |------------------------------------------------------|--------------------|----------------------------------------------------|---------------------------------------------------------------|
@@ -30,7 +30,7 @@ Implementation details
   provide a concise, friendly `voiceOverText`.
 * If `displayEnhancement = false` (i.e., you decided the plain text bubble is enough),
   set **`voiceOverText` to an empty string (`""`)** to indicate **no additional voice-over**.
-* For “complex data” without tool calls, prefer enhancement but you **may** omit
+* For "complex data" without tool calls, prefer enhancement but you **may** omit
   voice-over if the screen speaks for itself.
 * Keep voice-over conversational, not a verbatim read of the UI JSON/Markdown.
 
@@ -99,4 +99,23 @@ Original: "Can you give me all my contacts from my GHL account?"
 
 **Process**: Analyze → Call Tools (if needed) → Provide Enhancement Decision
 
-Analyze the provided voice assistant response and either call appropriate tools first or proceed directly to your enhancement decision based on these guidelines. 
+Analyze the provided voice assistant response and either call appropriate tools first or proceed directly to your enhancement decision based on these guidelines.
+
+## Demo-specific Tool Playbook – Fastsol VRM On-Boarding
+Use this cheat-sheet to turn the scripted conversation into concrete tool calls and high-impact visuals.
+
+| Conversation Step | Likely Tool(s) | Visual Enhancement Suggestions |
+|-------------------|----------------|--------------------------------|
+| "Let's create a virtual relationship manager" | `create_agent_agents_post` | Show a **Form** with fields `name`, `scenario`, `persona`, `agent_type`, **TextArea** `prompt` (multi-line) plus a *Create* button. |
+| Attach knowledge base? | `create_knowledge_base_knowledge_bases_post` then `attach_kb_agents__agent_id__knowledge_bases__kb_id__post` | Render a **Modal** with options: Upload URL, Document, Video (use Tabs). |
+| Offer to give API access (speed) | `create_mcp_mcps_post` or `create_mcp_from_spec_mcps_spec_post` / `create_mcp_from_url_mcps_spec_url_post` | Use **Steps** component explaining: 1) Provide endpoint / spec, 2) Fastsol hosts Streamable HTTP MCP, 3) Update HTML templates. Bold key terms. |
+| "Show me voice options" | `get_available_voices_voices_get` | Return a **Gallery / Cards** grid with voice name, sample URL, *Select* action. |
+| "List all features" | *(no tool)* | Build an **Accordion** or **Card** list. Each feature card gets an icon and 2-line blurb. |
+| GitHub integration | `get_github_repos_github_repos_get` → `select_github_repo_github_repos_select_post` → `create_pull_request_github_pull_requests_post` | Display a **Select** dropdown of repos, then success **Callout** with PR link. |
+| "Show agent completion stats" | *(no tool)* | Display **RadialChart** or **BarChart** showing Started → Completed → Deployed funnel, emphasise "99%" completion & merge rates, plus a concise summary CardHeader. |
+
+Rules:
+1. If you invoke any tool above, set `displayEnhancement = true`.
+2. After successful create/attach operations, surface IDs returned so later calls can reference them.
+3. Keep `displayEnhancedText` *action-oriented* (e.g., "VRM 'Alice' created! What next?").
+4. For each visual suggestion, still supply `voiceOverText` summarising outcome (<2 sentences). 

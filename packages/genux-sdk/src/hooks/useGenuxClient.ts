@@ -36,6 +36,8 @@ export function useGenuxClient(options: UseGenuxClientOptions): GenuxClient & {
   streamingMessageId: string | null;
   isStreamingActive: boolean;
   audioStream: MediaStream | null;
+  sendC1Action: (action: { llmFriendlyMessage: string, humanFriendlyMessage: string }) => void;
+  clearMessages: () => void;
 } {
   // Connection service instance stored in a ref to persist across renders
   const connectionServiceRef = useRef<ConnectionService | null>(null);
@@ -63,6 +65,9 @@ export function useGenuxClient(options: UseGenuxClientOptions): GenuxClient & {
   // Audio stream
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
 
+  // Debounce clear for isVoiceLoading so banner stays visible long enough
+  const voiceLoadingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Destructure only the properties from options that should trigger a re-connection
   const { webrtcURL, websocketURL, autoConnect = true } = options;
 
@@ -89,9 +94,20 @@ export function useGenuxClient(options: UseGenuxClientOptions): GenuxClient & {
     const handleStateChange = (state: ConnectionState) => setConnectionState(state);
     const handleVoiceStateChange = (state: VoiceConnectionState | string) => {
       if (state === 'user-stopped') {
+        // User finished speaking – show "preparing" banner
+        if (voiceLoadingTimeoutRef.current) {
+          clearTimeout(voiceLoadingTimeoutRef.current);
+        }
         setIsVoiceLoading(true);
       } else if (state === 'bot-started') {
-        setIsVoiceLoading(false);
+        // Bot starts almost immediately – keep banner for a short time so it is visible
+        if (voiceLoadingTimeoutRef.current) {
+          clearTimeout(voiceLoadingTimeoutRef.current);
+        }
+        voiceLoadingTimeoutRef.current = setTimeout(() => {
+          setIsVoiceLoading(false);
+          voiceLoadingTimeoutRef.current = null;
+        }, 400); // 400 ms gives React a frame to render
       } else if (typeof state === 'string' && ['connected', 'connecting', 'disconnected'].includes(state)) {
         setVoiceState(state as VoiceConnectionState);
       }
@@ -101,7 +117,7 @@ export function useGenuxClient(options: UseGenuxClientOptions): GenuxClient & {
       setIsLoading(false);
       setIsEnhancing(false);
     };
-    const handleTranscription = (transcript: { text: string, final?: boolean, id?: string }) => {
+    const handleTranscription = (_transcript: { text: string, final?: boolean, id?: string }) => {
       // MESSAGE_RECEIVED is already emitted by ConnectionService for the
       // final user transcription, so we no longer need to duplicate the
       // message here.  Keep this handler only for potential side-effects
@@ -112,7 +128,7 @@ export function useGenuxClient(options: UseGenuxClientOptions): GenuxClient & {
       setStreamingContent(data.content);
       setIsStreamingActive(true);
       // Enhancement (slow-path) has now produced its first token,
-      // so we can hide the “Generating enhanced display…” indicator.
+      // so we can hide the "Generating enhanced display…" indicator.
       setIsEnhancing(false);
     };
     const handleStreamingChunk = (data: { id: string, accumulatedContent: string }) => {
@@ -161,6 +177,15 @@ export function useGenuxClient(options: UseGenuxClientOptions): GenuxClient & {
       }
     };
   }, [webrtcURL, websocketURL, autoConnect]); // Only re-run if these fundamental props change
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (voiceLoadingTimeoutRef.current) {
+        clearTimeout(voiceLoadingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   // Send a text message
   const sendText = useCallback((message: string) => {

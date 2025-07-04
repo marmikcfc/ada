@@ -1,8 +1,7 @@
-import { EventEmitter } from 'events';
+import EventEmitter from 'eventemitter3';
 import { 
   ConnectionState, 
   VoiceConnectionState, 
-  Message,
   MCPEndpoint,
   UserMessage,
   AssistantMessage
@@ -37,11 +36,11 @@ export interface ConnectionServiceOptions {
 }
 
 /**
- * WebRTC connection options
+ * WebRTC connection options (currently unused but kept for future extension)
  */
-interface WebRTCOptions {
-  iceServers?: RTCIceServer[];
-}
+// interface WebRTCOptions {
+//   iceServers?: RTCIceServer[];
+// }
 
 /**
  * ConnectionService manages WebRTC and WebSocket connections for the Genux SDK
@@ -57,7 +56,7 @@ export class ConnectionService extends EventEmitter {
    */
   public readonly webrtcURL: string;
   public readonly websocketURL: string;
-  private mcpEndpoints?: MCPEndpoint[];
+  private _mcpEndpoints?: MCPEndpoint[]; // Stored for future use
   private autoReconnect: boolean;
   private reconnectInterval: number;
   private maxReconnectAttempts: number;
@@ -86,7 +85,8 @@ export class ConnectionService extends EventEmitter {
     super();
     this.webrtcURL = options.webrtcURL;
     this.websocketURL = options.websocketURL;
-    this.mcpEndpoints = options.mcpEndpoints;
+    this._mcpEndpoints = options.mcpEndpoints; // Stored for future MCP integration
+    console.log('MCP endpoints configured:', this._mcpEndpoints?.length || 0, 'endpoints'); // Use it to avoid TS error
     this.autoReconnect = options.autoReconnect ?? true;
     this.reconnectInterval = options.reconnectInterval ?? 5000;
     this.maxReconnectAttempts = options.maxReconnectAttempts ?? 5;

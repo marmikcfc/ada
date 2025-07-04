@@ -32,8 +32,8 @@ const CustomChatComposer: React.FC<ExtendedChatComposerProps> = ({
   style,
   className = '',
   isVoiceActive = false,
-  onStartVoiceChat,
-  onStopVoiceChat,
+  onStartVoiceChat: _onStartVoiceChat,
+  onStopVoiceChat: _onStopVoiceChat,
   componentOverrides,
 }) => {
   const [message, setMessage] = useState('');
@@ -147,7 +147,7 @@ const CustomChatComposer: React.FC<ExtendedChatComposerProps> = ({
   };
 
   // Default VoiceButton component
-  const DefaultVoiceButton: React.FC<VoiceButtonProps> = ({ onClick, isConnected, isConnecting }) => (
+  const DefaultVoiceButton: React.FC<VoiceButtonProps> = ({ onClick, isConnected, isConnecting: _isConnecting }) => (
   <button
     className={`genux-connect-voice-button ${isConnected ? 'genux-connected' : ''}`}
     onClick={onClick}

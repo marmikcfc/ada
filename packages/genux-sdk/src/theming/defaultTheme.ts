@@ -94,6 +94,8 @@ export const darkTheme: ThemeTokens = createTheme({
     text: '#f9fafb', // Gray-50
     textSecondary: '#d1d5db', // Gray-300
     border: '#374151', // Gray-700
+    error: '#f87171', // Red-400 (lighter for dark mode)
+    success: '#34d399', // Green-400 (lighter for dark mode)
   },
 });
 

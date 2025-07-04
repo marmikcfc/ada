@@ -3,9 +3,7 @@ import {
   useThreadManager, 
   useThreadListManager,
 } from '@thesysai/genui-sdk';
-import { C1Component } from '@thesysai/genui-sdk';
-import GenerativeUIChat from './GenerativeUIChat';
-import FullscreenLayout from './FullscreenLayout';
+import VoiceBotFullscreenLayout from './VoiceBotFullscreenLayout';
 import '@crayonai/react-ui/styles/index.css';
 
 export interface VoiceBotClientConfig {
@@ -49,6 +47,9 @@ const VoiceBotClient: React.FC<VoiceBotClientProps> = ({ config = {}, onClose })
   const [isLoading, setIsLoading] = useState(false);
   const [isVoiceLoading, setIsVoiceLoading] = useState(false);
   const [isEnhancing, setIsEnhancing] = useState(false);
+  // Pause state and local stream reference
+  const [isVoicePaused, setIsVoicePaused] = useState(false);
+  const localStreamRef = useRef<MediaStream | null>(null);
 
   // Thread list management with stable callbacks
   const threadListManager = useThreadListManager({
@@ -104,6 +105,8 @@ const VoiceBotClient: React.FC<VoiceBotClientProps> = ({ config = {}, onClose })
         audio: true, 
         video: false 
       });
+      
+      localStreamRef.current = stream;
       
       const pc = new RTCPeerConnection({
         iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
@@ -205,6 +208,12 @@ const VoiceBotClient: React.FC<VoiceBotClientProps> = ({ config = {}, onClose })
   }, [config.webrtcURL]);
 
   const disconnectVoice = useCallback(() => {
+    // Ensure tracks are re-enabled next time
+    setIsVoicePaused(false);
+    if (localStreamRef.current) {
+      localStreamRef.current.getAudioTracks().forEach(track => track.stop());
+      localStreamRef.current = null;
+    }
     setVoiceStatus('disconnected');
     setAudioStream(null);
     const disconnectMessage = {
@@ -826,7 +835,7 @@ const VoiceBotClient: React.FC<VoiceBotClientProps> = ({ config = {}, onClose })
     <>
       <audio ref={audioRef} autoPlay style={{ display: 'none' }} />
       
-      <FullscreenLayout
+      <VoiceBotFullscreenLayout
         isVoiceConnected={voiceStatus === 'connected'}
         isVoiceLoading={voiceStatus === 'connecting'}
         onToggleVoice={() => {
@@ -837,7 +846,6 @@ const VoiceBotClient: React.FC<VoiceBotClientProps> = ({ config = {}, onClose })
           }
         }}
         
-        threadManager={threadManager}
         onSendMessage={handleSendTextMessage}
         onC1Action={handleC1ComponentAction}
         isLoading={isLoading}

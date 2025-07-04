@@ -81,10 +81,10 @@ export function useThreadManager(options: UseThreadManagerOptions = {}): UseThre
     enablePersistence = true,
     generateTitle = defaultGenerateTitle,
     maxThreadsInMemory = 100,
-    maxThreads = 50,
+    maxThreads: _maxThreads = 50, // Prefix unused vars with underscore
     autoGenerateTitles = true,
-    showCreateButton = true,
-    allowThreadDeletion = true,
+    showCreateButton: _showCreateButton = true,
+    allowThreadDeletion: _allowThreadDeletion = true,
   } = options;
 
   // State
@@ -334,7 +334,7 @@ export function useThreadManager(options: UseThreadManagerOptions = {}): UseThre
   }, [threads, saveToStorage]);
 
   // Update thread with new message
-  const updateThread = useCallback((threadId: string, message: string, messageId: string): void => {
+  const updateThread = useCallback((threadId: string, message: string, _messageId: string): void => {
     const updatedThreadsMap = new Map(threadsDataRef.current);
     const thread = updatedThreadsMap.get(threadId);
     if (!thread) return;

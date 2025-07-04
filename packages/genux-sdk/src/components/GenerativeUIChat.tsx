@@ -1,11 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useRef, useEffect, useCallback } from 'react';
 import { useThreadManager } from '@thesysai/genui-sdk';
 import { C1Component } from '@thesysai/genui-sdk';
-import '@thesysai/genui-sdk/dist/index.css';
 import { ThemeProvider } from '@crayonai/react-ui';
 import CustomChatComposer from './CustomChatComposer';
 import CustomChatMessage from './CustomChatMessage';
-import { Message } from '../types';
+import { Message, AssistantMessage } from '../types';
 import './GenerativeUIChat.css';
 
 interface GenerativeUIChatProps {
@@ -99,18 +98,21 @@ const GenerativeUIChat: React.FC<GenerativeUIChatProps> = ({
                 {/* Messages Container */}
                 <div className="chat-messages" ref={chatContainerRef}>
                     {messages.map((message, index) => {
-                        const isC1Message = message.c1Content !== undefined;
+                        // Type guard to check if message is AssistantMessage
+                        const isAssistantMessage = message.role === 'assistant';
+                        const assistantMessage = isAssistantMessage ? message as AssistantMessage : null;
+                        
                         return (
                             <CustomChatMessage
                                 key={message.id}
                                 message={message}
                                 isLast={index === messages.length - 1}
                                 isStreaming={(isLoading ?? false) && message.role === 'assistant' && index === messages.length - 1}
-                                hasVoiceOver={Boolean(message.hasVoiceOver)}
+                                hasVoiceOver={Boolean(assistantMessage?.hasVoiceOver)}
                             >
-                                {message.c1Content && (
+                                {assistantMessage?.c1Content && (
                                     <C1Component
-                                        c1Response={message.c1Content!}
+                                        c1Response={assistantMessage.c1Content}
                                         isStreaming={(isLoading ?? false) && message.role === 'assistant' && index === messages.length - 1}
                                         updateMessage={(content: string) => {
                                             console.log('Message update:', content, message.id);

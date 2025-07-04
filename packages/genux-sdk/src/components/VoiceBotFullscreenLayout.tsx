@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import { 
   useThreadManager, 
   useThreadListManager,
@@ -75,7 +75,7 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
   isStreamingActive = false,
   messages = [],
   config = {},
-  onClose
+  onClose: _onClose // Prefixed with underscore to indicate intentionally unused
 }) => {
   // Extract config values with defaults
   const {

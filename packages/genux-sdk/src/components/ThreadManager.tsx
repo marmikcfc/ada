@@ -10,7 +10,7 @@ import { createTheme, themeToCssVars } from '../theming/defaultTheme';
  */
 const ThreadManager: React.FC<ThreadManagerProps> = ({
   threads,
-  activeThreadId,
+  activeThreadId: _activeThreadId, // Received but currently using thread.isActive instead
   onThreadSelect,
   onCreateThread,
   onDeleteThread,
@@ -35,8 +35,8 @@ const ThreadManager: React.FC<ThreadManagerProps> = ({
   // Default options
   const {
     maxThreads = 50,
-    autoGenerateTitles = true,
-    showCreateButton = true,
+    autoGenerateTitles: _autoGenerateTitles = true,
+    showCreateButton: _showCreateButton = true,
     allowThreadDeletion = true,
   } = options;
 
@@ -68,22 +68,7 @@ const ThreadManager: React.FC<ThreadManagerProps> = ({
     color: cssVars['--genux-color-text'],
   };
 
-  // Create button styles
-  const createButtonStyles: CSSProperties = {
-    padding: `${cssVars['--genux-spacing-xs']} ${cssVars['--genux-spacing-sm']}`,
-    backgroundColor: cssVars['--genux-color-primary'],
-    color: '#ffffff',
-    border: 'none',
-    borderRadius: cssVars['--genux-radius-md'],
-    cursor: isCreatingThread ? 'not-allowed' : 'pointer',
-    fontSize: cssVars['--genux-font-size-sm'],
-    fontWeight: '500',
-    opacity: isCreatingThread ? 0.6 : 1,
-    transition: 'opacity 0.2s ease, background-color 0.2s ease',
-    display: 'flex',
-    alignItems: 'center',
-    gap: cssVars['--genux-spacing-xs'],
-  };
+  // Note: Create button styles removed as they're currently unused
 
   // Thread list styles
   const threadListStyles: CSSProperties = {

@@ -35,6 +35,11 @@ export interface FullscreenLayoutProps {
   isVoiceConnected?: boolean;
   isVoiceLoading?: boolean;
   onToggleVoice?: () => void;
+  /** Toggle pause for voice stream */
+  onTogglePause?: () => void;
+  
+  /** Optional threadManager object used by parent components */
+  threadManager?: any;
   
   // Chat content (optional - can be provided by consumer)
   children?: React.ReactNode;
@@ -53,6 +58,9 @@ const FullscreenLayout: React.FC<FullscreenLayoutProps> = ({
   isVoiceConnected = false,
   isVoiceLoading = false,
   onToggleVoice,
+  /** Toggle pause for voice stream */
+  onTogglePause,
+  threadManager: _threadManager,
   children,
   config = {},
   onThreadSelect,
@@ -258,6 +266,7 @@ const FullscreenLayout: React.FC<FullscreenLayoutProps> = ({
           isVoiceConnected={isVoiceConnected}
           isVoiceLoading={isVoiceLoading}
           onToggleVoice={onToggleVoice}
+          onTogglePause={onTogglePause}
           className="fullscreen-blob"
           startCallButtonText={startCallButtonText}
           endCallButtonText={endCallButtonText}

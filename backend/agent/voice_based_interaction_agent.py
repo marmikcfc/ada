@@ -249,8 +249,8 @@ class VoiceInterfaceAgent:
                 transcript.user(),
                 context_aggregator.user(),
                 llm,  # LLM service
-                response_aggregator, # New processor
-                tts,  # Text-To-Speech
+                response_aggregator,
+                tts,   # Then TTS to produce audio
                 pipecat_transport.output(),
                 context_aggregator.assistant(),
             ]
