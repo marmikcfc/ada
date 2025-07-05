@@ -7,6 +7,14 @@ import ChatButton from './ChatButton';
 import FullscreenModal from './FullscreenModal';
 import VoiceBotFullscreenLayout from './VoiceBotFullscreenLayout';
 import { createTheme } from '../theming/defaultTheme';
+/* ------------------------------------------------------------------ *
+ *  Style Imports
+ *  -----------------------------------------------------------------
+ *  1. Official Crayon UI styles (table, typography, layout, etc.)
+ *  2. Existing custom Genux overrides (must come after to ensure
+ *     custom rules can override the base styles if needed)
+ * ------------------------------------------------------------------ */
+import "@crayonai/react-ui/styles/index.css";
 import "./thesys-css.css";
 /**
  * Main Genux component - the entry point for the SDK

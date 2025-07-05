@@ -5,6 +5,9 @@
  * conversational capabilities via a <Genux/> React component.
  */
 
+// Export official styles for consumers who need them
+import '@crayonai/react-ui/styles/index.css';
+
 // Main component
 export { default as Genux } from './components/Genux';
 
@@ -33,8 +36,8 @@ export { useThreadManager } from './hooks/useThreadManager';
 export { default as ChatButton } from './components/ChatButton';
 export { default as BubbleWidget } from './components/BubbleWidget';
 export { default as ChatWindow } from './components/ChatWindow';
-export { default as CustomChatMessage } from './components/CustomChatMessage';
-export { default as CustomChatComposer } from './components/CustomChatComposer';
+export { default as CustomChatMessage } from './components/ChatMessage';
+export { default as CustomChatComposer } from './components/ChatComposer';
 export { default as ThreadManager } from './components/ThreadManager';
 
 // Core services

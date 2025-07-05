@@ -2,8 +2,8 @@ import React, { CSSProperties, useEffect, useRef, useState } from 'react';
 import { ThemeProvider } from '@crayonai/react-ui';
 import { ChatWindowProps, ComponentOverrides } from '../types';
 import { createTheme, themeToCssVars } from '../theming/defaultTheme';
-import CustomChatMessage from './CustomChatMessage';
-import CustomChatComposer from './CustomChatComposer';
+import CustomChatMessage from './ChatMessage';
+import CustomChatComposer from './ChatComposer';
 import ThreadManager from './ThreadManager';
 import { C1Component } from '@thesysai/genui-sdk';
 import { useThreadManager } from '../hooks/useThreadManager';
@@ -365,7 +365,7 @@ const ChatWindow: React.FC<ExtendedChatWindowProps> = ({
   };
   
   return (
-    <ThemeProvider theme={{}}>
+    <ThemeProvider mode="dark">
       <style>{typingDotsStyles}</style>
       <div className={`genux-chat-window ${className}`} style={windowStyles}>
         {/* Header */}

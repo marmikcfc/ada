@@ -40,5 +40,16 @@ export default defineConfig(async () => ({
         ws: true,
       },
     },
+
+    // Allow Vite dev server to serve files from the workspace root
+    // and one level up (needed for CSS imported from node_modules in workspaces)
+    fs: {
+      allow: [
+        // search up for workspace root
+        '..',
+        // allow serving files from workspace root explicitly
+        '/Users/marmikpandya/Desktop/ada',
+      ],
+    },
   },
 }));

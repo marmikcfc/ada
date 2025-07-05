@@ -2,8 +2,8 @@ import React, { useRef, useEffect, useCallback } from 'react';
 import { useThreadManager } from '@thesysai/genui-sdk';
 import { C1Component } from '@thesysai/genui-sdk';
 import { ThemeProvider } from '@crayonai/react-ui';
-import CustomChatComposer from './CustomChatComposer';
-import CustomChatMessage from './CustomChatMessage';
+import CustomChatComposer from './ChatComposer';
+import CustomChatMessage from './ChatMessage';
 import { Message, AssistantMessage } from '../types';
 import './GenerativeUIChat.css';
 

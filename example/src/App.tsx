@@ -9,6 +9,7 @@ import "./App.css";
  */
 import TestPage from "./TestPage";
 import Genux from "../../packages/genux-sdk/src/components/Genux";
+import "@crayonai/react-ui/styles/index.css";
 
 function App() {
   //const [greetMsg, setGreetMsg] = useState("");
