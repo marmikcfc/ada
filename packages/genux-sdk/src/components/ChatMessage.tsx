@@ -48,12 +48,12 @@ const CustomChatMessage: React.FC<ExtendedChatMessageProps> = ({
     borderRadius: cssVars['--genux-radius-lg'],
     backgroundColor: isUser 
       ? cssVars['--genux-color-primary'] 
-      : cssVars['--genux-color-background'],
+      : 'none',
     color: isUser ? '#ffffff' : cssVars['--genux-color-text'],
-    boxShadow: '0 1px 2px rgba(0, 0, 0, 0.1)',
-    border: isUser 
-      ? 'none' 
-      : `1px solid ${cssVars['--genux-color-border']}`,
+    boxShadow: isUser ? '0 1px 2px rgba(0, 0, 0, 0.1)' : 'none',
+    // border: isUser 
+    //   ? 'none' 
+    //   : `1px solid ${cssVars['--genux-color-border']}`,
     wordBreak: 'break-word',
     overflowWrap: 'break-word',
     fontSize: cssVars['--genux-font-size-md'],
