@@ -5,15 +5,13 @@ import {
 } from '@thesysai/genui-sdk';
 import AnimatedBlob from './AnimatedBlob';
 import { ChatWindow } from './composite/ChatWindow';
+import { ThreadList, Thread as CoreThread } from './core/ThreadList';
+import { createTheme } from '../theming/defaultTheme';
 import './FullscreenLayout.css';
 import { Message } from '../types';
 
-interface Thread {
-  threadId: string;
-  title: string;
-  createdAt: Date;
-  messages: any[];
-}
+// Use Core ThreadList interface
+type Thread = CoreThread;
 
 interface VoiceBotFullscreenLayoutConfig {
   // Agent configuration
@@ -94,6 +92,10 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
   
   const [isThreadManagerCollapsed, setIsThreadManagerCollapsed] = useState(false);
   const [threads, setThreads] = useState<Thread[]>([]);
+  const [isCreatingThread, setIsCreatingThread] = useState(false);
+  
+  // Theme setup for ThreadList
+  const mergedTheme = createTheme({});
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
 
   // Thread list management with stable callbacks
@@ -150,20 +152,23 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
 
   // Handle create new thread
   const handleCreateThread = useCallback(() => {
+    setIsCreatingThread(true);
     const newThread: Thread = {
-      threadId: crypto.randomUUID(),
+      id: crypto.randomUUID(),
       title: 'New Conversation',
-      createdAt: new Date(),
-      messages: []
+      messageCount: 0,
+      updatedAt: new Date(),
+      isActive: true
     };
-    setThreads(prev => [newThread, ...prev]);
-    setActiveThreadId(newThread.threadId);
-    console.log('Created new thread:', newThread.threadId);
+    setThreads(prev => [newThread, ...prev.map(t => ({ ...t, isActive: false }))]);
+    setActiveThreadId(newThread.id);
+    setIsCreatingThread(false);
+    console.log('Created new thread:', newThread.id);
   }, []);
 
   // Handle delete thread
   const handleDeleteThread = useCallback((threadId: string) => {
-    setThreads(prev => prev.filter(t => t.threadId !== threadId));
+    setThreads(prev => prev.filter(t => t.id !== threadId));
     if (activeThreadId === threadId) {
       setActiveThreadId(null);
     }
@@ -173,23 +178,11 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
   // Handle rename thread
   const handleRenameThread = useCallback((threadId: string, newTitle: string) => {
     setThreads(prev => prev.map(t => 
-      t.threadId === threadId ? { ...t, title: newTitle } : t
+      t.id === threadId ? { ...t, title: newTitle } : t
     ));
     console.log('Renamed thread:', threadId, 'to:', newTitle);
   }, []);
 
-  // Format relative time for threads
-  const formatRelativeTime = (date: Date): string => {
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
-    if (diffInSeconds < 60) return 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-    
-    return date.toLocaleDateString();
-  };
 
   return (
     <div 
@@ -243,67 +236,23 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
                 </button>
               </div>
               
-              <div className="thread-list">
-                <button className="create-thread-button" onClick={handleCreateThread}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                  New Conversation
-                </button>
-                
-                {threads.length === 0 ? (
-                  <div className="empty-state">
-                    <p>No conversations yet</p>
-                    <p>Start by creating a new conversation above</p>
-                  </div>
-                ) : (
-                  threads.map((thread) => (
-                    <div
-                      key={thread.threadId}
-                      className={`thread-item ${activeThreadId === thread.threadId ? 'active' : ''}`}
-                      onClick={() => handleThreadSelect(thread.threadId)}
-                    >
-                      <div className="thread-content">
-                        <div className="thread-title">{thread.title}</div>
-                        <div className="thread-meta">{formatRelativeTime(thread.createdAt)}</div>
-                      </div>
-                      <div className="thread-actions">
-                        <button
-                          className="action-button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const newTitle = prompt('Enter new title:', thread.title);
-                            if (newTitle && newTitle.trim()) {
-                              handleRenameThread(thread.threadId, newTitle.trim());
-                            }
-                          }}
-                          title="Rename thread"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                        </button>
-                        <button
-                          className="action-button delete"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm('Are you sure you want to delete this conversation?')) {
-                              handleDeleteThread(thread.threadId);
-                            }
-                          }}
-                          title="Delete thread"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="3,6 5,6 21,6" />
-                            <path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
+              {/* Core ThreadList Component */}
+              <div className="thread-list" style={{ height: 'calc(100% - 60px)', overflow: 'hidden' }}>
+                <ThreadList
+                  threads={threads}
+                  activeThreadId={activeThreadId || undefined}
+                  onSelectThread={handleThreadSelect}
+                  onCreateThread={handleCreateThread}
+                  onDeleteThread={handleDeleteThread}
+                  onRenameThread={handleRenameThread}
+                  isCreatingThread={isCreatingThread}
+                  isLoading={false}
+                  allowDeletion={true}
+                  theme={mergedTheme}
+                  style={{
+                    height: '100%',
+                  }}
+                />
               </div>
             </div>
           )}
