@@ -1,8 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { GenuxProps, ChatButtonProps, ChatWindowProps } from '../types';
+import { GenuxProps, ChatButtonProps } from '../types';
 import { useGenuxClient } from '../hooks/useGenuxClient';
-import BubbleWidget from './BubbleWidget';
-import ChatWindow from './ChatWindow';
+import BubbleWidget from './core/BubbleWidget';
+import { MinimizableChatWindow, MinimizableChatWindowProps } from './composite/MinimizableChatWindow';
 import ChatButton from './ChatButton';
 import FullscreenModal from './FullscreenModal';
 import VoiceBotFullscreenLayout from './VoiceBotFullscreenLayout';
@@ -27,7 +27,6 @@ const Genux: React.FC<GenuxProps> = ({
   webrtcURL,
   websocketURL,
   bubbleEnabled = true,
-  showThreadManager = false,
   allowFullScreen = false,
   options = {}
 }) => {
@@ -102,7 +101,7 @@ const Genux: React.FC<GenuxProps> = ({
   
   // Component resolution - use override if provided, otherwise use default
   const ChatButtonComponent = componentOverrides.ChatButton || ChatButton;
-  const ChatWindowComponent = componentOverrides.ChatWindow || ChatWindow;
+  const ChatWindowComponent = componentOverrides.ChatWindow || MinimizableChatWindow;
   
   // Props for the chat button (bubble or regular)
   const chatButtonProps: ChatButtonProps = {
@@ -111,24 +110,25 @@ const Genux: React.FC<GenuxProps> = ({
     theme,
   };
   
-  // Props for the chat window
-  const chatWindowProps: ChatWindowProps = {
-    /* Floating mode when bubbleEnabled === true */
-    isFloating: bubbleEnabled,
-    /* Only provide close handler when operating as floating widget */
-    onClose: bubbleEnabled ? handleChatClose : undefined,
+  // Props for the MinimizableChatWindow
+  const chatWindowProps: MinimizableChatWindowProps = {
     messages: client.messages,
-    isLoading: client.isLoading,
-    isVoiceLoading: client.isVoiceLoading,
-    isEnhancing: client.isEnhancing,
     onSendMessage: client.sendText,
-    onToggleVoice: handleToggleVoice,
-    isVoiceConnected: client.voiceState === 'connected',
+    agentName: options.agentName || "AI Assistant",
+    isLoading: client.isLoading,
+    showVoiceButton: true,
+    onVoiceToggle: handleToggleVoice,
+    isVoiceActive: client.voiceState === 'connected',
     streamingContent: client.streamingContent,
     streamingMessageId: client.streamingMessageId,
     isStreamingActive: client.isStreamingActive,
+    showMinimizeButton: bubbleEnabled, // Only show minimize button in floating mode
+    onMinimizeChange: (isMinimized: boolean) => {
+      if (isMinimized && bubbleEnabled) {
+        handleChatClose();
+      }
+    },
     theme,
-    showThreadManager,
   };
   
   return (
@@ -138,7 +138,7 @@ const Genux: React.FC<GenuxProps> = ({
       
       {/* Chat button - shown only when bubbleEnabled is true and chat is not open */}
       {bubbleEnabled && !isChatOpen && (
-        // Use either the default BubbleWidget or custom ChatButton override
+        // Use either custom ChatButton override or new FloatingWidget
         componentOverrides.ChatButton ? (
           <ChatButtonComponent {...chatButtonProps} />
         ) : (
@@ -155,23 +155,19 @@ const Genux: React.FC<GenuxProps> = ({
       
       {/* Chat window - shown when chat is open or bubbleEnabled is false */}
       {(isChatOpen || !bubbleEnabled) && (
-        <ChatWindowComponent
-          {...chatWindowProps}
-          // Extended props for ChatWindow
-          agentName={options.agentName || "AI Assistant"}
-          logoUrl={options.logoUrl}
-          threadManagerOptions={{
-            enablePersistence: options.threadManager?.enablePersistence ?? true,
-            storageKey: options.threadManager?.storageKey ?? 'genux-chat-threads',
-            maxThreads: options.threadManager?.maxThreads ?? 50,
-            autoGenerateTitles: options.threadManager?.autoGenerateTitles ?? true,
-            showCreateButton: options.threadManager?.showCreateButton ?? true,
-            allowThreadDeletion: options.threadManager?.allowThreadDeletion ?? true,
-            initiallyCollapsed: options.threadManager?.initiallyCollapsed ?? false,
-          }}
-          // Pass component overrides to ChatWindow for sub-components
-          componentOverrides={componentOverrides}
-        />
+        <div style={{
+          position: bubbleEnabled ? 'fixed' : 'relative',
+          bottom: bubbleEnabled ? '20px' : 'auto',
+          right: bubbleEnabled ? '20px' : 'auto',
+          width: bubbleEnabled ? '400px' : '100%',
+          height: bubbleEnabled ? '600px' : '100vh',
+          zIndex: bubbleEnabled ? 10000 : 'auto',
+          boxShadow: bubbleEnabled ? '0 8px 32px rgba(0, 0, 0, 0.2)' : 'none',
+          borderRadius: bubbleEnabled ? '12px' : '0',
+          overflow: 'hidden',
+        }}>
+          <ChatWindowComponent {...(chatWindowProps as any)} />
+        </div>
       )}
       
       {/* Fullscreen modal with VoiceBotClient-style experience */}

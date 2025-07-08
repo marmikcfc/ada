@@ -7,7 +7,6 @@
  */
 
 export { default as DefaultChatButton } from '../ChatButton';
-export { default as DefaultChatWindow } from '../ChatWindow';
 export { default as DefaultChatMessage } from '../ChatMessage';
 export { default as DefaultChatComposer } from '../ChatComposer';
 export { default as DefaultBubbleWidget } from '../BubbleWidget';
@@ -23,7 +22,6 @@ export type {
 } from '../../types';
 
 // Extended props interfaces
-export type { ExtendedChatWindowProps } from '../ChatWindow';
 export type { ExtendedChatComposerProps } from '../ChatComposer';
 export type { ExtendedChatMessageProps } from '../ChatMessage';
 export type { BubbleWidgetProps } from '../BubbleWidget'; 

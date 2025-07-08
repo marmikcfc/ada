@@ -22,7 +22,6 @@ export { default as AnimatedBlob } from './components/AnimatedBlob';
 // Default components (for overriding/extending)
 export {
   DefaultChatButton,
-  DefaultChatWindow,
   DefaultChatMessage,
   DefaultChatComposer,
   DefaultBubbleWidget,
@@ -35,10 +34,15 @@ export { useThreadManager } from './hooks/useThreadManager';
 // Core components for customization
 export { default as ChatButton } from './components/ChatButton';
 export { default as BubbleWidget } from './components/BubbleWidget';
-export { default as ChatWindow } from './components/ChatWindow';
 export { default as CustomChatMessage } from './components/ChatMessage';
 export { default as CustomChatComposer } from './components/ChatComposer';
 export { default as ThreadManager } from './components/ThreadManager';
+
+// New Core Components (Reusable)
+export * from './components/core';
+
+// New Composite Components
+export * from './components/composite';
 
 // Core services
 export { ConnectionService, ConnectionEvent } from './core/ConnectionService';
@@ -95,7 +99,6 @@ export type {
 
 // Extended component props (re-exported from defaults)
 export type {
-  ExtendedChatWindowProps,
   ExtendedChatComposerProps,
   ExtendedChatMessageProps,
   BubbleWidgetProps,
