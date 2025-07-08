@@ -2,6 +2,34 @@
  * Core type definitions for the Genux SDK
  */
 
+// Re-export component prop interfaces for TypeScript support
+export type { ThreadListProps, Thread } from '../components/core/ThreadList';
+export type { ChatWindowProps } from '../components/composite/ChatWindow';
+
+/** VoiceBotUI component props interface */
+export interface VoiceBotUIProps {
+  /** Voice connection state */
+  isVoiceConnected?: boolean;
+  /** Voice loading state */
+  isVoiceLoading?: boolean;
+  /** Voice toggle callback */
+  onToggleVoice?: () => void;
+  /** Agent display name */
+  agentName?: string;
+  /** Agent subtitle text */
+  agentSubtitle?: string;
+  /** Start call button text */
+  startCallButtonText?: string;
+  /** End call button text */
+  endCallButtonText?: string;
+  /** Connecting state text */
+  connectingText?: string;
+  /** CSS class name */
+  className?: string;
+  /** Inline styles */
+  style?: React.CSSProperties;
+}
+
 /**
  * Main props interface for the Genux component
  */
@@ -16,6 +44,8 @@ export interface GenuxProps {
   showThreadManager?: boolean;
   /** Whether to allow fullscreen mode (shows fullscreen button in bubble hover menu) */
   allowFullScreen?: boolean;
+  /** Whether to disable all voice features for chat-only mode */
+  disableVoice?: boolean;
   /** Additional configuration options */
   options?: GenuxOptions;
 }
@@ -79,6 +109,28 @@ export interface GenuxOptions {
     initiallyCollapsed?: boolean;
     /** Custom thread title generator function */
     generateTitle?: (firstMessage: string) => string;
+  };
+  
+  /** Custom component overrides for fullscreen mode */
+  fullscreenComponents?: {
+    /** Custom ThreadList component for left column */
+    ThreadList?: React.ComponentType<ThreadListProps>;
+    /** Custom VoiceBotUI component for center column */
+    VoiceBotUI?: React.ComponentType<VoiceBotUIProps>;
+    /** Custom ChatWindow component for right column */
+    ChatWindow?: React.ComponentType<ChatWindowProps>;
+  };
+  
+  /** Layout configuration for fullscreen mode */
+  fullscreenLayout?: {
+    /** Show/hide left column (ThreadList) */
+    showThreadList?: boolean;
+    /** Show/hide center column (VoiceBotUI) */
+    showVoiceBot?: boolean;
+    /** Show/hide right column (ChatWindow) */
+    showChatWindow?: boolean;
+    /** Custom column widths (e.g., "300px auto 400px") */
+    columnWidths?: string;
   };
 }
 

@@ -3,7 +3,7 @@ import {
   useThreadManager, 
   useThreadListManager,
 } from '@thesysai/genui-sdk';
-import AnimatedBlob from '../core/AnimatedBlob';
+import VoiceBotUI from '../core/VoiceBotUI';
 import { ChatWindow } from './ChatWindow';
 import { ThreadList, Thread as CoreThread } from '../core/ThreadList';
 import { createTheme } from '../../theming/defaultTheme';
@@ -56,6 +56,21 @@ interface VoiceBotFullscreenLayoutProps {
   // Configuration
   config?: VoiceBotFullscreenLayoutConfig;
   
+  // Component overrides
+  componentOverrides?: {
+    ThreadList?: React.ComponentType<any>;
+    VoiceBotUI?: React.ComponentType<any>;
+    ChatWindow?: React.ComponentType<any>;
+  };
+  
+  // Layout configuration
+  layoutConfig?: {
+    showThreadList?: boolean;
+    showVoiceBot?: boolean;
+    showChatWindow?: boolean;
+    columnWidths?: string;
+  };
+  
   // Close handler
   onClose?: () => void;
 }
@@ -73,6 +88,8 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
   isStreamingActive = false,
   messages = [],
   config = {},
+  componentOverrides = {},
+  layoutConfig = {},
   onClose: _onClose // Prefixed with underscore to indicate intentionally unused
 }) => {
   // Extract config values with defaults
@@ -89,6 +106,19 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
     endCallButtonText = "End call",
     connectingText = "Connecting...",
   } = config;
+  
+  // Component resolution - use override if provided, otherwise use default
+  const ThreadListComponent = componentOverrides.ThreadList || ThreadList;
+  const VoiceBotUIComponent = componentOverrides.VoiceBotUI || VoiceBotUI;
+  const ChatWindowComponent = componentOverrides.ChatWindow || ChatWindow;
+  
+  // Layout configuration with defaults
+  const {
+    showThreadList = true,
+    showVoiceBot = true,
+    showChatWindow = true,
+    columnWidths = "300px 1fr 400px"
+  } = layoutConfig;
   
   const [isThreadManagerCollapsed, setIsThreadManagerCollapsed] = useState(false);
   const [threads, setThreads] = useState<Thread[]>([]);
@@ -191,10 +221,11 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
         background: backgroundColor,
         '--primary-color': primaryColor,
         '--accent-color': accentColor,
+        gridTemplateColumns: columnWidths,
       } as React.CSSProperties}
     >
       {/* Left Column - Thread Manager */}
-      {enableThreadManager && (
+      {showThreadList && enableThreadManager && (
         <div className={`thread-manager-column ${isThreadManagerCollapsed ? 'collapsed' : 'expanded'}`}>
           {isThreadManagerCollapsed ? (
             // Collapsed view
@@ -236,9 +267,9 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
                 </button>
               </div>
               
-              {/* Core ThreadList Component */}
+              {/* ThreadList Component (with override support) */}
               <div className="thread-list" style={{ height: 'calc(100% - 60px)', overflow: 'hidden' }}>
-                <ThreadList
+                <ThreadListComponent
                   threads={threads}
                   activeThreadId={activeThreadId || undefined}
                   onSelectThread={handleThreadSelect}
@@ -259,28 +290,26 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
         </div>
       )}
 
-      {/* Middle Column - 3D Blob */}
-      <div className="blob-column">
-        <AnimatedBlob
-          isVoiceConnected={isVoiceConnected}
-          isVoiceLoading={isVoiceLoading}
-          onToggleVoice={onToggleVoice}
-          className="fullscreen-blob"
-          startCallButtonText={startCallButtonText}
-          endCallButtonText={endCallButtonText}
-          connectingText={connectingText}
-        />
-        
-        {/* Agent name display */}
-        <div className="agent-branding" style={{ marginTop: '48px' }}>
-          <h1 className="agent-name">{agentName}</h1>
-          <p className="agent-subtitle">{agentSubtitle}</p>
+      {/* Middle Column - Voice Bot UI */}
+      {showVoiceBot && (
+        <div className="blob-column">
+          <VoiceBotUIComponent
+            isVoiceConnected={isVoiceConnected}
+            isVoiceLoading={isVoiceLoading}
+            onToggleVoice={onToggleVoice}
+            agentName={agentName}
+            agentSubtitle={agentSubtitle}
+            startCallButtonText={startCallButtonText}
+            endCallButtonText={endCallButtonText}
+            connectingText={connectingText}
+          />
         </div>
-      </div>
+      )}
 
       {/* Right Column - Chat Window */}
-      <div className="chat-column">
-        <ChatWindow
+      {showChatWindow && (
+        <div className="chat-column">
+          <ChatWindowComponent
           messages={messages}
           onSendMessage={onSendMessage || (() => {})}
           agentName={agentName}
@@ -306,7 +335,8 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
             boxShadow: 'none'
           }}
         />
-      </div>
+        </div>
+      )}
     </div>
   );
 };

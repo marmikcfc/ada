@@ -15,6 +15,8 @@ export interface BubbleWidgetProps {
   onFullScreenClick?: () => void;
   /** Whether to show the fullscreen button */
   allowFullScreen?: boolean;
+  /** Whether to show the voice/mic button */
+  showVoiceButton?: boolean;
   /** Custom theme */
   theme?: any;
   /** Additional CSS styles */
@@ -35,6 +37,7 @@ const BubbleWidget: React.FC<BubbleWidgetProps> = ({
   isMicActive,
   onFullScreenClick,
   allowFullScreen = false,
+  showVoiceButton = true,
   theme,
   style,
   className = '',
@@ -274,14 +277,16 @@ const BubbleWidget: React.FC<BubbleWidgetProps> = ({
         </div>
         
         {/* Mic button - positioned below the main bubble */}
-        <button 
-          className={`control-button ${isMicActive ? 'mic-active' : ''}`}
-          style={micControlStyles}
-          onClick={onMicToggle}
-          aria-label={isMicActive ? "Stop recording" : "Start recording"}
-        >
-          {micIcon}
-        </button>
+        {showVoiceButton && (
+          <button 
+            className={`control-button ${isMicActive ? 'mic-active' : ''}`}
+            style={micControlStyles}
+            onClick={onMicToggle}
+            aria-label={isMicActive ? "Stop recording" : "Start recording"}
+          >
+            {micIcon}
+          </button>
+        )}
       </div>
     </>
   );

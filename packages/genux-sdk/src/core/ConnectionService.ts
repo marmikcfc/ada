@@ -27,7 +27,7 @@ export enum ConnectionEvent {
  * Options for the ConnectionService
  */
 export interface ConnectionServiceOptions {
-  webrtcURL: string;
+  webrtcURL?: string;
   websocketURL: string;
   mcpEndpoints?: MCPEndpoint[];
   autoReconnect?: boolean;
@@ -54,7 +54,7 @@ export class ConnectionService extends EventEmitter {
    * Mark them as **public readonly** so they can be inspected but never
    * mutated from the outside.
    */
-  public readonly webrtcURL: string;
+  public readonly webrtcURL?: string;
   public readonly websocketURL: string;
   private _mcpEndpoints?: MCPEndpoint[]; // Stored for future use
   private autoReconnect: boolean;
@@ -124,6 +124,11 @@ export class ConnectionService extends EventEmitter {
    * Initialize WebRTC connection for voice
    */
   public async connectVoice(): Promise<void> {
+    if (!this.webrtcURL) {
+      console.log('Voice is disabled (no webrtcURL provided)');
+      return;
+    }
+
     if (this.voiceState === 'connected' || this.voiceState === 'connecting') {
       console.log('Voice already connected or connecting');
       return;
