@@ -4,7 +4,7 @@ import {
   useThreadListManager,
 } from '@thesysai/genui-sdk';
 import AnimatedBlob from './AnimatedBlob';
-import GenerativeUIChat from './GenerativeUIChat';
+import { ChatWindow } from './composite/ChatWindow';
 import './FullscreenLayout.css';
 import { Message } from '../types';
 
@@ -69,7 +69,7 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
   onSendMessage,
   onC1Action,
   isLoading = false,
-  isEnhancing = false,
+  isEnhancing: _isEnhancing = false,
   streamingContent = '',
   streamingMessageId = null,
   isStreamingActive = false,
@@ -124,8 +124,8 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
     }, [])
   });
 
-  // Thread management with stable callbacks
-  const threadManager = useThreadManager({
+  // Thread management with stable callbacks (keeping for potential future use)
+  useThreadManager({
     threadListManager,
     loadThread: useCallback((threadId) => {
       console.log('Loading thread:', threadId);
@@ -331,32 +331,32 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
 
       {/* Right Column - Chat Window */}
       <div className="chat-column">
-        <div className="chat-header">
-          <div className="chat-header-content">
-            {logoUrl && <img src={logoUrl} alt={`${agentName} logo`} className="chat-logo" />}
-            <span className="chat-agent-name">{agentName}</span>
-          </div>
-        </div>
-        
-        <div className="chat-content">
-          <GenerativeUIChat
-            threadManager={threadManager}
-            agentName={agentName}
-            logoUrl={logoUrl}
-            messages={messages}
-            onSendMessage={onSendMessage}
-            onC1Action={onC1Action}
-            onToggleVoiceConnection={onToggleVoice}
-            isVoiceConnected={isVoiceConnected}
-            isVoiceConnectionLoading={isVoiceLoading}
-            isLoading={isLoading}
-            isVoiceLoading={isVoiceLoading}
-            isEnhancing={isEnhancing}
-            streamingContent={streamingContent}
-            streamingMessageId={streamingMessageId}
-            isStreamingActive={isStreamingActive}
-          />
-        </div>
+        <ChatWindow
+          messages={messages}
+          onSendMessage={onSendMessage || (() => {})}
+          agentName={agentName}
+          isLoading={isLoading}
+          showVoiceButton={true}
+          onVoiceToggle={onToggleVoice}
+          isVoiceActive={isVoiceConnected}
+          streamingContent={streamingContent}
+          streamingMessageId={streamingMessageId}
+          isStreamingActive={isStreamingActive}
+          onC1Action={onC1Action}
+          showMinimizeButton={false}
+          header={
+            <div className="chat-header-content">
+              {logoUrl && <img src={logoUrl} alt={`${agentName} logo`} className="chat-logo" />}
+              <span className="chat-agent-name">{agentName}</span>
+            </div>
+          }
+          style={{
+            height: '100%',
+            border: 'none',
+            borderRadius: '0',
+            boxShadow: 'none'
+          }}
+        />
       </div>
     </div>
   );
