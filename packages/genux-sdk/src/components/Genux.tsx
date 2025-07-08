@@ -5,7 +5,7 @@ import BubbleWidget from './core/BubbleWidget';
 import { MinimizableChatWindow, MinimizableChatWindowProps } from './composite/MinimizableChatWindow';
 import ChatButton from './ChatButton';
 import FullscreenModal from './FullscreenModal';
-import VoiceBotFullscreenLayout from './VoiceBotFullscreenLayout';
+import VoiceBotFullscreenLayout from './composite/VoiceBotFullscreenLayout';
 import { createTheme } from '../theming/defaultTheme';
 /* ------------------------------------------------------------------ *
  *  Style Imports

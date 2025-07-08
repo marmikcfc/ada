@@ -8,7 +8,7 @@ import "./App.css";
  * having to rebuild the SDK bundle each change.
  */
 import TestPage from "./TestPage";
-import ExampleWithNewComponents from "./ExampleWithNewComponents";
+// import ExampleWithNewComponents from "./ExampleWithNewComponents";
 import Genux from "../../packages/genux-sdk/src/components/Genux";
 import "@crayonai/react-ui/styles/index.css";
 
@@ -27,7 +27,7 @@ function App() {
       {/* <ExampleWithNewComponents /> */}
       
       {/* Legacy demos - commented out to show new architecture */}
-      {/* <TestPage /> */}
+      <TestPage />
       
        {/* Original Genux SDK Component - Now uses new FloatingWidget internally */}
        <Genux

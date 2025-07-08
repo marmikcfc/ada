@@ -12,18 +12,16 @@ import '@crayonai/react-ui/styles/index.css';
 export { default as Genux } from './components/Genux';
 
 // Fullscreen components
-export { default as FullscreenLayout } from './components/FullscreenLayout';
-export { default as FullscreenModal } from './components/FullscreenModal';
-export { default as VoiceBotFullscreenLayout } from './components/VoiceBotFullscreenLayout';
-export { default as AnimatedBlob } from './components/AnimatedBlob';
+export { default as VoiceBotFullscreenLayout } from './components/composite/VoiceBotFullscreenLayout';
+export { default as AnimatedBlob } from './components/core/AnimatedBlob';
 
 // Note: FullscreenModal has been replaced by FullscreenLayout
 
 // Default components (for overriding/extending)
 export {
   DefaultChatButton,
-  DefaultChatMessage,
-  DefaultChatComposer,
+  // DefaultChatMessage,
+  // DefaultChatComposer,
   DefaultBubbleWidget,
 } from './components/defaults';
 
@@ -33,10 +31,9 @@ export { useThreadManager } from './hooks/useThreadManager';
 
 // Core components for customization
 export { default as ChatButton } from './components/ChatButton';
-export { default as BubbleWidget } from './components/BubbleWidget';
-export { default as CustomChatMessage } from './components/ChatMessage';
-export { default as CustomChatComposer } from './components/ChatComposer';
-export { default as ThreadManager } from './components/ThreadManager';
+export { default as BubbleWidget } from './components/core/BubbleWidget';
+// export { default as CustomChatMessage } from './components/ChatMessage';
+// export { default as CustomChatComposer } from './components/ChatComposer';
 
 // New Core Components (Reusable)
 export * from './components/core';
@@ -99,18 +96,12 @@ export type {
 
 // Extended component props (re-exported from defaults)
 export type {
-  ExtendedChatComposerProps,
-  ExtendedChatMessageProps,
+  // ExtendedChatComposerProps,
+  // ExtendedChatMessageProps,
   BubbleWidgetProps,
 } from './components/defaults';
 
 // Note: FullscreenModalProps has been replaced by FullscreenLayoutProps
-
-// Fullscreen layout props and configuration
-export type { 
-  FullscreenLayoutProps, 
-  FullscreenLayoutConfig 
-} from './components/FullscreenLayout';
 
 // Export thread manager hook types
 export type {

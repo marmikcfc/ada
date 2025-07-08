@@ -1,15 +1,19 @@
 import React, { useState, useCallback } from 'react';
-import AnimatedBlob from './AnimatedBlob';
-import './FullscreenLayout.css';
+import { 
+  useThreadManager, 
+  useThreadListManager,
+} from '@thesysai/genui-sdk';
+import AnimatedBlob from '../core/AnimatedBlob';
+import { ChatWindow } from './ChatWindow';
+import { ThreadList, Thread as CoreThread } from '../core/ThreadList';
+import { createTheme } from '../../theming/defaultTheme';
+import '../FullscreenLayout.css';
+import { Message } from '../../types';
 
-interface Thread {
-  threadId: string;
-  title: string;
-  createdAt: Date;
-  messages: any[];
-}
+// Use Core ThreadList interface
+type Thread = CoreThread;
 
-export interface FullscreenLayoutConfig {
+interface VoiceBotFullscreenLayoutConfig {
   // Agent configuration
   agentName?: string;
   agentSubtitle?: string;
@@ -28,51 +32,54 @@ export interface FullscreenLayoutConfig {
   startCallButtonText?: string;
   endCallButtonText?: string;
   connectingText?: string;
+  webrtcURL?: string;
+  websocketURL?: string;
 }
 
-export interface FullscreenLayoutProps {
+interface VoiceBotFullscreenLayoutProps {
   // Voice state
   isVoiceConnected?: boolean;
   isVoiceLoading?: boolean;
   onToggleVoice?: () => void;
-  /** Toggle pause for voice stream */
-  onTogglePause?: () => void;
   
-  /** Optional threadManager object used by parent components */
-  threadManager?: any;
-  
-  // Chat content (optional - can be provided by consumer)
-  children?: React.ReactNode;
+  // Chat state
+  onSendMessage?: (message: string) => void;
+  onC1Action?: (action: any) => void;
+  isLoading?: boolean;
+  isEnhancing?: boolean;
+  streamingContent?: string;
+  streamingMessageId?: string | null;
+  isStreamingActive?: boolean;
+  /** List of chat messages from GenuxClient */
+  messages?: Message[];
   
   // Configuration
-  config?: FullscreenLayoutConfig;
+  config?: VoiceBotFullscreenLayoutConfig;
   
-  // Optional callbacks for thread management
-  onThreadSelect?: (threadId: string) => void;
-  onThreadCreate?: () => string; // returns new thread ID
-  onThreadDelete?: (threadId: string) => void;
-  onThreadRename?: (threadId: string, newTitle: string) => void;
+  // Close handler
+  onClose?: () => void;
 }
 
-const FullscreenLayout: React.FC<FullscreenLayoutProps> = ({
+const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
   isVoiceConnected = false,
   isVoiceLoading = false,
   onToggleVoice,
-  /** Toggle pause for voice stream */
-  onTogglePause,
-  threadManager: _threadManager,
-  children,
+  onSendMessage,
+  onC1Action,
+  isLoading = false,
+  isEnhancing: _isEnhancing = false,
+  streamingContent = '',
+  streamingMessageId = null,
+  isStreamingActive = false,
+  messages = [],
   config = {},
-  onThreadSelect,
-  onThreadCreate,
-  onThreadDelete,
-  onThreadRename,
+  onClose: _onClose // Prefixed with underscore to indicate intentionally unused
 }) => {
   // Extract config values with defaults
   const {
-    agentName = "AI Assistant",
+    agentName = "Ada",
     agentSubtitle = "How can I help you today?",
-    logoUrl,
+    logoUrl = "/favicon.ico",
     backgroundColor = "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
     primaryColor = "#667eea",
     accentColor = "#5a67d8",
@@ -85,7 +92,52 @@ const FullscreenLayout: React.FC<FullscreenLayoutProps> = ({
   
   const [isThreadManagerCollapsed, setIsThreadManagerCollapsed] = useState(false);
   const [threads, setThreads] = useState<Thread[]>([]);
+  const [isCreatingThread, setIsCreatingThread] = useState(false);
+  
+  // Theme setup for ThreadList
+  const mergedTheme = createTheme({});
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+
+  // Thread list management with stable callbacks
+  const threadListManager = useThreadListManager({
+    fetchThreadList: useCallback(() => Promise.resolve([]), []),
+    deleteThread: useCallback((threadId) => {
+      console.log('Deleting thread:', threadId);
+      return Promise.resolve();
+    }, []),
+    updateThread: useCallback((thread) => {
+      console.log('Updating thread:', thread);
+      return Promise.resolve(thread);
+    }, []),
+    onSwitchToNew: useCallback(() => {
+      console.log('Starting new voice conversation');
+    }, []),
+    onSelectThread: useCallback((threadId) => {
+      console.log('Selected thread:', threadId);
+    }, []),
+    createThread: useCallback((message) => {
+      console.log('Creating new thread for message:', message);
+      return Promise.resolve({
+        threadId: crypto.randomUUID(),
+        title: 'Voice Chat Session',
+        createdAt: new Date(),
+        messages: []
+      });
+    }, [])
+  });
+
+  // Thread management with stable callbacks (keeping for potential future use)
+  useThreadManager({
+    threadListManager,
+    loadThread: useCallback((threadId) => {
+      console.log('Loading thread:', threadId);
+      return Promise.resolve([]); 
+    }, []),
+    onUpdateMessage: useCallback(({ message }) => {
+      console.log('Message updated:', message);
+    }, []),
+    apiUrl: '/api/chat',
+  });
 
   // Toggle thread manager collapse
   const toggleThreadManagerCollapse = useCallback(() => {
@@ -95,51 +147,42 @@ const FullscreenLayout: React.FC<FullscreenLayoutProps> = ({
   // Handle thread selection
   const handleThreadSelect = useCallback((threadId: string) => {
     setActiveThreadId(threadId);
-    onThreadSelect?.(threadId);
-  }, [onThreadSelect]);
+    console.log('Selected thread:', threadId);
+  }, []);
 
   // Handle create new thread
   const handleCreateThread = useCallback(() => {
-    const newThreadId = onThreadCreate ? onThreadCreate() : crypto.randomUUID();
+    setIsCreatingThread(true);
     const newThread: Thread = {
-      threadId: newThreadId,
+      id: crypto.randomUUID(),
       title: 'New Conversation',
-      createdAt: new Date(),
-      messages: []
+      messageCount: 0,
+      updatedAt: new Date(),
+      isActive: true
     };
-    setThreads(prev => [newThread, ...prev]);
-    setActiveThreadId(newThread.threadId);
-  }, [onThreadCreate]);
+    setThreads(prev => [newThread, ...prev.map(t => ({ ...t, isActive: false }))]);
+    setActiveThreadId(newThread.id);
+    setIsCreatingThread(false);
+    console.log('Created new thread:', newThread.id);
+  }, []);
 
   // Handle delete thread
   const handleDeleteThread = useCallback((threadId: string) => {
-    setThreads(prev => prev.filter(t => t.threadId !== threadId));
+    setThreads(prev => prev.filter(t => t.id !== threadId));
     if (activeThreadId === threadId) {
       setActiveThreadId(null);
     }
-    onThreadDelete?.(threadId);
-  }, [activeThreadId, onThreadDelete]);
+    console.log('Deleted thread:', threadId);
+  }, [activeThreadId]);
 
   // Handle rename thread
   const handleRenameThread = useCallback((threadId: string, newTitle: string) => {
     setThreads(prev => prev.map(t => 
-      t.threadId === threadId ? { ...t, title: newTitle } : t
+      t.id === threadId ? { ...t, title: newTitle } : t
     ));
-    onThreadRename?.(threadId, newTitle);
-  }, [onThreadRename]);
+    console.log('Renamed thread:', threadId, 'to:', newTitle);
+  }, []);
 
-  // Format relative time for threads
-  const formatRelativeTime = (date: Date): string => {
-    const now = new Date();
-    const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
-    if (diffInSeconds < 60) return 'Just now';
-    if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}m ago`;
-    if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}h ago`;
-    if (diffInSeconds < 604800) return `${Math.floor(diffInSeconds / 86400)}d ago`;
-    
-    return date.toLocaleDateString();
-  };
 
   return (
     <div 
@@ -193,67 +236,23 @@ const FullscreenLayout: React.FC<FullscreenLayoutProps> = ({
                 </button>
               </div>
               
-              <div className="thread-list">
-                <button className="create-thread-button" onClick={handleCreateThread}>
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <line x1="12" y1="5" x2="12" y2="19"></line>
-                    <line x1="5" y1="12" x2="19" y2="12"></line>
-                  </svg>
-                  New Conversation
-                </button>
-                
-                {threads.length === 0 ? (
-                  <div className="empty-state">
-                    <p>No conversations yet</p>
-                    <p>Start by creating a new conversation above</p>
-                  </div>
-                ) : (
-                  threads.map((thread) => (
-                    <div
-                      key={thread.threadId}
-                      className={`thread-item ${activeThreadId === thread.threadId ? 'active' : ''}`}
-                      onClick={() => handleThreadSelect(thread.threadId)}
-                    >
-                      <div className="thread-content">
-                        <div className="thread-title">{thread.title}</div>
-                        <div className="thread-meta">{formatRelativeTime(thread.createdAt)}</div>
-                      </div>
-                      <div className="thread-actions">
-                        <button
-                          className="action-button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            const newTitle = prompt('Enter new title:', thread.title);
-                            if (newTitle && newTitle.trim()) {
-                              handleRenameThread(thread.threadId, newTitle.trim());
-                            }
-                          }}
-                          title="Rename thread"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                        </button>
-                        <button
-                          className="action-button delete"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (window.confirm('Are you sure you want to delete this conversation?')) {
-                              handleDeleteThread(thread.threadId);
-                            }
-                          }}
-                          title="Delete thread"
-                        >
-                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                            <polyline points="3,6 5,6 21,6" />
-                            <path d="M19,6v14a2,2,0,0,1-2,2H7a2,2,0,0,1-2-2V6m3,0V4a2,2,0,0,1,2-2h4a2,2,0,0,1,2,2V6" />
-                          </svg>
-                        </button>
-                      </div>
-                    </div>
-                  ))
-                )}
+              {/* Core ThreadList Component */}
+              <div className="thread-list" style={{ height: 'calc(100% - 60px)', overflow: 'hidden' }}>
+                <ThreadList
+                  threads={threads}
+                  activeThreadId={activeThreadId || undefined}
+                  onSelectThread={handleThreadSelect}
+                  onCreateThread={handleCreateThread}
+                  onDeleteThread={handleDeleteThread}
+                  onRenameThread={handleRenameThread}
+                  isCreatingThread={isCreatingThread}
+                  isLoading={false}
+                  allowDeletion={true}
+                  theme={mergedTheme}
+                  style={{
+                    height: '100%',
+                  }}
+                />
               </div>
             </div>
           )}
@@ -266,7 +265,6 @@ const FullscreenLayout: React.FC<FullscreenLayoutProps> = ({
           isVoiceConnected={isVoiceConnected}
           isVoiceLoading={isVoiceLoading}
           onToggleVoice={onToggleVoice}
-          onTogglePause={onTogglePause}
           className="fullscreen-blob"
           startCallButtonText={startCallButtonText}
           endCallButtonText={endCallButtonText}
@@ -274,7 +272,7 @@ const FullscreenLayout: React.FC<FullscreenLayoutProps> = ({
         />
         
         {/* Agent name display */}
-        <div className="agent-branding">
+        <div className="agent-branding" style={{ marginTop: '48px' }}>
           <h1 className="agent-name">{agentName}</h1>
           <p className="agent-subtitle">{agentSubtitle}</p>
         </div>
@@ -282,37 +280,35 @@ const FullscreenLayout: React.FC<FullscreenLayoutProps> = ({
 
       {/* Right Column - Chat Window */}
       <div className="chat-column">
-        <div className="chat-header">
-          <div className="chat-header-content">
-            {logoUrl && <img src={logoUrl} alt={`${agentName} logo`} className="chat-logo" />}
-            <span className="chat-agent-name">{agentName}</span>
-          </div>
-        </div>
-        
-        <div className="chat-content">
-          {children || (
-            <div style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              height: '100%',
-              color: '#6b7280',
-              fontSize: '14px',
-              textAlign: 'center',
-              padding: '20px',
-            }}>
-              <div>
-                <p>Chat interface ready</p>
-                <p style={{ marginTop: '8px', fontSize: '12px' }}>
-                  Provide children to this component to render your chat interface
-                </p>
-              </div>
+        <ChatWindow
+          messages={messages}
+          onSendMessage={onSendMessage || (() => {})}
+          agentName={agentName}
+          isLoading={isLoading}
+          showVoiceButton={true}
+          onVoiceToggle={onToggleVoice}
+          isVoiceActive={isVoiceConnected}
+          streamingContent={streamingContent}
+          streamingMessageId={streamingMessageId}
+          isStreamingActive={isStreamingActive}
+          onC1Action={onC1Action}
+          showMinimizeButton={false}
+          header={
+            <div className="chat-header-content">
+              {logoUrl && <img src={logoUrl} alt={`${agentName} logo`} className="chat-logo" />}
+              <span className="chat-agent-name">{agentName}</span>
             </div>
-          )}
-        </div>
+          }
+          style={{
+            height: '100%',
+            border: 'none',
+            borderRadius: '0',
+            boxShadow: 'none'
+          }}
+        />
       </div>
     </div>
   );
 };
 
-export default FullscreenLayout; 
+export default VoiceBotFullscreenLayout; 
