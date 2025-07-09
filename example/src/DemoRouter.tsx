@@ -1,20 +1,18 @@
 import React, { useState } from 'react';
 import SaaSOnboardingDemo from './demos/SaaSOnboardingDemo';
 import ChatOnlyDemo from './demos/ChatOnlyDemo';
-import VoiceBotDemo from './demos/VoiceBotDemo';
-import CustomUIDemo from './demos/CustomUIDemo';
 import StandaloneVoiceBotDemo from './demos/StandaloneVoiceBotDemo';
-import VoiceFirstModeDemo from './demos/VoiceFirstModeDemo';
 import CustomFullscreenDemo from './demos/CustomFullscreenDemo';
+import VoiceOnlyDemo from './demos/VoiceOnlyDemo';
 
 /**
  * Demo Router Component
  * 
- * Provides navigation between the 7 demo use cases to showcase
+ * Provides navigation between the 5 demo use cases to showcase
  * the GenUX SDK's capabilities for different scenarios.
  */
 
-type DemoType = 'saas' | 'chat' | 'voice' | 'custom' | 'standalone' | 'voicefirst' | 'customfullscreen';
+type DemoType = 'saas' | 'chat' | 'standalone' | 'customfullscreen' | 'voiceonly';
 
 interface Demo {
   id: DemoType;
@@ -43,36 +41,12 @@ const demos: Demo[] = [
     component: ChatOnlyDemo
   },
   {
-    id: 'voice',
-    title: 'Voice Bot Experience',
-    description: 'Voice-focused interaction with fullscreen mode',
-    icon: '🎤',
-    status: 'partial',
-    component: VoiceBotDemo
-  },
-  {
-    id: 'custom',
-    title: 'Custom UI Design',
-    description: 'Complete component customization and theming',
-    icon: '🎨',
-    status: 'supported',
-    component: CustomUIDemo
-  },
-  {
     id: 'standalone',
-    title: 'Standalone VoiceBot UI',
-    description: 'Modular VoiceBotUI component in isolation',
+    title: 'Customized VoiceBot UI',
+    description: 'Modular VoiceBotUI component with real backend connections',
     icon: '🎯',
     status: 'supported',
     component: StandaloneVoiceBotDemo
-  },
-  {
-    id: 'voicefirst',
-    title: 'Voice-First Mode',
-    description: 'Immersive fullscreen voice experience with voiceFirstMode=true',
-    icon: '🌐',
-    status: 'supported',
-    component: VoiceFirstModeDemo
   },
   {
     id: 'customfullscreen',
@@ -81,6 +55,14 @@ const demos: Demo[] = [
     icon: '🎨',
     status: 'supported',
     component: CustomFullscreenDemo
+  },
+  {
+    id: 'voiceonly',
+    title: 'Voice-Only Interface',
+    description: 'Pure voice interaction without any chat UI - voice-first experience',
+    icon: '🎙️',
+    status: 'supported',
+    component: VoiceOnlyDemo
   }
 ];
 

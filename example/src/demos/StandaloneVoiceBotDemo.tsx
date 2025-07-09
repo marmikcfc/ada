@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { VoiceBotUI } from '../../../packages/genux-sdk/src/components/core';
 import VoiceBotFullscreenLayout from '../../../packages/genux-sdk/src/components/composite/VoiceBotFullscreenLayout';
 import { useGenuxClient } from '../../../packages/genux-sdk/src/hooks/useGenuxClient';
@@ -13,12 +13,23 @@ import { useGenuxClient } from '../../../packages/genux-sdk/src/hooks/useGenuxCl
 const StandaloneVoiceBotDemo: React.FC = () => {
   const [showSimpleUI, setShowSimpleUI] = useState(true);
   
+  // Audio element for voice playback - this is the missing piece!
+  const audioRef = useRef<HTMLAudioElement>(null);
+  
   // Initialize real GenUX client with backend connections
   const client = useGenuxClient({
     webrtcURL: '/api/offer',
     websocketURL: '/ws/messages',
     autoConnect: true
   });
+
+  // Apply audio stream to audio element when available - same as Genux component
+  useEffect(() => {
+    if (audioRef.current && client.audioStream) {
+      console.log('🔊 Connecting audio stream to audio element for playback');
+      audioRef.current.srcObject = client.audioStream;
+    }
+  }, [client.audioStream]);
 
   const handleVoiceToggle = () => {
     if (client.voiceState === 'connected') {
@@ -44,6 +55,9 @@ const StandaloneVoiceBotDemo: React.FC = () => {
       alignItems: 'center',
       position: 'relative'
     }}>
+      {/* Hidden audio element for voice output - CRITICAL for audio playback */}
+      <audio ref={audioRef} autoPlay style={{ display: 'none' }} />
+      
       {/* Header */}
       <div style={{
         textAlign: 'center',
@@ -276,36 +290,48 @@ const StandaloneVoiceBotDemo: React.FC = () => {
           border: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
 {`import { VoiceBotUI } from '@your-org/genux-sdk';
+import { useGenuxClient } from '@your-org/genux-sdk';
 
 const MyVoiceApp = () => {
-  const [isVoiceConnected, setIsVoiceConnected] = useState(false);
-  const [isVoiceLoading, setIsVoiceLoading] = useState(false);
+  const audioRef = useRef<HTMLAudioElement>(null);
+  
+  const client = useGenuxClient({
+    webrtcURL: '/api/offer',
+    websocketURL: '/ws/messages',
+    autoConnect: true
+  });
+
+  // CRITICAL: Connect audio stream to audio element for playback
+  useEffect(() => {
+    if (audioRef.current && client.audioStream) {
+      audioRef.current.srcObject = client.audioStream;
+    }
+  }, [client.audioStream]);
 
   const handleVoiceToggle = () => {
-    // Your voice connection logic here
-    if (isVoiceConnected) {
-      // Disconnect voice
-      setIsVoiceConnected(false);
+    if (client.voiceState === 'connected') {
+      client.stopVoice();
     } else {
-      // Connect voice
-      setIsVoiceLoading(true);
-      // ... connection logic
-      setIsVoiceLoading(false);
-      setIsVoiceConnected(true);
+      client.startVoice();
     }
   };
 
   return (
-    <VoiceBotUI
-      isVoiceConnected={isVoiceConnected}
-      isVoiceLoading={isVoiceLoading}
-      onToggleVoice={handleVoiceToggle}
-      agentName="Your Assistant"
-      agentSubtitle="How can I help you today?"
-      startCallButtonText="🎤 Start Chat"
-      endCallButtonText="🔇 End Chat"
-      connectingText="Connecting..."
-    />
+    <>
+      {/* Hidden audio element - REQUIRED for audio playback */}
+      <audio ref={audioRef} autoPlay style={{ display: 'none' }} />
+      
+      <VoiceBotUI
+        isVoiceConnected={client.voiceState === 'connected'}
+        isVoiceLoading={client.voiceState === 'connecting'}
+        onToggleVoice={handleVoiceToggle}
+        agentName="Your Assistant"
+        agentSubtitle="How can I help you today?"
+        startCallButtonText="🎤 Start Chat"
+        endCallButtonText="🔇 End Chat"
+        connectingText="Connecting..."
+      />
+    </>
   );
 };`}
         </pre>
@@ -372,6 +398,10 @@ const MyVoiceApp = () => {
       }}>
         <p>
           Click the animated blob above to toggle voice states and see the component in action!
+        </p>
+        <p style={{ marginTop: '16px', fontSize: '12px', opacity: 0.6 }}>
+          ⚠️ Note: When using useGenuxClient directly, you must include a hidden audio element 
+          with autoPlay to hear voice responses. The Genux component handles this automatically.
         </p>
       </div>
     </div>
