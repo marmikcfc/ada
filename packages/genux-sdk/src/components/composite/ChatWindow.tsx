@@ -15,6 +15,7 @@ export interface ChatWindowProps {
   className?: string;
   style?: CSSProperties;
   theme?: any;
+  crayonTheme?: Record<string, any>;
   // Optional features
   showVoiceButton?: boolean;
   onVoiceToggle?: () => void;
@@ -47,6 +48,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   className = '',
   style,
   theme,
+  crayonTheme,
   showVoiceButton = false,
   onVoiceToggle,
   isVoiceActive = false,
@@ -135,7 +137,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     // Check if this is an assistant message with C1 content
     if (message.role === 'assistant' && 'c1Content' in message && message.c1Content) {
       return (
-        <ThemeProvider theme={{}}>
+        <ThemeProvider theme={crayonTheme || {}}>
           <C1Component
             c1Response={message.c1Content}
             onAction={onC1Action}

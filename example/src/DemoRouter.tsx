@@ -4,15 +4,16 @@ import ChatOnlyDemo from './demos/ChatOnlyDemo';
 import StandaloneVoiceBotDemo from './demos/StandaloneVoiceBotDemo';
 import CustomFullscreenDemo from './demos/CustomFullscreenDemo';
 import VoiceOnlyDemo from './demos/VoiceOnlyDemo';
+import ThemeShowcaseDemo from './demos/ThemeShowcaseDemo';
 
 /**
  * Demo Router Component
  * 
- * Provides navigation between the 5 demo use cases to showcase
+ * Provides navigation between the 6 demo use cases to showcase
  * the GenUX SDK's capabilities for different scenarios.
  */
 
-type DemoType = 'saas' | 'chat' | 'standalone' | 'customfullscreen' | 'voiceonly';
+type DemoType = 'saas' | 'chat' | 'standalone' | 'customfullscreen' | 'voiceonly' | 'themes';
 
 interface Demo {
   id: DemoType;
@@ -63,6 +64,14 @@ const demos: Demo[] = [
     icon: '🎙️',
     status: 'supported',
     component: VoiceOnlyDemo
+  },
+  {
+    id: 'themes',
+    title: 'Theme Showcase',
+    description: 'Comprehensive theme system with light, dark, and custom themes',
+    icon: '🌈',
+    status: 'supported',
+    component: ThemeShowcaseDemo
   }
 ];
 

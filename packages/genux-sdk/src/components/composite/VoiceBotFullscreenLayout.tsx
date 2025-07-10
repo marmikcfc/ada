@@ -73,6 +73,12 @@ interface VoiceBotFullscreenLayoutProps {
   
   // Close handler
   onClose?: () => void;
+  
+  // Theme for Crayon components
+  crayonTheme?: Record<string, any>;
+  
+  // Container mode - when true, uses 100% dimensions instead of viewport units
+  containerMode?: boolean;
 }
 
 const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
@@ -90,7 +96,9 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
   config = {},
   componentOverrides = {},
   layoutConfig = {},
-  onClose: _onClose // Prefixed with underscore to indicate intentionally unused
+  onClose: _onClose, // Prefixed with underscore to indicate intentionally unused
+  crayonTheme,
+  containerMode = false
 }) => {
   // Extract config values with defaults
   const {
@@ -216,7 +224,7 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
 
   return (
     <div 
-      className="fullscreen-layout"
+      className={`fullscreen-layout${containerMode ? ' contained' : ''}`}
       style={{
         background: backgroundColor,
         '--primary-color': primaryColor,
@@ -322,6 +330,7 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
           isStreamingActive={isStreamingActive}
           onC1Action={onC1Action}
           showMinimizeButton={false}
+          crayonTheme={crayonTheme}
           header={
             <div className="chat-header-content">
               {logoUrl && <img src={logoUrl} alt={`${agentName} logo`} className="chat-logo" />}

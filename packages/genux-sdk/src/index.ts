@@ -46,11 +46,24 @@ export { ConnectionService, ConnectionEvent } from './core/ConnectionService';
 
 // Theming utilities
 export { 
-  default as defaultTheme,
-  createTheme,
+  defaultTheme,
+  lightTheme,
   darkTheme,
-  themeToCssVars
+  createTheme,
+  themeToCssVars,
+  toCrayonTheme,
+  crayonLightTheme,
+  crayonDarkTheme,
+  crayonDefaultTheme,
+  type CrayonTheme
 } from './theming/defaultTheme';
+
+// Comprehensive themes (advanced usage)
+export {
+  comprehensiveLightTheme,
+  comprehensiveDarkTheme,
+  comprehensiveDefaultTheme
+} from './theming/comprehensiveThemes';
 
 // Types
 export type {

@@ -63,8 +63,10 @@ export interface GenuxOptions {
   };
   /** Design system to use */
   designSystem?: 'default' | 'shadcn';
-  /** Theme customization */
+  /** Theme customization for GenUX components */
   theme?: Partial<ThemeTokens>;
+  /** Theme customization for Crayon components (C1Components, tables, etc.) */
+  crayonTheme?: Record<string, any>;
   /** MCP endpoints to use */
   mcpEndpoints?: MCPEndpoint[];
   /** Component overrides */
@@ -132,6 +134,9 @@ export interface GenuxOptions {
     /** Custom column widths (e.g., "300px auto 400px") */
     columnWidths?: string;
   };
+  
+  /** Container mode - when true, VoiceBotFullscreenLayout uses 100% dimensions instead of viewport units */
+  containerMode?: boolean;
 }
 
 /**
@@ -144,47 +149,248 @@ export interface MCPEndpoint {
 }
 
 /**
- * Theme tokens for customization
+ * Comprehensive theme tokens for complete UI coverage
  */
 export interface ThemeTokens {
   colors: {
+    // Brand colors
     primary: string;
+    primaryHover: string;
+    primaryActive: string;
     secondary: string;
+    secondaryHover: string;
+    secondaryActive: string;
+    
+    // Backgrounds
     background: string;
+    backgroundSecondary: string;
     surface: string;
+    surfaceHover: string;
+    elevated: string;
+    overlay: string;
+    
+    // Text colors
     text: string;
     textSecondary: string;
+    textTertiary: string;
+    textInverse: string;
+    textDisabled: string;
+    
+    // Interactive colors
+    link: string;
+    linkHover: string;
+    linkVisited: string;
+    
+    // Border colors
     border: string;
+    borderHover: string;
+    borderFocus: string;
+    borderDisabled: string;
+    
+    // State colors
     error: string;
+    errorBackground: string;
+    errorBorder: string;
     success: string;
+    successBackground: string;
+    successBorder: string;
+    warning: string;
+    warningBackground: string;
+    warningBorder: string;
+    info: string;
+    infoBackground: string;
+    infoBorder: string;
+    
+    // Chat-specific colors
+    chatUserBubble: string;
+    chatUserText: string;
+    chatAssistantBubble: string;
+    chatAssistantText: string;
+    chatTimestamp: string;
   };
+  
   spacing: {
+    '0': string;
+    '3xs': string;
+    '2xs': string;
     xs: string;
     sm: string;
     md: string;
     lg: string;
     xl: string;
+    '2xl': string;
+    '3xl': string;
   };
+  
   borderRadius: {
+    none: string;
+    '3xs': string;
+    '2xs': string;
+    xs: string;
     sm: string;
     md: string;
     lg: string;
+    xl: string;
+    '2xl': string;
+    '3xl': string;
     full: string;
   };
+  
   typography: {
+    // Font families
     fontFamily: string;
+    fontFamilyMono: string;
+    
+    // Font sizes
     fontSize: {
-      xs: string;
-      sm: string;
-      md: string;
-      lg: string;
-      xl: string;
+      '3xs': string;  // 10px
+      '2xs': string;  // 11px
+      xs: string;     // 12px
+      sm: string;     // 14px
+      md: string;     // 16px
+      lg: string;     // 18px
+      xl: string;     // 20px
+      '2xl': string;  // 24px
+      '3xl': string;  // 30px
+      '4xl': string;  // 36px
+      '5xl': string;  // 48px
     };
+    
+    // Font weights
     fontWeight: {
-      regular: number;
-      medium: number;
-      bold: number;
+      thin: number;      // 100
+      light: number;     // 300
+      regular: number;   // 400
+      medium: number;    // 500
+      semibold: number;  // 600
+      bold: number;      // 700
+      extrabold: number; // 800
+      black: number;     // 900
     };
+    
+    // Line heights
+    lineHeight: {
+      tight: string;   // 1.25
+      normal: string;  // 1.5
+      relaxed: string; // 1.75
+      loose: string;   // 2
+    };
+    
+    // Letter spacing
+    letterSpacing: {
+      tight: string;   // -0.025em
+      normal: string;  // 0
+      wide: string;    // 0.025em
+      wider: string;   // 0.05em
+      widest: string;  // 0.1em
+    };
+    
+    // Predefined text styles
+    heading: {
+      h1: {
+        fontSize: string;
+        fontWeight: number;
+        lineHeight: string;
+        letterSpacing: string;
+      };
+      h2: {
+        fontSize: string;
+        fontWeight: number;
+        lineHeight: string;
+        letterSpacing: string;
+      };
+      h3: {
+        fontSize: string;
+        fontWeight: number;
+        lineHeight: string;
+        letterSpacing: string;
+      };
+      h4: {
+        fontSize: string;
+        fontWeight: number;
+        lineHeight: string;
+        letterSpacing: string;
+      };
+      h5: {
+        fontSize: string;
+        fontWeight: number;
+        lineHeight: string;
+        letterSpacing: string;
+      };
+      h6: {
+        fontSize: string;
+        fontWeight: number;
+        lineHeight: string;
+        letterSpacing: string;
+      };
+    };
+    
+    body: {
+      large: {
+        fontSize: string;
+        fontWeight: number;
+        lineHeight: string;
+        letterSpacing: string;
+      };
+      medium: {
+        fontSize: string;
+        fontWeight: number;
+        lineHeight: string;
+        letterSpacing: string;
+      };
+      small: {
+        fontSize: string;
+        fontWeight: number;
+        lineHeight: string;
+        letterSpacing: string;
+      };
+    };
+    
+    label: {
+      large: {
+        fontSize: string;
+        fontWeight: number;
+        lineHeight: string;
+        letterSpacing: string;
+      };
+      medium: {
+        fontSize: string;
+        fontWeight: number;
+        lineHeight: string;
+        letterSpacing: string;
+      };
+      small: {
+        fontSize: string;
+        fontWeight: number;
+        lineHeight: string;
+        letterSpacing: string;
+      };
+    };
+    
+    code: {
+      fontSize: string;
+      fontWeight: number;
+      fontFamily: string;
+      lineHeight: string;
+      letterSpacing: string;
+    };
+  };
+  
+  shadows: {
+    none: string;
+    sm: string;      // Subtle shadow
+    md: string;      // Default shadow
+    lg: string;      // Prominent shadow
+    xl: string;      // Large shadow
+    '2xl': string;   // Extra large shadow
+    inner: string;   // Inset shadow
+  };
+  
+  effects: {
+    backdropBlur: string;
+    transition: string;
+    transitionFast: string;
+    transitionSlow: string;
   };
 }
 

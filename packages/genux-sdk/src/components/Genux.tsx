@@ -136,6 +136,7 @@ const Genux: React.FC<GenuxProps> = ({
       }
     },
     theme,
+    crayonTheme: options.crayonTheme,
   };
   
   return (
@@ -179,6 +180,8 @@ const Genux: React.FC<GenuxProps> = ({
           }}
           componentOverrides={options.fullscreenComponents}
           layoutConfig={options.fullscreenLayout}
+          crayonTheme={options.crayonTheme}
+          containerMode={options.containerMode}
         />
       ) : (
         <>
@@ -256,6 +259,7 @@ const Genux: React.FC<GenuxProps> = ({
               websocketURL,
             }}
             onClose={handleFullscreenClose}
+            crayonTheme={options.crayonTheme}
           />
         </FullscreenModal>
       )}
