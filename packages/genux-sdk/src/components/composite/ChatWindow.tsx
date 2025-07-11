@@ -25,7 +25,7 @@ export interface ChatWindowProps {
   isStreamingActive?: boolean;
   // C1Component support
   onC1Action?: (action: any) => void;
-  sendC1Action?: (action: { llmFriendlyMessage: string }, threadId?: string) => string;
+  sendC1Action?: (action: { llmFriendlyMessage: string, humanFriendlyMessage: string }) => void;
   // Custom renderers
   renderMessage?: (message: Message) => React.ReactNode;
   // Minimize support
@@ -133,41 +133,45 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
   
-  // Default message renderer with flexible content support
-  const defaultRenderMessage = (message: Message) => {
-    // For assistant messages, use FlexibleContentRenderer to support multiple formats
-    if (message.role === 'assistant') {
-      return (
-        <FlexibleContentRenderer
-          content={message.content}
-          c1Content={'c1Content' in message ? message.c1Content : undefined}
-          htmlContent={'htmlContent' in message ? message.htmlContent : undefined}
-          reactContent={'reactContent' in message ? message.reactContent : undefined}
-          contentType={'contentType' in message ? message.contentType : 'auto'}
-          allowDangerousHtml={'allowDangerousHtml' in message ? message.allowDangerousHtml : false}
-          onC1Action={onC1Action}
-          sendC1Action={sendC1Action}
-          isStreaming={isStreamingActive}
-          crayonTheme={crayonTheme}
-        />
-      );
-    }
-    return message.content;
-  };
   
-  const messageRenderer = renderMessage || defaultRenderMessage;
-  
-  // Combine messages with streaming content
+  // Combine messages with streaming content and loading states
   const displayMessages = [...messages];
+  
+  // Add streaming message if active
   if (isStreamingActive && streamingContent) {
+    // Parse streaming content to extract C1 content if present
+    const parseStreamingContent = (rawContent: string) => {
+      // Check if it contains C1 content wrapper
+      if (rawContent.includes('<content>')) {
+        // Try to extract C1 content (even if incomplete)
+        const completeMatch = rawContent.match(/<content>([\s\S]*?)<\/content>/);
+        if (completeMatch) {
+          return { c1Content: completeMatch[1], content: undefined };
+        }
+        
+        // For streaming content, extract partial content if <content> tag is present
+        const partialMatch = rawContent.match(/<content>([\s\S]*)/);
+        if (partialMatch) {
+          return { c1Content: partialMatch[1], content: undefined };
+        }
+      }
+      
+      // Default to regular content
+      return { content: rawContent, c1Content: undefined };
+    };
+    
+    const { content, c1Content } = parseStreamingContent(streamingContent);
+    
     const streamingMessage: Message = {
       id: streamingMessageId || 'streaming',
       role: 'assistant',
-      content: streamingContent,
+      content,
+      c1Content,
       timestamp: new Date(),
     };
     displayMessages.push(streamingMessage);
   }
+  
   
   return (
     <div className={`genux-chat-window ${isMinimized ? 'minimized' : ''} ${className}`} style={containerStyles}>
@@ -216,15 +220,37 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       
       {/* Messages */}
       <div className="genux-chat-messages" style={messagesContainerStyles}>
-        {displayMessages.map((message, index) => (
-          <ChatMessage
-            key={message.id}
-            message={message}
-            isStreaming={isStreamingActive && index === displayMessages.length - 1}
-            theme={theme}
-            renderContent={() => messageRenderer(message)}
-          />
-        ))}
+        {displayMessages.map((message, index) => {
+          const isCurrentlyStreaming = isStreamingActive && index === displayMessages.length - 1;
+          return (
+            <ChatMessage
+              key={message.id}
+              message={message}
+              isStreaming={isCurrentlyStreaming}
+              theme={theme}
+              renderContent={() => {
+                // For assistant messages, use FlexibleContentRenderer to support multiple formats
+                if (message.role === 'assistant') {
+                  return (
+                    <FlexibleContentRenderer
+                      content={message.content}
+                      c1Content={'c1Content' in message ? message.c1Content : undefined}
+                      htmlContent={'htmlContent' in message ? message.htmlContent : undefined}
+                      reactContent={'reactContent' in message ? message.reactContent : undefined}
+                      contentType={'contentType' in message ? message.contentType : 'auto'}
+                      allowDangerousHtml={'allowDangerousHtml' in message ? message.allowDangerousHtml : false}
+                      onC1Action={onC1Action}
+                      sendC1Action={sendC1Action}
+                      isStreaming={isCurrentlyStreaming}
+                      crayonTheme={crayonTheme}
+                    />
+                  );
+                }
+                return message.content;
+              }}
+            />
+          );
+        })}
         <div ref={messagesEndRef} />
       </div>
       
@@ -253,6 +279,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         .genux-chat-window.minimized .genux-chat-header:hover {
           background-color: rgba(0, 0, 0, 0.05) !important;
         }
+        
       `}</style>
     </div>
   );

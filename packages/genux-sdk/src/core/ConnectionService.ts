@@ -729,6 +729,18 @@ export class ConnectionService extends EventEmitter {
       data[key] = value;
     });
     
+    // Create a user-friendly message describing the form submission
+    const formFields = Object.entries(data)
+      .filter(([_, value]) => value !== null && value !== undefined && value !== '')
+      .map(([key, value]) => `${key}: ${value}`)
+      .join(', ');
+    const userMessage = formFields 
+      ? `📝 Submitted form: ${formFields}`
+      : `📝 Submitted form "${formId}"`;
+    
+    // Add user message to chat
+    this.addUserMessage(userMessage);
+    
     this.sendInteraction('form_submit', {
       formId,
       formData: data,
@@ -747,6 +759,24 @@ export class ConnectionService extends EventEmitter {
   private handleButtonClick(event: Event, actionType: string, context: any = {}): void {
     console.log('ConnectionService: handleButtonClick called', { actionType, context, event });
     event.preventDefault();
+    
+    // Create a user-friendly message describing the button click
+    let userMessage = `🔘 Clicked "${actionType}"`;
+    
+    // Add context in a more readable format
+    if (context && Object.keys(context).length > 0) {
+      if (context.message) {
+        userMessage = `🔘 ${context.message}`;
+      } else {
+        const contextStr = Object.entries(context)
+          .map(([key, value]) => `${key}: ${value}`)
+          .join(', ');
+        userMessage += ` (${contextStr})`;
+      }
+    }
+    
+    // Add user message to chat
+    this.addUserMessage(userMessage);
     
     this.sendInteraction('button_click', {
       actionType,
@@ -767,6 +797,18 @@ export class ConnectionService extends EventEmitter {
     console.log('ConnectionService: handleInputChange called', { fieldName, event });
     const input = event.target as HTMLInputElement;
     const value = input.type === 'checkbox' ? input.checked : input.value;
+    
+    // Only show user message for significant input changes (not every keystroke)
+    // Check if input has data-action attribute for real-time actions
+    const hasAction = input.hasAttribute('data-action');
+    if (hasAction) {
+      const actionType = input.getAttribute('data-action') || 'input-change';
+      const userMessage = input.type === 'checkbox' 
+        ? `☑️ ${value ? 'Checked' : 'Unchecked'} "${fieldName}"`
+        : `⌨️ Updated "${fieldName}": ${value}`;
+      
+      this.addUserMessage(userMessage);
+    }
     
     this.sendInteraction('input_change', {
       fieldName,
@@ -801,5 +843,20 @@ export class ConnectionService extends EventEmitter {
     }
     
     this.webSocket.send(JSON.stringify(message));
+  }
+  
+  /**
+   * Add a user message to the chat (for interaction display)
+   */
+  private addUserMessage(content: string): void {
+    const userMessage: UserMessage = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content,
+      timestamp: new Date()
+    };
+    
+    // Emit the message so it appears in the chat
+    this.emit(ConnectionEvent.MESSAGE_RECEIVED, userMessage);
   }
 }

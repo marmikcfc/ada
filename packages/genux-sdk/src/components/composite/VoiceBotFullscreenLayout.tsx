@@ -45,7 +45,7 @@ interface VoiceBotFullscreenLayoutProps {
   // Chat state
   onSendMessage?: (message: string) => void;
   onC1Action?: (action: any) => void;
-  sendC1Action?: (action: { llmFriendlyMessage: string }, threadId?: string) => string;
+  sendC1Action?: (action: { llmFriendlyMessage: string, humanFriendlyMessage: string }) => void;
   isLoading?: boolean;
   isEnhancing?: boolean;
   streamingContent?: string;

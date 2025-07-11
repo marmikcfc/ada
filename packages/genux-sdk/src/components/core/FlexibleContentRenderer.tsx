@@ -10,7 +10,7 @@ export interface FlexibleContentRendererProps {
   reactContent?: React.ReactNode;
   contentType?: 'auto' | 'c1' | 'html' | 'react' | 'text';
   onC1Action?: (action: any) => void;
-  sendC1Action?: (action: { llmFriendlyMessage: string }, threadId?: string) => string;
+  sendC1Action?: (action: { llmFriendlyMessage: string, humanFriendlyMessage: string }) => void;
   isStreaming?: boolean;
   crayonTheme?: Record<string, any>;
   allowDangerousHtml?: boolean;
@@ -50,8 +50,8 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
     if (c1Content) return 'c1';
     if (htmlContent) return 'html';
     
-    // Check if content contains C1 markers
-    if (content && content.includes('<content>') && content.includes('</content>')) {
+    // Check if content contains C1 markers (even if streaming and incomplete)
+    if (content && content.includes('<content>')) {
       return 'c1';
     }
     
@@ -67,8 +67,20 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
 
   // Extract C1 content from wrapped format
   const extractC1Content = (rawContent: string): string => {
-    const match = rawContent.match(/<content>([\s\S]*?)<\/content>/);
-    return match ? match[1] : rawContent;
+    // First try to match complete content tags
+    const completeMatch = rawContent.match(/<content>([\s\S]*?)<\/content>/);
+    if (completeMatch) {
+      return completeMatch[1];
+    }
+    
+    // For streaming content, extract partial content if <content> tag is present
+    const partialMatch = rawContent.match(/<content>([\s\S]*)/);
+    if (partialMatch) {
+      return partialMatch[1];
+    }
+    
+    // Fallback to original content
+    return rawContent;
   };
 
   // HTML sanitization using DOMPurify
@@ -162,7 +174,10 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
         // If we have sendC1Action and llmFriendlyMessage, send to backend
         if (sendC1Action && action.llmFriendlyMessage) {
           try {
-            sendC1Action({ llmFriendlyMessage: action.llmFriendlyMessage });
+            sendC1Action({ 
+              llmFriendlyMessage: action.llmFriendlyMessage,
+              humanFriendlyMessage: action.humanFriendlyMessage || action.llmFriendlyMessage
+            });
           } catch (error) {
             console.error('Failed to send C1Action to backend:', error);
           }

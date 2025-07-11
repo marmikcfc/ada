@@ -139,6 +139,11 @@ const Genux: React.FC<GenuxProps> = ({
         handleChatClose();
       }
     },
+    onC1Action: (action: any) => {
+      // Handle C1 actions - can add custom logic here if needed
+      console.log('C1Action from chat window:', action);
+    },
+    sendC1Action: client.sendC1Action,
     theme,
     crayonTheme: options.crayonTheme,
   };
