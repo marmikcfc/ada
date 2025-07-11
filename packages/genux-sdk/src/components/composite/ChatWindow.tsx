@@ -2,9 +2,8 @@ import React, { useRef, useEffect, CSSProperties } from 'react';
 import { Message } from '../../types';
 import { ChatMessage } from '../core/ChatMessage';
 import { MessageComposer } from '../core/MessageComposer';
+import { FlexibleContentRenderer } from '../core/FlexibleContentRenderer';
 import { createTheme, themeToCssVars } from '../../theming/defaultTheme';
-import { C1Component } from '@thesysai/genui-sdk';
-import { ThemeProvider } from '@crayonai/react-ui';
 
 export interface ChatWindowProps {
   messages: Message[];
@@ -132,18 +131,22 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     }
   };
   
-  // Default message renderer with C1Component support
+  // Default message renderer with flexible content support
   const defaultRenderMessage = (message: Message) => {
-    // Check if this is an assistant message with C1 content
-    if (message.role === 'assistant' && 'c1Content' in message && message.c1Content) {
+    // For assistant messages, use FlexibleContentRenderer to support multiple formats
+    if (message.role === 'assistant') {
       return (
-        <ThemeProvider theme={crayonTheme || {}}>
-          <C1Component
-            c1Response={message.c1Content}
-            onAction={onC1Action}
-            isStreaming={isStreamingActive}
-          />
-        </ThemeProvider>
+        <FlexibleContentRenderer
+          content={message.content}
+          c1Content={'c1Content' in message ? message.c1Content : undefined}
+          htmlContent={'htmlContent' in message ? message.htmlContent : undefined}
+          reactContent={'reactContent' in message ? message.reactContent : undefined}
+          contentType={'contentType' in message ? message.contentType : 'auto'}
+          allowDangerousHtml={'allowDangerousHtml' in message ? message.allowDangerousHtml : false}
+          onC1Action={onC1Action}
+          isStreaming={isStreamingActive}
+          crayonTheme={crayonTheme}
+        />
       );
     }
     return message.content;

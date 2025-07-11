@@ -2,9 +2,6 @@
  * Core type definitions for the Genux SDK
  */
 
-// Re-export component prop interfaces for TypeScript support
-export type { ThreadListProps, Thread } from '../components/core/ThreadList';
-export type { ChatWindowProps } from '../components/composite/ChatWindow';
 
 /** VoiceBotUI component props interface */
 export interface VoiceBotUIProps {
@@ -116,7 +113,7 @@ export interface GenuxOptions {
   /** Custom component overrides for fullscreen mode */
   fullscreenComponents?: {
     /** Custom ThreadList component for left column */
-    ThreadList?: React.ComponentType<ThreadListProps>;
+    ThreadList?: React.ComponentType<any>;
     /** Custom VoiceBotUI component for center column */
     VoiceBotUI?: React.ComponentType<VoiceBotUIProps>;
     /** Custom ChatWindow component for right column */
@@ -505,8 +502,16 @@ export interface AssistantMessage extends BaseMessage {
   content?: string;
   /** C1Component content for rich display */
   c1Content?: string;
+  /** Raw HTML content for direct rendering */
+  htmlContent?: string;
+  /** React component/node for custom rendering */
+  reactContent?: React.ReactNode;
+  /** Explicit content type (auto-detected if not specified) */
+  contentType?: 'auto' | 'c1' | 'html' | 'react' | 'text';
   /** Whether this message has voice-over audio */
   hasVoiceOver?: boolean;
+  /** Whether to allow dangerous HTML (bypasses sanitization) */
+  allowDangerousHtml?: boolean;
 }
 
 /**

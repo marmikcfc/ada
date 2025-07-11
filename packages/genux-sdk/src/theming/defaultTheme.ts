@@ -167,8 +167,6 @@ export interface CrayonTheme {
  * @returns Complete Crayon-compatible theme object
  */
 export function toCrayonTheme(genuxTheme: ThemeTokens): CrayonTheme {
-  const isDark = genuxTheme.colors.background.toLowerCase() < '#800000';
-  
   return {
     // Core color fills
     backgroundFills: genuxTheme.colors.background,

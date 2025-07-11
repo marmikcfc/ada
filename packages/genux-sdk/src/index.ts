@@ -107,6 +107,9 @@ export type {
   VisualizationContext
 } from './types';
 
+// Export FlexibleContentRenderer types
+export type { FlexibleContentRendererProps } from './components/core/FlexibleContentRenderer';
+
 // Extended component props (re-exported from defaults)
 export type {
   // ExtendedChatComposerProps,

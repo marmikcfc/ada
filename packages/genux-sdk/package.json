@@ -8,7 +8,9 @@
   "files": [
     "dist"
   ],
-  "sideEffects": ["*.css"],
+  "sideEffects": [
+    "*.css"
+  ],
   "scripts": {
     "dev": "tsup --watch",
     "build": "tsup",
@@ -18,16 +20,18 @@
     "size": "size-limit"
   },
   "dependencies": {
+    "@crayonai/react-core": "^0.7.4",
     "@crayonai/react-ui": "^0.7.9",
     "@crayonai/stream": "^0.6.4",
-    "@crayonai/react-core": "^0.7.4",
     "@daily-co/realtime-ai-daily": "^0.2.3",
     "@pipecat-ai/client-js": "^0.3.5",
     "@pipecat-ai/client-react": "^0.3.5",
     "@pipecat-ai/small-webrtc-transport": "^0.0.2",
     "@thesysai/genui-sdk": "^0.6.15",
+    "dompurify": "^3.2.6",
     "eventemitter3": "^5.0.1",
     "jotai": "^2.12.4",
+    "lucide-react": "^0.469.0",
     "three": "^0.177.0",
     "uuid": "^9.0.1"
   },
@@ -54,15 +58,23 @@
     "typescript": "~5.6.2"
   },
   "tsup": {
-    "entry": ["src/index.ts"],
-    "format": ["esm", "cjs"],
+    "entry": [
+      "src/index.ts"
+    ],
+    "format": [
+      "esm",
+      "cjs"
+    ],
     "dts": true,
     "splitting": false,
     "sourcemap": true,
     "clean": true,
     "minify": true,
     "target": "es2019",
-    "external": ["react", "react-dom"]
+    "external": [
+      "react",
+      "react-dom"
+    ]
   },
   "size-limit": [
     {
