@@ -5,15 +5,16 @@ import StandaloneVoiceBotDemo from './demos/StandaloneVoiceBotDemo';
 import CustomFullscreenDemo from './demos/CustomFullscreenDemo';
 import VoiceOnlyDemo from './demos/VoiceOnlyDemo';
 import ThemeShowcaseDemo from './demos/ThemeShowcaseDemo';
+import UIFrameworkDemo from './demos/UIFrameworkDemo';
 
 /**
  * Demo Router Component
  * 
- * Provides navigation between the 6 demo use cases to showcase
+ * Provides navigation between the 7 demo use cases to showcase
  * the GenUX SDK's capabilities for different scenarios.
  */
 
-type DemoType = 'saas' | 'chat' | 'standalone' | 'customfullscreen' | 'voiceonly' | 'themes';
+type DemoType = 'saas' | 'chat' | 'standalone' | 'customfullscreen' | 'voiceonly' | 'themes' | 'uiframework';
 
 interface Demo {
   id: DemoType;
@@ -72,6 +73,14 @@ const demos: Demo[] = [
     icon: '🌈',
     status: 'supported',
     component: ThemeShowcaseDemo
+  },
+  {
+    id: 'uiframework',
+    title: 'UI Framework Support',
+    description: 'Backend-generated HTML with framework-specific optimization and interaction handling',
+    icon: '🔧',
+    status: 'supported',
+    component: UIFrameworkDemo
   }
 ];
 
