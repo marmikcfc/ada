@@ -52,8 +52,12 @@ const Genux: React.FC<GenuxProps> = ({
       mcpEndpoints: options.mcpEndpoints,
       autoConnect: true,
       initialThreadId: undefined,
+      uiFramework: options.uiFramework,
+      onFormSubmit: options.onFormSubmit,
+      onButtonClick: options.onButtonClick,
+      onInputChange: options.onInputChange,
     }),
-    [webrtcURL, websocketURL, options.mcpEndpoints, disableVoice]
+    [webrtcURL, websocketURL, options.mcpEndpoints, options.uiFramework, options.onFormSubmit, options.onButtonClick, options.onInputChange, disableVoice]
   );
 
   const client = useGenuxClient(clientOptions);
@@ -158,6 +162,7 @@ const Genux: React.FC<GenuxProps> = ({
               client.sendText(action.humanFriendlyMessage);
             }
           }}
+          sendC1Action={client.sendC1Action}
           isLoading={client.isLoading}
           isEnhancing={client.isEnhancing}
           streamingContent={client.streamingContent}
@@ -238,6 +243,7 @@ const Genux: React.FC<GenuxProps> = ({
                 client.sendText(action.humanFriendlyMessage);
               }
             }}
+            sendC1Action={client.sendC1Action}
             isLoading={client.isLoading}
             isEnhancing={client.isEnhancing}
             streamingContent={client.streamingContent}

@@ -33,6 +33,12 @@ export interface ConnectionServiceOptions {
   autoReconnect?: boolean;
   reconnectInterval?: number;
   maxReconnectAttempts?: number;
+  /** UI framework preference for backend-generated content */
+  uiFramework?: 'tailwind' | 'chakra' | 'mui' | 'antd' | 'bootstrap' | 'inline';
+  /** Custom interaction handlers for framework-generated content */
+  onFormSubmit?: (formId: string, formData: FormData) => void;
+  onButtonClick?: (actionType: string, context: any) => void;
+  onInputChange?: (fieldName: string, value: any) => void;
 }
 
 /**
@@ -61,6 +67,12 @@ export class ConnectionService extends EventEmitter {
   private reconnectInterval: number;
   private maxReconnectAttempts: number;
   private reconnectAttempts: number = 0;
+  
+  // UI Framework support
+  private uiFramework: string = 'inline';
+  private onFormSubmit?: (formId: string, formData: FormData) => void;
+  private onButtonClick?: (actionType: string, context: any) => void;
+  private onInputChange?: (fieldName: string, value: any) => void;
 
   private webSocket: WebSocket | null = null;
   private peerConnection: RTCPeerConnection | null = null;
@@ -91,6 +103,15 @@ export class ConnectionService extends EventEmitter {
     this.reconnectInterval = options.reconnectInterval ?? 5000;
     this.maxReconnectAttempts = options.maxReconnectAttempts ?? 5;
     this.wsConnectionId = `ws-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    
+    // UI Framework support
+    this.uiFramework = options.uiFramework || 'inline';
+    this.onFormSubmit = options.onFormSubmit;
+    this.onButtonClick = options.onButtonClick;
+    this.onInputChange = options.onInputChange;
+    
+    // Setup global interaction handlers
+    this.setupGlobalHandlers();
   }
 
   /**
@@ -333,6 +354,12 @@ export class ConnectionService extends EventEmitter {
     console.log(`[WS:${this.wsConnectionId}] WebSocket connected`);
     this.setConnectionState('connected');
     this.reconnectAttempts = 0;
+    
+    // Send UI framework preference to backend
+    this.sendMessage({
+      type: 'client_config',
+      uiFramework: this.uiFramework
+    });
   }
 
   /**
@@ -665,5 +692,114 @@ export class ConnectionService extends EventEmitter {
       this.voiceState = state;
       this.emit(ConnectionEvent.VOICE_STATE_CHANGED, state);
     }
+  }
+  
+  /**
+   * Setup global interaction handlers for framework-generated content
+   */
+  private setupGlobalHandlers(): void {
+    if (typeof window === 'undefined') {
+      console.log('ConnectionService: Cannot setup global handlers - window undefined (server-side)');
+      return;
+    }
+    
+    // Create global genuxSDK object
+    (window as any).genuxSDK = {
+      handleFormSubmit: this.handleFormSubmit.bind(this),
+      handleButtonClick: this.handleButtonClick.bind(this),
+      handleInputChange: this.handleInputChange.bind(this),
+      sendInteraction: this.sendInteraction.bind(this)
+    };
+    
+    console.log('ConnectionService: Global window.genuxSDK handlers set up successfully');
+  }
+  
+  /**
+   * Handle form submission from framework-generated content
+   */
+  private handleFormSubmit(event: Event, formId: string): void {
+    console.log('ConnectionService: handleFormSubmit called', { formId, event });
+    event.preventDefault();
+    const form = event.target as HTMLFormElement;
+    const formData = new FormData(form);
+    
+    // Convert FormData to object
+    const data: Record<string, any> = {};
+    formData.forEach((value, key) => {
+      data[key] = value;
+    });
+    
+    this.sendInteraction('form_submit', {
+      formId,
+      formData: data,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Call custom handler if provided
+    if (this.onFormSubmit) {
+      this.onFormSubmit(formId, formData);
+    }
+  }
+  
+  /**
+   * Handle button click from framework-generated content
+   */
+  private handleButtonClick(event: Event, actionType: string, context: any = {}): void {
+    console.log('ConnectionService: handleButtonClick called', { actionType, context, event });
+    event.preventDefault();
+    
+    this.sendInteraction('button_click', {
+      actionType,
+      context,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Call custom handler if provided
+    if (this.onButtonClick) {
+      this.onButtonClick(actionType, context);
+    }
+  }
+  
+  /**
+   * Handle input change from framework-generated content
+   */
+  private handleInputChange(event: Event, fieldName: string): void {
+    console.log('ConnectionService: handleInputChange called', { fieldName, event });
+    const input = event.target as HTMLInputElement;
+    const value = input.type === 'checkbox' ? input.checked : input.value;
+    
+    this.sendInteraction('input_change', {
+      fieldName,
+      value,
+      timestamp: new Date().toISOString()
+    });
+    
+    // Call custom handler if provided
+    if (this.onInputChange) {
+      this.onInputChange(fieldName, value);
+    }
+  }
+  
+  /**
+   * Send interaction data to backend
+   */
+  private sendInteraction(type: string, context: any): void {
+    this.sendMessage({
+      type: 'user_interaction',
+      interactionType: type,
+      context
+    });
+  }
+  
+  /**
+   * Send a message via WebSocket
+   */
+  private sendMessage(message: any): void {
+    if (!this.webSocket || this.webSocket.readyState !== WebSocket.OPEN) {
+      console.warn('Cannot send message: WebSocket not connected');
+      return;
+    }
+    
+    this.webSocket.send(JSON.stringify(message));
   }
 }

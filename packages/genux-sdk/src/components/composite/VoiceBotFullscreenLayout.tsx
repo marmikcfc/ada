@@ -45,6 +45,7 @@ interface VoiceBotFullscreenLayoutProps {
   // Chat state
   onSendMessage?: (message: string) => void;
   onC1Action?: (action: any) => void;
+  sendC1Action?: (action: { llmFriendlyMessage: string }, threadId?: string) => string;
   isLoading?: boolean;
   isEnhancing?: boolean;
   streamingContent?: string;
@@ -87,6 +88,7 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
   onToggleVoice,
   onSendMessage,
   onC1Action,
+  sendC1Action,
   isLoading = false,
   isEnhancing: _isEnhancing = false,
   streamingContent = '',
@@ -329,6 +331,7 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
           streamingMessageId={streamingMessageId}
           isStreamingActive={isStreamingActive}
           onC1Action={onC1Action}
+          sendC1Action={sendC1Action}
           showMinimizeButton={false}
           crayonTheme={crayonTheme}
           header={

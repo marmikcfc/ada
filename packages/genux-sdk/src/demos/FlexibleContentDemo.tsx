@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Genux } from '../components/Genux';
+import Genux from '../components/Genux';
 import { Message } from '../types';
 
 /**
  * Demo showcasing flexible content rendering with C1, HTML, and React content
  */
 export const FlexibleContentDemo = () => {
-  const [messages, setMessages] = useState<Message[]>([
+  const [messages] = useState<Message[]>([
     {
       id: '1',
       role: 'assistant',

@@ -10,6 +10,7 @@ export interface FlexibleContentRendererProps {
   reactContent?: React.ReactNode;
   contentType?: 'auto' | 'c1' | 'html' | 'react' | 'text';
   onC1Action?: (action: any) => void;
+  sendC1Action?: (action: { llmFriendlyMessage: string }, threadId?: string) => string;
   isStreaming?: boolean;
   crayonTheme?: Record<string, any>;
   allowDangerousHtml?: boolean;
@@ -34,6 +35,7 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
   reactContent,
   contentType = 'auto',
   onC1Action,
+  sendC1Action,
   isStreaming = false,
   crayonTheme = {},
   allowDangerousHtml = false,
@@ -82,21 +84,27 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
     const defaultAllowedAttributes = {
       'a': ['href', 'title', 'target', 'rel'],
       'img': ['src', 'alt', 'width', 'height'],
-      'button': ['type', 'onclick', 'class', 'id'],
-      'input': ['type', 'name', 'value', 'placeholder', 'class', 'id'],
-      'form': ['action', 'method', 'class', 'id'],
+      'button': ['type', 'onclick', 'onmouseover', 'onmouseout', 'class', 'id', 'data-action', 'data-context', 'data-trigger'],
+      'input': ['type', 'name', 'value', 'placeholder', 'class', 'id', 'onchange', 'oninput', 'onfocus', 'onblur', 'data-action', 'data-trigger', 'data-debounce'],
+      'form': ['action', 'method', 'class', 'id', 'onsubmit'],
+      'select': ['name', 'class', 'id', 'onchange', 'onfocus', 'onblur', 'data-action'],
+      'option': ['value', 'selected'],
+      'textarea': ['name', 'class', 'id', 'placeholder', 'onchange', 'oninput', 'onfocus', 'onblur', 'data-action', 'data-trigger', 'data-debounce'],
+      'div': ['class', 'id', 'style', 'onclick', 'onmouseover', 'onmouseout', 'data-chakra-component'],
+      'label': ['class', 'id', 'for', 'data-chakra-component'],
       '*': ['class', 'id', 'style']
     };
     
+    // Build allowed attributes list correctly
+    const allowedAttributes = new Set<string>();
+    Object.values(htmlSanitizeOptions.allowedAttributes || defaultAllowedAttributes).forEach(attrs => {
+      attrs.forEach(attr => allowedAttributes.add(attr));
+    });
+    
     const config: DOMPurify.Config = {
       ALLOWED_TAGS: htmlSanitizeOptions.allowedTags || defaultAllowedTags,
-      ALLOWED_ATTR: Object.keys(htmlSanitizeOptions.allowedAttributes || defaultAllowedAttributes)
-        .reduce((acc, tag) => {
-          const attrs = (htmlSanitizeOptions.allowedAttributes || defaultAllowedAttributes)[tag as keyof typeof defaultAllowedAttributes] || [];
-          attrs.forEach((attr: string) => acc.push(attr));
-          return acc;
-        }, [] as string[]),
-      ALLOW_DATA_ATTR: false,
+      ALLOWED_ATTR: Array.from(allowedAttributes),
+      ALLOW_DATA_ATTR: true, // Allow data-* attributes for framework interaction
       ALLOW_UNKNOWN_PROTOCOLS: false,
       SAFE_FOR_TEMPLATES: true,
       WHOLE_DOCUMENT: false,
@@ -105,9 +113,33 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
       FORCE_BODY: false,
       SANITIZE_DOM: true,
       KEEP_CONTENT: true,
+      // Critical: Allow JavaScript event handlers for interactions
+      FORBID_ATTR: [], // Don't forbid any attributes by default
+      FORBID_TAGS: [], // Don't forbid any tags by default
     };
     
-    return DOMPurify.sanitize(html, config);
+    // Create a unique hook ID for this sanitization call
+    const hookId = 'genux-html-sanitize-' + Math.random().toString(36).substring(2);
+    
+    // Add hook to allow JavaScript event handlers - scoped to this call only
+    DOMPurify.addHook('uponSanitizeAttribute', function (node, data) {
+      // Allow onclick, onsubmit, onchange, etc. event handlers
+      if (data.attrName && data.attrName.startsWith('on')) {
+        // Only allow event handlers that call window.genuxSDK methods
+        if (data.attrValue && data.attrValue.includes('window.genuxSDK')) {
+          return; // Allow this attribute
+        }
+        // Remove other JavaScript event handlers for security
+        data.keepAttr = false;
+      }
+    });
+    
+    const result = DOMPurify.sanitize(html, config);
+    
+    // Clean up the hook immediately after use to prevent interference with other components
+    DOMPurify.removeHook('uponSanitizeAttribute');
+    
+    return result;
   };
 
   // Render based on detected or specified type
@@ -117,11 +149,31 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
       
     case 'c1':
       const c1Xml = c1Content || (content ? extractC1Content(content) : '');
+      
+      // Create C1 action handler that sends to backend
+      const c1ActionHandler = (action: any) => {
+        console.log('C1Component action:', action);
+        
+        // First, try the custom onC1Action if provided
+        if (onC1Action) {
+          onC1Action(action);
+        }
+        
+        // If we have sendC1Action and llmFriendlyMessage, send to backend
+        if (sendC1Action && action.llmFriendlyMessage) {
+          try {
+            sendC1Action({ llmFriendlyMessage: action.llmFriendlyMessage });
+          } catch (error) {
+            console.error('Failed to send C1Action to backend:', error);
+          }
+        }
+      };
+      
       return (
-        <ThemeProvider theme={crayonTheme}>
+        <ThemeProvider theme={crayonTheme || {}}>
           <C1Component
             c1Response={c1Xml}
-            onAction={onC1Action}
+            onAction={c1ActionHandler}
             isStreaming={isStreaming}
           />
         </ThemeProvider>
@@ -133,7 +185,7 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
       
       return (
         <div 
-          className="genux-html-content"
+          className="genux-html-content genux-framework-content"
           dangerouslySetInnerHTML={{ __html: processedHtml }}
         />
       );
@@ -155,7 +207,6 @@ export const ContentRenderer: React.FC<{
     <FlexibleContentRenderer
       content={content}
       contentType="auto"
-      onC1Action={onC1Action}
       isStreaming={isStreaming}
       crayonTheme={crayonTheme}
     />

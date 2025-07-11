@@ -25,6 +25,7 @@ export interface ChatWindowProps {
   isStreamingActive?: boolean;
   // C1Component support
   onC1Action?: (action: any) => void;
+  sendC1Action?: (action: { llmFriendlyMessage: string }, threadId?: string) => string;
   // Custom renderers
   renderMessage?: (message: Message) => React.ReactNode;
   // Minimize support
@@ -55,6 +56,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   streamingMessageId = null,
   isStreamingActive = false,
   onC1Action,
+  sendC1Action,
   renderMessage,
   isMinimized = false,
   onMinimize,
@@ -144,6 +146,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           contentType={'contentType' in message ? message.contentType : 'auto'}
           allowDangerousHtml={'allowDangerousHtml' in message ? message.allowDangerousHtml : false}
           onC1Action={onC1Action}
+          sendC1Action={sendC1Action}
           isStreaming={isStreamingActive}
           crayonTheme={crayonTheme}
         />

@@ -87,7 +87,18 @@ export function useGenuxClient(options: UseGenuxClientOptions): GenuxClient & {
     }
 
     console.log('Initializing new ConnectionService...');
-    const newService = new ConnectionService({ webrtcURL, websocketURL });
+    const newService = new ConnectionService({ 
+      webrtcURL, 
+      websocketURL,
+      mcpEndpoints: options.mcpEndpoints,
+      autoReconnect: options.autoReconnect,
+      reconnectInterval: options.reconnectInterval,
+      maxReconnectAttempts: options.maxReconnectAttempts,
+      uiFramework: options.uiFramework,
+      onFormSubmit: options.onFormSubmit,
+      onButtonClick: options.onButtonClick,
+      onInputChange: options.onInputChange,
+    });
     connectionServiceRef.current = newService;
     
     // Set up event listeners for the new service

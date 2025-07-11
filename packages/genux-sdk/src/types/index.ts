@@ -134,6 +134,14 @@ export interface GenuxOptions {
   
   /** Container mode - when true, VoiceBotFullscreenLayout uses 100% dimensions instead of viewport units */
   containerMode?: boolean;
+  
+  /** UI framework preference for backend-generated content */
+  uiFramework?: 'tailwind' | 'chakra' | 'mui' | 'antd' | 'bootstrap' | 'inline';
+  
+  /** Custom interaction handlers for framework-generated content */
+  onFormSubmit?: (formId: string, formData: FormData) => void;
+  onButtonClick?: (actionType: string, context: any) => void;
+  onInputChange?: (fieldName: string, value: any) => void;
 }
 
 /**
