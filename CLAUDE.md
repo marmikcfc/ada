@@ -639,14 +639,48 @@ Backend must handle and respond to:
 - `c1_token` - Streaming C1 component content (incremental)
 - `chat_done` - End of stream marker
 - `user_transcription` - Voice-to-text transcript
+- `client_config` - UI framework preference from client
+- `user_interaction` - Form/button interactions from framework-generated content
 
 ### Response Format
 ```json
+// Standard C1 response
 {
   "type": "text_chat_response",
   "content": "<content>{C1_XML}</content>",
   "id": "message-uuid",
   "isVoiceOverOnly": false
+}
+
+// HTML content response (for UI framework support)
+{
+  "type": "text_chat_response",
+  "htmlContent": "<div>HTML content</div>",
+  "contentType": "html",
+  "id": "message-uuid"
+}
+```
+
+### UI Framework Support Messages
+
+**Client Configuration:**
+```json
+{
+  "type": "client_config",
+  "uiFramework": "tailwind" // or "chakra", "mui", "inline", etc.
+}
+```
+
+**User Interactions:**
+```json
+{
+  "type": "user_interaction",
+  "interactionType": "form_submit", // or "button_click", "input_change"
+  "context": {
+    "formId": "user-registration",
+    "formData": { "email": "user@example.com" },
+    "timestamp": "2024-01-20T10:30:00Z"
+  }
 }
 ```
 
@@ -959,6 +993,78 @@ Added comprehensive chat-only mode support through the `disableVoice` prop:
 - **demos/ChatOnlyDemo.tsx**: Updated to use disableVoice={true}
 
 This feature enables true chat-only experiences without any voice-related UI or functionality.
+
+## UI Framework Support (2025-01-20)
+
+### Overview
+
+The GenUX SDK now supports backend-generated HTML content optimized for different CSS frameworks (Tailwind, Chakra UI, Material UI, etc.) with automatic interaction handling. This enables rich, interactive UI generation without complex frontend adapters.
+
+### Key Features
+
+1. **Framework Preference API** - Specify target UI framework via `uiFramework` option
+2. **Global Interaction Handlers** - Automatic form/button event collection and handling
+3. **Backend HTML Generation** - Generate framework-optimized HTML on the server
+4. **Secure Content Rendering** - DOMPurify sanitization with framework class preservation
+
+### Usage
+
+```typescript
+<Genux
+  webrtcURL="/api/offer"
+  websocketURL="/ws/messages"
+  options={{
+    uiFramework: 'tailwind', // or 'chakra', 'mui', 'antd', 'inline'
+    onFormSubmit: (formId, formData) => {
+      console.log('Form submitted:', formId, formData);
+    },
+    onButtonClick: (actionType, context) => {
+      console.log('Button clicked:', actionType, context);
+    },
+    onInputChange: (fieldName, value) => {
+      console.log('Input changed:', fieldName, value);
+    }
+  }}
+/>
+```
+
+### Backend Integration
+
+The backend can now generate framework-specific HTML and handle interactions:
+
+```python
+# Generate inline-styled HTML (default)
+if message == "form":
+    return {
+        "type": "text_chat_response",
+        "htmlContent": """
+        <form onsubmit="window.genuxSDK.handleFormSubmit(event, 'my-form')">
+          <input name="email" type="email" required />
+          <button type="submit">Submit</button>
+        </form>
+        """,
+        "contentType": "html"
+    }
+```
+
+### Global SDK Object
+
+The SDK exposes a global `window.genuxSDK` object with these methods:
+- `handleFormSubmit(event, formId)` - Handle form submissions
+- `handleButtonClick(event, actionType, context)` - Handle button clicks
+- `handleInputChange(event, fieldName)` - Handle input changes
+- `sendInteraction(type, context)` - Send custom interactions
+
+### Testing
+
+Use the debug route in the backend:
+- Type **"form"** - Get an interactive registration form
+- Type **"list"** - Get a clickable action list
+- Type **"html"** - Get a styled HTML demo
+
+### Demo
+
+Run the **UI Framework Support** demo in the example app to see all features in action with real-time interaction logging.
 
 ## Latest Updates (2025-07-08)
 
