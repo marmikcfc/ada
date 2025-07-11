@@ -125,8 +125,9 @@ const Genux: React.FC<GenuxProps> = ({
   const chatWindowProps: MinimizableChatWindowProps = {
     messages: client.messages,
     onSendMessage: client.sendText,
-    agentName: options.agentName || "AI Assistant",
+    agentName: options.agentName || "Ada",
     isLoading: client.isLoading,
+    isEnhancing: client.isEnhancing,
     showVoiceButton: !disableVoice,
     onVoiceToggle: disableVoice ? undefined : handleToggleVoice,
     isVoiceActive: disableVoice ? false : client.voiceState === 'connected',

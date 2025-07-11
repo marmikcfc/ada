@@ -11,6 +11,7 @@ export interface ChatWindowProps {
   header?: React.ReactNode;
   agentName?: string;
   isLoading?: boolean;
+  isEnhancing?: boolean;
   className?: string;
   style?: CSSProperties;
   theme?: any;
@@ -45,6 +46,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   header,
   agentName = 'Chat',
   isLoading = false,
+  isEnhancing = false,
   className = '',
   style,
   theme,
@@ -172,6 +174,28 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     displayMessages.push(streamingMessage);
   }
   
+  // Add loading state messages (only when not streaming to avoid conflicts)
+  if (isLoading && !isStreamingActive) {
+    const loadingMessage: Message = {
+      id: 'loading',
+      role: 'assistant',
+      content: `💭 ${agentName} is thinking...`,
+      timestamp: new Date(),
+      isLoading: true,
+    };
+    displayMessages.push(loadingMessage);
+  }
+  
+  if (isEnhancing && !isStreamingActive && !isLoading) {
+    const enhancingMessage: Message = {
+      id: 'enhancing',
+      role: 'assistant',
+      content: '✨ Generating enhanced display...',
+      timestamp: new Date(),
+      isLoading: true,
+    };
+    displayMessages.push(enhancingMessage);
+  }
   
   return (
     <div className={`genux-chat-window ${isMinimized ? 'minimized' : ''} ${className}`} style={containerStyles}>
