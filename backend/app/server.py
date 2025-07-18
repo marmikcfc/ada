@@ -44,17 +44,68 @@ from agent.enhanced_mcp_client_agent import EnhancedMCPClient
 from app.chat_history_manager import chat_history_manager
 logger = logging.getLogger(__name__)
 
+async def get_or_create_mcp_client(app_state):
+    """
+    Get existing MCP client or create new one if needed (lazy initialization)
+    
+    Args:
+        app_state: The FastAPI app state object
+        
+    Returns:
+        EnhancedMCPClient instance or None if initialization fails
+    """
+    if app_state.enhanced_mcp_client is not None:
+        return app_state.enhanced_mcp_client
+    
+    # Initialize the MCP client lazily
+    try:
+        logger.info("Lazy initializing Enhanced MCP Client...")
+        enhanced_mcp_client = EnhancedMCPClient(config.mcp.mcp_config_path)
+        # Prevent hanging forever if a remote MCP server is slow
+        MCP_INIT_TIMEOUT = int(os.getenv("MCP_INIT_TIMEOUT", "30"))  # seconds
+        try:
+            await asyncio.wait_for(enhanced_mcp_client.initialize(), timeout=MCP_INIT_TIMEOUT)
+        except asyncio.TimeoutError:
+            logger.error(
+                "Timed-out while initialising Enhanced MCP Client "
+                f"(>{MCP_INIT_TIMEOUT}s). Continuing without MCP."
+            )
+            enhanced_mcp_client = None
+        app_state.enhanced_mcp_client = enhanced_mcp_client
+        if enhanced_mcp_client:
+            logger.info("Enhanced MCP Client initialized successfully.")
+            
+            # Start the visualization processor now that MCP client is available
+            if not getattr(app_state, 'visualization_processor', None):
+                try:
+                    logger.info("Starting Visualization Processor...")
+                    visualization_processor = await create_visualization_processor(
+                        enhanced_mcp_client=enhanced_mcp_client,
+                        thesys_client=getattr(app_state, 'thesys_client', None),
+                        app_state=app_state
+                    )
+                    app_state.visualization_processor = visualization_processor
+                    logger.info("Visualization Processor started successfully.")
+                except Exception as e:
+                    logger.error(f"Failed to start Visualization Processor: {e}", exc_info=True)
+                    
+        return enhanced_mcp_client
+    except Exception as e:
+        logger.error(f"Failed to initialize MCP Client: {e}", exc_info=True)
+        app_state.enhanced_mcp_client = None
+        return None
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """
     Lifespan context manager for FastAPI application
     
     This handles:
-    1. Initialization of MCP client
-    2. Initialization of Thesys client (if API key available)
-    3. Initialization of queues
-    4. Starting the visualization processor
-    5. Cleanup on shutdown
+    1. Initialization of Thesys client (if API key available)
+    2. Initialization of queues
+    3. Lazy initialization of MCP client and visualization processor
+    4. Cleanup on shutdown
     
     Args:
         app: The FastAPI application
@@ -68,27 +119,6 @@ async def lifespan(app: FastAPI):
     
     # Initialize queues
     initialize_queues()
-    
-    # Initialize the MCP client
-    try:
-        logger.info("Initializing Enhanced MCP Client...")
-        enhanced_mcp_client = EnhancedMCPClient(config.mcp.mcp_config_path)
-        # Prevent startup from hanging forever if a remote MCP server is slow
-        MCP_INIT_TIMEOUT = int(os.getenv("MCP_INIT_TIMEOUT", "30"))  # seconds
-        try:
-            await asyncio.wait_for(enhanced_mcp_client.initialize(), timeout=MCP_INIT_TIMEOUT)
-        except asyncio.TimeoutError:
-            logger.error(
-                "Timed-out while initialising Enhanced MCP Client "
-                f"(>{MCP_INIT_TIMEOUT}s). Continuing without MCP."
-            )
-            enhanced_mcp_client = None
-        app.state.enhanced_mcp_client = enhanced_mcp_client
-        if enhanced_mcp_client:
-            logger.info("Enhanced MCP Client initialized successfully.")
-    except Exception as e:
-        logger.error(f"Failed to initialize MCP Client during startup: {e}", exc_info=True)
-        app.state.enhanced_mcp_client = None
     
     # Initialize Thesys Client if API key is available
     if config.api.thesys_api_key:
@@ -106,18 +136,21 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("THESYS_API_KEY not found. Visualization features will be disabled.")
     
-    # Start the visualization processor
-    if app.state.enhanced_mcp_client:
-        try:
-            logger.info("Starting Visualization Processor...")
-            visualization_processor = await create_visualization_processor(
-                enhanced_mcp_client=app.state.enhanced_mcp_client,
-                thesys_client=app.state.thesys_client
-            )
-            app.state.visualization_processor = visualization_processor
-            logger.info("Visualization Processor started successfully.")
-        except Exception as e:
-            logger.error(f"Failed to start Visualization Processor: {e}", exc_info=True)
+    # Start the visualization processor immediately with app_state for lazy MCP initialization
+    try:
+        logger.info("Starting Visualization Processor with lazy MCP client initialization...")
+        visualization_processor = await create_visualization_processor(
+            enhanced_mcp_client=None,  # Will be initialized lazily
+            thesys_client=app.state.thesys_client,
+            app_state=app.state
+        )
+        app.state.visualization_processor = visualization_processor
+        logger.info("Visualization Processor started successfully with lazy initialization.")
+    except Exception as e:
+        logger.error(f"Failed to start Visualization Processor: {e}", exc_info=True)
+    
+    # Note: MCP client will be initialized lazily when first needed
+    logger.info("Server startup complete - MCP client will be initialized on first use")
     
     # Application runs here
     yield
@@ -209,13 +242,14 @@ def create_application() -> FastAPI:
             "enhanced_client": []
         }
         
-        # Get tools from enhanced client
-        if request.app.state.enhanced_mcp_client:
-            try:
-                enhanced_tools = request.app.state.enhanced_mcp_client.get_available_tools()
+        # Get tools from enhanced client (with lazy initialization)
+        try:
+            enhanced_mcp_client = await get_or_create_mcp_client(request.app.state)
+            if enhanced_mcp_client:
+                enhanced_tools = enhanced_mcp_client.get_available_tools()
                 tools_info["enhanced_client"] = enhanced_tools
-            except Exception as e:
-                logger.error(f"Error getting enhanced tools: {e}")
+        except Exception as e:
+            logger.error(f"Error getting enhanced tools: {e}")
         
         return tools_info
 

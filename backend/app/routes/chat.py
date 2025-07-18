@@ -80,7 +80,9 @@ def extract_message_and_thread_id(request: Union[ChatRequest, ThesysBridgeReques
 async def _process_chat_logic(message: str, thread_id: str, *, is_c1_action: bool, app_state) -> None:
     """Internal helper to process a chat message just like the POST endpoint."""
 
-    enhanced_mcp_client: EnhancedMCPClient = app_state.enhanced_mcp_client
+    # Use lazy initialization for MCP client
+    from app.server import get_or_create_mcp_client
+    enhanced_mcp_client: EnhancedMCPClient = await get_or_create_mcp_client(app_state)
     if not enhanced_mcp_client:
         raise HTTPException(status_code=500, detail="Chat service not available")
 

@@ -127,16 +127,18 @@ class VisualizationProcessor:
     - NEW: Injects voice-over text into TTS pipeline via TTSSpeakFrame
     """
 
-    def __init__(self, enhanced_mcp_client, thesys_client: Optional[AsyncOpenAI] = None):
+    def __init__(self, enhanced_mcp_client, thesys_client: Optional[AsyncOpenAI] = None, app_state=None):
         """
         Initialize the visualization processor
 
         Args:
-            enhanced_mcp_client: The enhanced MCP client for making enhancement decisions
+            enhanced_mcp_client: The enhanced MCP client for making enhancement decisions (can be None for lazy init)
             thesys_client: Optional Thesys client for visualization
+            app_state: Optional FastAPI app state for lazy MCP client initialization
         """
         self.enhanced_mcp_client = enhanced_mcp_client
         self.thesys_client = thesys_client
+        self.app_state = app_state
         self.running = False
         self.task = None
 
@@ -244,24 +246,51 @@ class VisualizationProcessor:
 
                 logger.info(f"Visualization processor: Original voice response length: {len(assistant_response)} chars")
 
+                # Ensure MCP client is available (lazy initialization)
+                if not self.enhanced_mcp_client and self.app_state:
+                    logger.info("Visualization processor: MCP client not initialized, attempting lazy initialization...")
+                    # Import here to avoid circular import
+                    from app.server import get_or_create_mcp_client
+                    self.enhanced_mcp_client = await get_or_create_mcp_client(self.app_state)
+                    
+                if not self.enhanced_mcp_client:
+                    logger.error("Visualization processor: MCP client not available - skipping enhancement")
+                    # Send simple text response without enhancement
+                    source = metadata.get("source", "voice-agent")
+                    if source == "text_chat":
+                        thread_id = metadata.get("thread_id")
+                        message_for_frontend = create_text_chat_response(
+                            content=assistant_response,
+                            thread_id=thread_id
+                        )
+                    else:
+                        message_for_frontend = create_voice_response(
+                            content=assistant_response,
+                            voice_text=""
+                        )
+                    await enqueue_llm_message(message_for_frontend)
+                    continue
+
                 # Step 1: Process through MCP agent to determine if enhancement is needed
                 try:
                     logger.info("Visualization processor: Processing assistant response through MCP agent...")
 
-                    # Create voice injection callback for real-time TTS
-                    async def voice_injection_callback(voice_text: str):
-                        """Inject voice text immediately to active voice agents"""
-                        if voice_text and voice_text.strip():
-                            logger.info(f"Injecting streaming voice text: '{voice_text}'")
-                            await inject_voice_over_to_all_agents(voice_text.strip())
+                    # Check if this is a voice message where an immediate response was already sent
+                    source = metadata.get("source", "voice-agent")  # Default to voice for backward compatibility
+                    
+                    # For voice-agent sources, validate that voice connection is still active
+                    if source == "voice-agent" and not _active_voice_agents:
+                        logger.info("No active voice agents found, skipping enhancement processing for voice-agent source")
+                        continue
                    
                     # Use streaming enhancement decision for better latency
+                    # Note: We don't pass voice_injection_callback here to avoid premature voice injection
                     if not bypass_enhancement:
                         logger.info(f"Visualization processor: Making enhancement decision with streaming")
                         enhancement_decision = await self.enhanced_mcp_client.make_enhancement_decision_streaming(
                             assistant_response=assistant_response,
                             conversation_history=conversation_history,
-                            voice_injection_callback=voice_injection_callback
+                            voice_injection_callback=None  # No voice injection during decision making
                         )
                     else:
                         logger.info(f"Visualization processor: Bypassing enhancement decision, {assistant_response}")
@@ -289,9 +318,6 @@ class VisualizationProcessor:
                 display_text = enhancement_decision.displayEnhancedText
                 voice_text = enhancement_decision.voiceOverText
 
-                # Check if this is a voice message where an immediate response was already sent
-                source = metadata.get("source", "voice-agent")  # Default to voice for backward compatibility
-
                 # ------------------------------------------------------------------ #
                 #  NEW: Notify frontend that visual enhancement has started
                 # ------------------------------------------------------------------ #
@@ -307,6 +333,18 @@ class VisualizationProcessor:
                         "indicator (id=%s) to frontend",
                         enhancement_started_msg["id"],
                     )
+                    
+                    # ------------------------------------------------------------------ #
+                    #  CONDITIONAL VOICE INJECTION: Only inject voice-over if enhancement 
+                    #  is needed and we have active voice agents
+                    # ------------------------------------------------------------------ #
+                    if source == "voice-agent" and voice_text and _active_voice_agents:
+                        logger.info(f"Injecting voice-over text for confirmed enhancement: '{voice_text}'")
+                        await inject_voice_over_to_all_agents(voice_text.strip())
+                    elif source == "voice-agent" and voice_text and not _active_voice_agents:
+                        logger.warning("Voice-over text available but no active voice agents to inject to")
+                    elif source == "voice-agent" and not voice_text:
+                        logger.debug("No voice-over text provided for voice-agent source")
                 else:
                     logger.info("Visualization processor: No enhancement needed")
                     continue
@@ -517,20 +555,22 @@ class VisualizationProcessor:
         logger.info("Visualization processor loop ended")
 
 
-async def create_visualization_processor(enhanced_mcp_client, thesys_client=None):
+async def create_visualization_processor(enhanced_mcp_client, thesys_client=None, app_state=None):
     """
     Create and start a visualization processor
 
     Args:
-        enhanced_mcp_client: The enhanced MCP client
+        enhanced_mcp_client: The enhanced MCP client (can be None for lazy initialization)
         thesys_client: Optional Thesys client
+        app_state: Optional FastAPI app state for lazy MCP client initialization
 
     Returns:
         The started visualization processor
     """
     processor = VisualizationProcessor(
         enhanced_mcp_client=enhanced_mcp_client,
-        thesys_client=thesys_client
+        thesys_client=thesys_client,
+        app_state=app_state
     )
     await processor.start()
     return processor
