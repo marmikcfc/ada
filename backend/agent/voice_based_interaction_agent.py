@@ -26,7 +26,10 @@ from pipecat.transports.network.small_webrtc import SmallWebRTCTransport
 from pipecat.observers.loggers.llm_log_observer import LLMLogObserver
 from pipecat.processors.transcript_processor import TranscriptProcessor
 from pipecat.transports.network.webrtc_connection import SmallWebRTCConnection
+from pipecat.audio.filters.noisereduce_filter import NoisereduceFilter
+
 import json
+
 
 # Import chat history manager
 from app.chat_history_manager import chat_history_manager
@@ -195,6 +198,7 @@ class VoiceInterfaceAgent:
             audio_out_enabled=True,
             audio_out_10ms_chunks=2,
             vad_analyzer=SileroVADAnalyzer(),
+            audio_in_filter=NoisereduceFilter(), # Enable noise reduction
         )
 
         pipecat_transport = SmallWebRTCTransport(
