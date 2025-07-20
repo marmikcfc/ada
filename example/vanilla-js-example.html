@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Per-Connection MCP Configuration Example</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 350px 1fr;
+            gap: 20px;
+        }
+        .config-panel {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            height: fit-content;
+        }
+        .chat-panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            height: 600px;
+        }
+        .config-option {
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .config-option:hover {
+            background-color: #f0f9ff;
+            border-color: #3b82f6;
+        }
+        .config-option.selected {
+            background-color: #e0f2fe;
+            border-color: #0891b2;
+        }
+        .status-indicator {
+            padding: 12px 16px;
+            border-radius: 6px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .status-connecting { background-color: #dbeafe; border: 1px solid #3b82f6; }
+        .status-active { background-color: #d1fae5; border: 1px solid #10b981; }
+        .status-error { background-color: #fee2e2; border: 1px solid #ef4444; }
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            border-bottom: 1px solid #e5e7eb;
+        }
+        .message {
+            padding: 12px 16px;
+            margin: 8px 0;
+            border-radius: 12px;
+            max-width: 80%;
+        }
+        .message.user {
+            background-color: #eff6ff;
+            border: 1px solid #3b82f6;
+            margin-left: auto;
+        }
+        .message.assistant {
+            background-color: #f0f9ff;
+            border: 1px solid #0ea5e9;
+        }
+        .input-section {
+            padding: 16px;
+            display: flex;
+            gap: 8px;
+        }
+        .input-section input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 1px solid #d1d5db;
+            border-radius: 24px;
+            outline: none;
+        }
+        .input-section button {
+            padding: 12px 20px;
+            background-color: #3b82f6;
+            color: white;
+            border: none;
+            border-radius: 24px;
+            cursor: pointer;
+        }
+        .input-section button:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+        .config-preview {
+            background-color: #f0f9ff;
+            border: 1px solid #0891b2;
+            border-radius: 6px;
+            padding: 12px;
+            margin-top: 16px;
+            font-size: 12px;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        h1, h2, h3 { margin-top: 0; }
+        .form-group {
+            margin-bottom: 12px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 12px;
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            font-size: 14px;
+        }
+        .form-group textarea {
+            height: 60px;
+            resize: vertical;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Configuration Panel -->
+        <div class="config-panel">
+            <h2>Configuration Setup</h2>
+            
+            <!-- Pre-defined configurations -->
+            <h3>Pre-defined Examples</h3>
+            <div class="config-option" data-config="basic">
+                <strong>💬 Basic Chat</strong><br>
+                <small>No MCP servers, Thesys visualization</small>
+            </div>
+            <div class="config-option" data-config="search">
+                <strong>🔍 With Perplexity Search</strong><br>
+                <small>Real-time search MCP, Thesys visualization</small>
+            </div>
+            <div class="config-option" data-config="google">
+                <strong>🎨 Google Visualization</strong><br>
+                <small>No MCP servers, Google visualization</small>
+            </div>
+            
+            <!-- Custom configuration -->
+            <h3>Custom Configuration</h3>
+            <div class="form-group">
+                <label>Client ID</label>
+                <input type="text" id="clientId" placeholder="my-custom-client" value="custom-client">
+            </div>
+            <div class="form-group">
+                <label>MCP Server URLs (comma-separated)</label>
+                <textarea id="mcpServers" placeholder="https://mcp1.example.com, https://mcp2.example.com"></textarea>
+            </div>
+            <div class="form-group">
+                <label>Visualization Provider</label>
+                <select id="vizProvider">
+                    <option value="thesys">Thesys (C1 Components)</option>
+                    <option value="google">Google (Gemini)</option>
+                    <option value="tomorrow">Tomorrow AI</option>
+                    <option value="openai">OpenAI (Fallback)</option>
+                </select>
+            </div>
+            <button onclick="useCustomConfig()" style="width: 100%; padding: 12px; background: #3b82f6; color: white; border: none; border-radius: 6px;">
+                🔧 Use Custom Config
+            </button>
+            
+            <!-- Configuration preview -->
+            <div id="configPreview" class="config-preview" style="display: none;">
+                <strong>Selected Configuration:</strong><br>
+                <span id="configJson"></span>
+            </div>
+        </div>
+
+        <!-- Chat Panel -->
+        <div class="chat-panel">
+            <div style="padding: 16px; border-bottom: 1px solid #e5e7eb; background-color: #f9fafb;">
+                <h3 style="margin: 0 0 8px 0;">Chat Interface</h3>
+                <div style="font-size: 12px; color: #6b7280;" id="configSummary">
+                    Select a configuration to start
+                </div>
+            </div>
+            
+            <!-- Connection Status -->
+            <div id="connectionStatus" class="status-indicator" style="display: none;">
+                <span id="statusIcon">⚪</span>
+                <span id="statusText">Not connected</span>
+            </div>
+            
+            <!-- Messages -->
+            <div class="messages" id="messages">
+                <div style="text-align: center; color: #6b7280; padding: 40px;">
+                    👈 Select a configuration to start chatting
+                </div>
+            </div>
+            
+            <!-- Input -->
+            <div class="input-section">
+                <input type="text" id="messageInput" placeholder="Type your message..." disabled>
+                <button id="sendButton" onclick="sendMessage()" disabled>Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration templates
+        const CONFIGS = {
+            basic: {
+                clientId: 'basic-chat-client',
+                authToken: 'demo-token-basic',
+                mcpConfig: {
+                    model: 'gpt-4o-mini',
+                    apiKeyEnv: 'OPENAI_API_KEY',
+                    servers: []
+                },
+                visualizationProvider: {
+                    type: 'thesys',
+                    apiKeyEnv: 'THESYS_API_KEY',
+                    model: 'c1-nightly'
+                }
+            },
+            search: {
+                clientId: 'search-enabled-client',
+                authToken: 'demo-token-search',
+                mcpConfig: {
+                    model: 'gpt-4o-mini',
+                    apiKeyEnv: 'OPENAI_API_KEY',
+                    servers: [{
+                        name: 'perplexity_search',
+                        url: 'https://server.smithery.ai/@arjunkmrm/perplexity-search/mcp?api_key=54b8c43d-cdda-4503-bda0-29be49a2b664&profile=tense-raven-Zw05Xc',
+                        transport: 'http',
+                        description: 'Real-time web search via Perplexity'
+                    }]
+                },
+                visualizationProvider: {
+                    type: 'thesys',
+                    apiKeyEnv: 'THESYS_API_KEY',
+                    model: 'c1-nightly'
+                }
+            },
+            google: {
+                clientId: 'google-viz-client',
+                authToken: 'demo-token-google',
+                mcpConfig: {
+                    model: 'gpt-4o-mini',
+                    apiKeyEnv: 'OPENAI_API_KEY',
+                    servers: []
+                },
+                visualizationProvider: {
+                    type: 'google',
+                    apiKeyEnv: 'GOOGLE_API_KEY',
+                    model: 'gemini-pro'
+                }
+            }
+        };
+
+        let websocket = null;
+        let currentConfig = null;
+        let connectionState = 'disconnected';
+
+        // Handle configuration selection
+        document.querySelectorAll('.config-option').forEach(option => {
+            option.addEventListener('click', function() {
+                // Remove selection from all options
+                document.querySelectorAll('.config-option').forEach(opt => opt.classList.remove('selected'));
+                // Select this option
+                this.classList.add('selected');
+                
+                const configKey = this.getAttribute('data-config');
+                selectConfig(CONFIGS[configKey]);
+            });
+        });
+
+        function useCustomConfig() {
+            const clientId = document.getElementById('clientId').value || 'custom-client';
+            const mcpServers = document.getElementById('mcpServers').value;
+            const vizProvider = document.getElementById('vizProvider').value;
+
+            const config = {
+                clientId: clientId,
+                authToken: 'demo-token-custom',
+                mcpConfig: {
+                    model: 'gpt-4o-mini',
+                    apiKeyEnv: 'OPENAI_API_KEY',
+                    servers: mcpServers ? mcpServers.split(',').map(url => ({
+                        name: `server_${Math.random().toString(36).substr(2, 9)}`,
+                        url: url.trim(),
+                        transport: 'http',
+                        description: 'Custom MCP server'
+                    })) : []
+                },
+                visualizationProvider: {
+                    type: vizProvider,
+                    api_key_env: vizProvider === 'thesys' ? 'THESYS_API_KEY' :
+                                 vizProvider === 'google' ? 'GOOGLE_API_KEY' :
+                                 vizProvider === 'tomorrow' ? 'TOMORROW_API_KEY' :
+                                 'OPENAI_API_KEY'
+                }
+            };
+
+            selectConfig(config);
+        }
+
+        function selectConfig(config) {
+            currentConfig = config;
+            
+            // Update UI
+            document.getElementById('configSummary').textContent = 
+                `${config.clientId} | Model: ${config.mcpConfig.model} | MCP Servers: ${config.mcpConfig.servers.length} | Viz: ${config.visualizationProvider.type}`;
+            
+            // Show config preview
+            document.getElementById('configPreview').style.display = 'block';
+            document.getElementById('configJson').textContent = JSON.stringify(config, null, 2);
+            
+            // Clear messages
+            document.getElementById('messages').innerHTML = `
+                <div style="text-align: center; color: #6b7280; padding: 40px;">
+                    <div style="font-size: 24px; margin-bottom: 8px;">🔄</div>
+                    <div>Click "Connect" to establish connection with this configuration</div>
+                    <button onclick="connectWithConfig()" style="margin-top: 16px; padding: 12px 24px; background: #3b82f6; color: white; border: none; border-radius: 6px; cursor: pointer;">
+                        Connect to WebSocket
+                    </button>
+                </div>
+            `;
+        }
+
+        function connectWithConfig() {
+            if (!currentConfig) {
+                alert('Please select a configuration first');
+                return;
+            }
+
+            // Close existing connection
+            if (websocket) {
+                websocket.close();
+            }
+
+            updateStatus('connecting', 'Establishing WebSocket connection...');
+
+            // Connect to the per-connection WebSocket endpoint
+            websocket = new WebSocket('ws://localhost:8000/api/v2/ws/per-connection-messages');
+
+            websocket.onopen = function() {
+                console.log('WebSocket connected, waiting for handshake...');
+            };
+
+            websocket.onmessage = function(event) {
+                const message = JSON.parse(event.data);
+                handleMessage(message);
+            };
+
+            websocket.onerror = function(error) {
+                console.error('WebSocket error:', error);
+                updateStatus('error', 'WebSocket connection error');
+            };
+
+            websocket.onclose = function(event) {
+                console.log('WebSocket disconnected:', event.code, event.reason);
+                updateStatus('disconnected', 'Connection closed');
+                document.getElementById('sendButton').disabled = true;
+                document.getElementById('messageInput').disabled = true;
+            };
+        }
+
+        function handleMessage(message) {
+            console.log('Received message:', message);
+
+            switch (message.type) {
+                case 'connection_established':
+                    console.log('✅ Connection established:', message.message);
+                    updateStatus('config_sending', 'Sending configuration...');
+                    sendConfiguration();
+                    break;
+
+                case 'connection_state':
+                    const { state, message: stateMessage, progress } = message;
+                    const progressText = progress ? ` (${progress}%)` : '';
+                    console.log(`🔄 State: ${state} - ${stateMessage}${progressText}`);
+                    
+                    updateStatus(state, stateMessage + progressText);
+
+                    if (state === 'active') {
+                        console.log('🎉 Connection ready for chat!');
+                        document.getElementById('sendButton').disabled = false;
+                        document.getElementById('messageInput').disabled = false;
+                        document.getElementById('messageInput').placeholder = 'Type your message...';
+                        
+                        // Clear the messages and show ready state
+                        document.getElementById('messages').innerHTML = `
+                            <div style="text-align: center; color: #6b7280; padding: 40px;">
+                                <div style="font-size: 24px; margin-bottom: 8px;">💬</div>
+                                <div>Connection ready! Start a conversation...</div>
+                                <div style="font-size: 12px; margin-top: 8px;">
+                                    Try: "Hello", "Search for AI news", or "Create a dashboard"
+                                </div>
+                            </div>
+                        `;
+                    }
+                    break;
+
+                case 'error':
+                    console.error('❌ Connection error:', message.message);
+                    updateStatus('error', message.message);
+                    break;
+
+                case 'text_chat_response':
+                    addMessage('assistant', message.content);
+                    break;
+
+                case 'c1_token':
+                    // Handle streaming tokens
+                    updateStreamingMessage(message.id, message.content);
+                    break;
+
+                case 'chat_done':
+                    // Mark message as complete
+                    markMessageComplete(message.id);
+                    break;
+
+                default:
+                    console.warn('Unknown message type:', message.type, message);
+            }
+        }
+
+        function sendConfiguration() {
+            if (!currentConfig || !websocket) return;
+
+            const configMessage = {
+                type: "connection_config",
+                config: {
+                    client_id: currentConfig.clientId,
+                    auth_token: currentConfig.authToken || null,
+                    mcp_config: {
+                        model: currentConfig.mcpConfig.model,
+                        api_key_env: currentConfig.mcpConfig.apiKeyEnv,
+                        servers: currentConfig.mcpConfig.servers,
+                        timeout: 30
+                    },
+                    visualization_provider: {
+                        provider_type: currentConfig.visualizationProvider.type,
+                        api_key_env: currentConfig.visualizationProvider.api_key_env || currentConfig.visualizationProvider.apiKeyEnv,
+                        base_url: currentConfig.visualizationProvider.baseUrl,
+                        model: currentConfig.visualizationProvider.model,
+                        timeout: 30
+                    },
+                    preferences: currentConfig.preferences || {}
+                }
+            };
+
+            console.log('📋 Sending configuration:', configMessage);
+            websocket.send(JSON.stringify(configMessage));
+        }
+
+        function updateStatus(state, message) {
+            connectionState = state;
+            
+            const statusDiv = document.getElementById('connectionStatus');
+            const statusIcon = document.getElementById('statusIcon');
+            const statusText = document.getElementById('statusText');
+            
+            statusDiv.style.display = 'flex';
+            statusDiv.className = 'status-indicator status-' + getStatusClass(state);
+            statusIcon.textContent = getStatusIcon(state);
+            statusText.textContent = message;
+        }
+
+        function getStatusClass(state) {
+            if (['connecting', 'config_sending', 'validating', 'mcp_initializing', 'viz_initializing', 'ready'].includes(state)) {
+                return 'connecting';
+            } else if (state === 'active') {
+                return 'active';
+            } else if (state === 'error') {
+                return 'error';
+            }
+            return 'connecting';
+        }
+
+        function getStatusIcon(state) {
+            switch (state) {
+                case 'connecting':
+                case 'config_sending':
+                case 'validating':
+                case 'mcp_initializing':
+                case 'viz_initializing': return '🔄';
+                case 'ready':
+                case 'active': return '✅';
+                case 'error': return '❌';
+                default: return '⚪';
+            }
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const message = input.value.trim();
+            
+            if (!message || connectionState !== 'active') return;
+
+            addMessage('user', message);
+            
+            const chatMessage = {
+                type: 'chat',
+                message: message,
+                thread_id: 'thread-' + Date.now(),
+                connection_id: null // Will be set by server
+            };
+
+            websocket.send(JSON.stringify(chatMessage));
+            input.value = '';
+        }
+
+        function addMessage(role, content) {
+            const messagesDiv = document.getElementById('messages');
+            const messageId = 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+            
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${role}`;
+            messageDiv.id = messageId;
+            messageDiv.innerHTML = `
+                <div style="font-size: 12px; color: #6b7280; margin-bottom: 6px; font-weight: 500;">
+                    ${role === 'user' ? '👤 You' : '🤖 Assistant'}
+                </div>
+                <div style="color: #374151; line-height: 1.5;">${content || 'Processing...'}</div>
+            `;
+            
+            messagesDiv.appendChild(messageDiv);
+            messageDiv.scrollIntoView({ behavior: 'smooth' });
+            
+            return messageId;
+        }
+
+        let streamingMessages = {};
+
+        function updateStreamingMessage(messageId, content) {
+            if (!streamingMessages[messageId]) {
+                streamingMessages[messageId] = addMessage('assistant', '');
+            }
+            
+            const messageDiv = document.getElementById(streamingMessages[messageId]);
+            if (messageDiv) {
+                const contentDiv = messageDiv.querySelector('div:last-child');
+                contentDiv.innerHTML += content;
+                messageDiv.scrollIntoView({ behavior: 'smooth' });
+            }
+        }
+
+        function markMessageComplete(messageId) {
+            if (streamingMessages[messageId]) {
+                const messageDiv = document.getElementById(streamingMessages[messageId]);
+                if (messageDiv) {
+                    const roleDiv = messageDiv.querySelector('div:first-child');
+                    roleDiv.innerHTML = '🤖 Assistant ✓';
+                }
+                delete streamingMessages[messageId];
+            }
+        }
+
+        // Enable Enter key for sending messages
+        document.getElementById('messageInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    </script>
+</body>
+</html>

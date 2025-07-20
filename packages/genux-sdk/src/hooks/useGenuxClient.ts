@@ -98,6 +98,7 @@ export function useGenuxClient(options: UseGenuxClientOptions): GenuxClient & {
       onFormSubmit: options.onFormSubmit,
       onButtonClick: options.onButtonClick,
       onInputChange: options.onInputChange,
+      onWebSocketConnect: options.onWebSocketConnect,
     });
     connectionServiceRef.current = newService;
     

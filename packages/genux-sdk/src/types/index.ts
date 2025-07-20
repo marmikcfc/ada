@@ -142,6 +142,9 @@ export interface GenuxOptions {
   onFormSubmit?: (formId: string, formData: FormData) => void;
   onButtonClick?: (actionType: string, context: any) => void;
   onInputChange?: (fieldName: string, value: any) => void;
+  
+  /** Custom WebSocket connection handler (for per-connection setup) */
+  onWebSocketConnect?: (ws: WebSocket) => () => void;
 }
 
 /**

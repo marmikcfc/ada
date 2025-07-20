@@ -56,8 +56,9 @@ const Genux: React.FC<GenuxProps> = ({
       onFormSubmit: options.onFormSubmit,
       onButtonClick: options.onButtonClick,
       onInputChange: options.onInputChange,
+      onWebSocketConnect: options.onWebSocketConnect,
     }),
-    [webrtcURL, websocketURL, options.mcpEndpoints, options.uiFramework, options.onFormSubmit, options.onButtonClick, options.onInputChange, disableVoice]
+    [webrtcURL, websocketURL, options.mcpEndpoints, options.uiFramework, options.onFormSubmit, options.onButtonClick, options.onInputChange, options.onWebSocketConnect, disableVoice]
   );
 
   const client = useGenuxClient(clientOptions);

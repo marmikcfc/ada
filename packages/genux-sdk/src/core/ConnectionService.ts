@@ -39,6 +39,8 @@ export interface ConnectionServiceOptions {
   onFormSubmit?: (formId: string, formData: FormData) => void;
   onButtonClick?: (actionType: string, context: any) => void;
   onInputChange?: (fieldName: string, value: any) => void;
+  /** Custom WebSocket connection handler (for per-connection setup) */
+  onWebSocketConnect?: (ws: WebSocket) => () => void;
 }
 
 /**
@@ -73,6 +75,8 @@ export class ConnectionService extends EventEmitter {
   private onFormSubmit?: (formId: string, formData: FormData) => void;
   private onButtonClick?: (actionType: string, context: any) => void;
   private onInputChange?: (fieldName: string, value: any) => void;
+  private onWebSocketConnect?: (ws: WebSocket) => () => void;
+  private wsCleanupCallback?: () => void;
 
   private webSocket: WebSocket | null = null;
   private peerConnection: RTCPeerConnection | null = null;
@@ -109,6 +113,7 @@ export class ConnectionService extends EventEmitter {
     this.onFormSubmit = options.onFormSubmit;
     this.onButtonClick = options.onButtonClick;
     this.onInputChange = options.onInputChange;
+    this.onWebSocketConnect = options.onWebSocketConnect;
     
     // Setup global interaction handlers
     this.setupGlobalHandlers();
@@ -303,6 +308,12 @@ export class ConnectionService extends EventEmitter {
     this.disconnectVoice();
     this.closeWebSocket();
     this.setConnectionState('disconnected');
+    
+    // Clean up WebSocket connection handler
+    if (this.wsCleanupCallback) {
+      this.wsCleanupCallback();
+      this.wsCleanupCallback = undefined;
+    }
   }
 
   /**
@@ -355,11 +366,22 @@ export class ConnectionService extends EventEmitter {
     this.setConnectionState('connected');
     this.reconnectAttempts = 0;
     
-    // Send UI framework preference to backend
-    this.sendMessage({
-      type: 'client_config',
-      uiFramework: this.uiFramework
-    });
+    // Call custom WebSocket connection handler if provided
+    if (this.onWebSocketConnect && this.webSocket) {
+      console.log(`[WS:${this.wsConnectionId}] Calling custom onWebSocketConnect handler`);
+      this.wsCleanupCallback = this.onWebSocketConnect(this.webSocket);
+    } else {
+      console.log(`[WS:${this.wsConnectionId}] No custom onWebSocketConnect handler provided`);
+    }
+    
+    // Send UI framework preference to backend (skip for per-connection endpoints)
+    const isPerConnectionEndpoint = this.websocketURL.includes('/per-connection-messages');
+    if (!isPerConnectionEndpoint) {
+      this.sendMessage({
+        type: 'client_config',
+        uiFramework: this.uiFramework
+      });
+    }
   }
 
   /**
@@ -554,6 +576,23 @@ export class ConnectionService extends EventEmitter {
           // Slow path (visualisation) signalled it is working on UI
           console.log(`[WS:${this.wsConnectionId}] Enhancement in progress`);
           this.emit(ConnectionEvent.ENHANCEMENT_STARTED);
+          break;
+
+        // Per-connection specific message types
+        case 'connection_established':
+          console.log(`[WS:${this.wsConnectionId}] Per-connection established:`, data.connection_id);
+          break;
+          
+        case 'connection_state':
+          console.log(`[WS:${this.wsConnectionId}] Per-connection state:`, data.state, data.message);
+          if (data.state === 'disconnecting') {
+            this.setConnectionState('disconnected');
+          }
+          break;
+          
+        case 'error':
+          console.error(`[WS:${this.wsConnectionId}] Server error:`, data.message);
+          this.emit(ConnectionEvent.ERROR, new Error(data.message || 'Server error'));
           break;
           
         default:
