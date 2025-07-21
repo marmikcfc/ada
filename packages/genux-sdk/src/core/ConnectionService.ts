@@ -24,6 +24,16 @@ export enum ConnectionEvent {
 }
 
 /**
+ * Visualization provider configuration
+ */
+export interface VisualizationProvider {
+  provider_type: 'thesys' | 'openai' | 'anthropic' | 'custom';
+  model: string;
+  api_key_env: string;
+  custom_endpoint?: string;
+}
+
+/**
  * Options for the ConnectionService
  */
 export interface ConnectionServiceOptions {
@@ -35,6 +45,8 @@ export interface ConnectionServiceOptions {
   maxReconnectAttempts?: number;
   /** UI framework preference for backend-generated content */
   uiFramework?: 'tailwind' | 'chakra' | 'mui' | 'antd' | 'bootstrap' | 'inline';
+  /** Visualization provider configuration for per-connection setup */
+  visualizationProvider?: VisualizationProvider;
   /** Custom interaction handlers for framework-generated content */
   onFormSubmit?: (formId: string, formData: FormData) => void;
   onButtonClick?: (actionType: string, context: any) => void;
@@ -72,6 +84,7 @@ export class ConnectionService extends EventEmitter {
   
   // UI Framework support
   private uiFramework: string = 'inline';
+  private visualizationProvider?: VisualizationProvider;
   private onFormSubmit?: (formId: string, formData: FormData) => void;
   private onButtonClick?: (actionType: string, context: any) => void;
   private onInputChange?: (fieldName: string, value: any) => void;
@@ -90,6 +103,7 @@ export class ConnectionService extends EventEmitter {
   // For streaming message handling
   private streamingMessageId: string | null = null;
   private streamingContent: string = '';
+  private streamingContentType: 'c1' | 'html' = 'c1';
   
   // Unique ID for the WebSocket connection
   private wsConnectionId: string;
@@ -103,13 +117,15 @@ export class ConnectionService extends EventEmitter {
     this.websocketURL = options.websocketURL;
     this._mcpEndpoints = options.mcpEndpoints; // Stored for future MCP integration
     console.log('MCP endpoints configured:', this._mcpEndpoints?.length || 0, 'endpoints'); // Use it to avoid TS error
-    this.autoReconnect = options.autoReconnect ?? true;
+    // Disable auto-reconnect by default - we'll connect on demand
+    this.autoReconnect = options.autoReconnect ?? false;
     this.reconnectInterval = options.reconnectInterval ?? 5000;
     this.maxReconnectAttempts = options.maxReconnectAttempts ?? 5;
     this.wsConnectionId = `ws-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
     
     // UI Framework support
     this.uiFramework = options.uiFramework || 'inline';
+    this.visualizationProvider = options.visualizationProvider;
     this.onFormSubmit = options.onFormSubmit;
     this.onButtonClick = options.onButtonClick;
     this.onInputChange = options.onInputChange;
@@ -127,6 +143,9 @@ export class ConnectionService extends EventEmitter {
       console.log(`[WS:${this.wsConnectionId}] WebSocket already connected`);
       return;
     }
+
+    // Reset reconnect attempts
+    this.reconnectAttempts = 0;
 
     this.setConnectionState('connecting');
     
@@ -264,9 +283,25 @@ export class ConnectionService extends EventEmitter {
   /**
    * Send a chat message via WebSocket
    */
-  public sendChatMessage(message: string, threadId?: string): string {
+  public async sendChatMessage(message: string, threadId?: string): Promise<string> {
+    // Connect on demand if not connected
     if (!this.webSocket || this.webSocket.readyState !== WebSocket.OPEN) {
-      throw new Error('WebSocket not connected');
+      console.log(`[WS:${this.wsConnectionId}] WebSocket not connected, connecting on demand...`);
+      await this.connectWebSocket();
+      
+      // Wait for connection to be established
+      await new Promise<void>((resolve, reject) => {
+        const checkConnection = () => {
+          if (this.webSocket && this.webSocket.readyState === WebSocket.OPEN) {
+            resolve();
+          } else if (this.connectionState === 'error') {
+            reject(new Error('Failed to connect WebSocket'));
+          } else {
+            setTimeout(checkConnection, 100);
+          }
+        };
+        checkConnection();
+      });
     }
     
     const messageId = crypto.randomUUID();
@@ -284,9 +319,25 @@ export class ConnectionService extends EventEmitter {
   /**
    * Send a C1Component action via WebSocket
    */
-  public sendC1Action(action: { llmFriendlyMessage: string }, threadId?: string): string {
+  public async sendC1Action(action: { llmFriendlyMessage: string }, threadId?: string): Promise<string> {
+    // Connect on demand if not connected
     if (!this.webSocket || this.webSocket.readyState !== WebSocket.OPEN) {
-      throw new Error('WebSocket not connected');
+      console.log(`[WS:${this.wsConnectionId}] WebSocket not connected, connecting on demand...`);
+      await this.connectWebSocket();
+      
+      // Wait for connection to be established
+      await new Promise<void>((resolve, reject) => {
+        const checkConnection = () => {
+          if (this.webSocket && this.webSocket.readyState === WebSocket.OPEN) {
+            resolve();
+          } else if (this.connectionState === 'error') {
+            reject(new Error('Failed to connect WebSocket'));
+          } else {
+            setTimeout(checkConnection, 100);
+          }
+        };
+        checkConnection();
+      });
     }
     
     const messageId = crypto.randomUUID();
@@ -509,6 +560,7 @@ export class ConnectionService extends EventEmitter {
               // Initialize streaming state
               this.streamingMessageId = msgId;
               this.streamingContent = data.content || '';
+              this.streamingContentType = 'c1'; // Track content type
               
               // Emit streaming started event
               this.emit(ConnectionEvent.STREAMING_STARTED, {
@@ -531,6 +583,44 @@ export class ConnectionService extends EventEmitter {
           break;
         }
           
+        case 'html_token': {
+          // Streaming HTML chunks handler (for OpenAI, Anthropic, etc.)
+          const msgId = data.id;
+          if (typeof msgId === 'string') {
+            console.log(`[WS:${this.wsConnectionId}] Processing html_token for message ID: ${msgId}`);
+            
+            // Check if this is the first chunk for this message ID
+            if (this.streamingMessageId !== msgId) {
+              console.log(`[WS:${this.wsConnectionId}] First html_token chunk for message ${msgId}`);
+              
+              // Initialize streaming state
+              this.streamingMessageId = msgId;
+              this.streamingContent = data.content || '';
+              this.streamingContentType = 'html'; // Track content type
+              
+              // Emit streaming started event
+              this.emit(ConnectionEvent.STREAMING_STARTED, {
+                id: msgId,
+                content: this.streamingContent,
+                contentType: 'html' // Mark as HTML content
+              });
+            } else {
+              // Accumulate content for subsequent chunks
+              console.log(`[WS:${this.wsConnectionId}] Accumulating HTML content for streaming message ${msgId}`);
+              this.streamingContent += (data.content || '');
+              
+              // Emit streaming chunk event
+              this.emit(ConnectionEvent.STREAMING_CHUNK, {
+                id: msgId,
+                content: data.content || '',
+                accumulatedContent: this.streamingContent,
+                contentType: 'html' // Mark as HTML content
+              });
+            }
+          }
+          break;
+        }
+          
         case 'chat_done': {
           // End-of-stream marker
           const doneId = data.id;
@@ -541,17 +631,31 @@ export class ConnectionService extends EventEmitter {
              * 1. Build **final assistant message** from the accumulated stream
              * ---------------------------------------------------------------- */
             if (this.streamingContent.trim().length > 0) {
-              const { c1Content, textContent } = this._parseAssistantContent(
-                this.streamingContent,
-              );
+              let finalAssistant: AssistantMessage;
+              
+              if (this.streamingContentType === 'html') {
+                // HTML content from OpenAI/Anthropic providers
+                finalAssistant = {
+                  id: doneId,
+                  role: 'assistant',
+                  htmlContent: this.streamingContent,
+                  contentType: 'html',
+                  timestamp: new Date(),
+                };
+              } else {
+                // C1 content from TheSys/Tomorrow providers
+                const { c1Content, textContent } = this._parseAssistantContent(
+                  this.streamingContent,
+                );
 
-              const finalAssistant: AssistantMessage = {
-                id: doneId,
-                role: 'assistant',
-                content: textContent,
-                c1Content,
-                timestamp: new Date(),
-              };
+                finalAssistant = {
+                  id: doneId,
+                  role: 'assistant',
+                  content: textContent,
+                  c1Content,
+                  timestamp: new Date(),
+                };
+              }
 
               // Surface to consumers before we clear the buffer
               this.emit(ConnectionEvent.MESSAGE_RECEIVED, finalAssistant);
@@ -568,6 +672,7 @@ export class ConnectionService extends EventEmitter {
             // Reset streaming state
             this.streamingMessageId = null;
             this.streamingContent = '';
+            this.streamingContentType = 'c1';
           }
           break;
         }

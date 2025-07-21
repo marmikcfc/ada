@@ -23,3 +23,20 @@ class EnhancementDecision(BaseModel):
         default=None,
         description="The text to be spoken via TTS. This should be natural and conversational. It can be None if no additional voice-over is needed."
     )
+
+class HTMLResponse(BaseModel):
+    """
+    Pydantic model for structured HTML response from OpenAI visualization provider.
+    Used with OpenAI function calling to ensure consistent HTML output format.
+    """
+    htmlContent: str = Field(
+        description="Complete HTML content with inline CSS styles and window.genuxSDK event handlers for interactions"
+    )
+    contentType: str = Field(
+        default="html",
+        description="Content type indicator, must be 'html'"
+    )
+    title: Optional[str] = Field(
+        default=None,
+        description="Optional title for the HTML content"
+    )

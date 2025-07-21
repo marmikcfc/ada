@@ -126,7 +126,9 @@ export const ConfigurableGenuxClient: React.FC<ConfigurableGenuxClientProps> = (
         // Pass our WebSocket connection handler
         onWebSocketConnect: handleWebSocketConnect,
         onStateChange: handleStateChange,
-        onError: onError
+        onError: onError,
+        // Pass visualization provider from connection config
+        visualizationProvider: connectionConfig.visualization_provider
       }}
     />
   );

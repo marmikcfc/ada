@@ -138,6 +138,14 @@ export interface GenuxOptions {
   /** UI framework preference for backend-generated content */
   uiFramework?: 'tailwind' | 'chakra' | 'mui' | 'antd' | 'bootstrap' | 'inline';
   
+  /** Visualization provider configuration for per-connection setup */
+  visualizationProvider?: {
+    provider_type: 'thesys' | 'openai' | 'anthropic' | 'custom';
+    model: string;
+    api_key_env: string;
+    custom_endpoint?: string;
+  };
+  
   /** Custom interaction handlers for framework-generated content */
   onFormSubmit?: (formId: string, formData: FormData) => void;
   onButtonClick?: (actionType: string, context: any) => void;

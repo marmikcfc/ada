@@ -7,6 +7,7 @@ visualization providers (Thesys, Google, Tomorrow, etc.) with a unified interfac
 
 import os
 import json
+import re
 import logging
 import asyncio
 from abc import ABC, abstractmethod
@@ -15,6 +16,7 @@ from openai import AsyncOpenAI
 
 from app.models import VisualizationProviderConfig
 from app.config import config
+from schemas import HTMLResponse
 
 logger = logging.getLogger(__name__)
 
@@ -262,7 +264,7 @@ class OpenAIProvider(VisualizationProvider):
             return False
     
     async def stream_response(self, messages: List[Dict[str, Any]]) -> AsyncGenerator[str, None]:
-        """Stream OpenAI visualization response"""
+        """Stream OpenAI visualization response using structured output"""
         if not self.client:
             logger.error("OpenAI client not initialized")
             return
@@ -270,26 +272,207 @@ class OpenAIProvider(VisualizationProvider):
         try:
             model = self.config.model or "gpt-4o-mini"
             
-            stream = await self.client.chat.completions.create(
-                messages=messages,
-                model=model,
-                stream=True,
-                temperature=0.3
-            )
+            # Use OpenAI's structured output with Pydantic schema
+            # This is more reliable than function calling
+            logger.info(f"Starting OpenAI structured output stream with model: {model}")
             
-            async for chunk in stream:
-                if chunk.choices[0].delta and chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
+            # Streaming JSON parser for htmlContent field
+            json_buffer = ""
+            html_content_buffer = ""
+            html_content_yielded = 0  # Track how much HTML we've already yielded
+            
+            async with self.client.beta.chat.completions.stream(
+                model=model,
+                messages=messages,
+                response_format=HTMLResponse,  # Pydantic model for structured output
+                temperature=0.3
+            ) as stream:
+                
+                async for event in stream:
+                    # Handle different event types from structured output streaming
+                    if hasattr(event, 'chunk') and event.chunk.choices:
+                        delta = event.chunk.choices[0].delta
+                        if hasattr(delta, 'content') and delta.content:
+                            chunk_content = delta.content
+                            json_buffer += chunk_content
+                            
+                            # Try to extract htmlContent from the streaming JSON
+                            html_chunk = self._extract_html_content_chunk(json_buffer, html_content_yielded)
+                            if html_chunk:
+                                html_content_buffer += html_chunk
+                                html_content_yielded += len(html_chunk)
+                                
+                                # Yield the HTML content chunk for real-time streaming
+                                yield html_chunk
+                                logger.debug(f"Streamed HTML chunk: {html_chunk[:50]}...")
+                
+                # After streaming completes, validate the complete response
+                if json_buffer.strip():
+                    try:
+                        # Parse the complete structured response for validation
+                        response_data = json.loads(json_buffer)
+                        html_response = HTMLResponse(**response_data)
+                        
+                        logger.info(f"OpenAI structured output completed successfully. HTML length: {len(html_response.htmlContent)}")
+                        
+                        # Check if we missed any content at the end
+                        if len(html_response.htmlContent) > html_content_yielded:
+                            remaining_content = html_response.htmlContent[html_content_yielded:]
+                            logger.info(f"Yielding remaining HTML content: {len(remaining_content)} chars")
+                            yield remaining_content
+                        
+                    except (json.JSONDecodeError, ValueError) as e:
+                        logger.error(f"Failed to validate OpenAI structured output: {e}")
+                        logger.error(f"Raw JSON buffer: {json_buffer[:200]}...")
+                        
+                        # If we couldn't parse, but have HTML content, yield fallback
+                        if not html_content_buffer.strip():
+                            error_html = """
+                            <div style="padding: 16px; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; color: #991b1b;">
+                                <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold;">Validation Error</h3>
+                                <p style="margin: 0; font-size: 14px;">Failed to validate structured HTML response.</p>
+                            </div>
+                            """
+                            yield error_html
+                else:
+                    logger.warning("OpenAI structured output stream completed with empty content")
+                    fallback_html = """
+                    <div style="padding: 16px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; color: #92400e;">
+                        <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold;">Empty Response</h3>
+                        <p style="margin: 0; font-size: 14px;">OpenAI returned an empty structured response.</p>
+                    </div>
+                    """
+                    yield fallback_html
                     
         except Exception as e:
-            logger.error(f"OpenAI streaming error: {e}")
+            logger.error(f"OpenAI structured output streaming error: {e}")
+            # Fallback error HTML
+            error_html = f"""
+            <div style="padding: 16px; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; color: #991b1b;">
+                <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold;">Streaming Error</h3>
+                <p style="margin: 0; font-size: 14px;">Error during structured output streaming: {str(e)}</p>
+            </div>
+            """
+            yield error_html
             return
     
+    def _extract_html_content_chunk(self, json_buffer: str, already_yielded: int) -> Optional[str]:
+        """
+        Extract new HTML content from the streaming JSON buffer.
+        
+        Args:
+            json_buffer: The accumulated JSON string so far
+            already_yielded: Number of characters already yielded
+            
+        Returns:
+            New HTML content chunk or None
+        """
+        
+        # Pattern to match: "htmlContent": "content..."
+        # This handles escaped quotes and partial content
+        pattern = r'"htmlContent"\s*:\s*"([^"]*(?:\\.[^"]*)*)"?'
+        
+        match = re.search(pattern, json_buffer)
+        if match:
+            # Get the current content (with JSON escapes)
+            raw_content = match.group(1)
+            
+            # Unescape the JSON content
+            try:
+                # Parse as JSON string to handle escapes
+                unescaped_content = json.loads(f'"{raw_content}"')
+                
+                # Return only the new content
+                if len(unescaped_content) > already_yielded:
+                    new_content = unescaped_content[already_yielded:]
+                    return new_content
+                    
+            except json.JSONDecodeError:
+                # If JSON parsing fails, return raw content difference
+                if len(raw_content) > already_yielded:
+                    return raw_content[already_yielded:]
+        
+        return None
+    
     def get_system_prompt(self) -> str:
-        """Get OpenAI system prompt"""
-        return """You are an AI assistant that creates interactive UI components.
-        Return well-structured C1Component JSON format responses.
-        Focus on user-friendly interfaces and clear information presentation."""
+        """Get OpenAI system prompt for HTML generation"""
+        return """You are "HTML Generator GPT", an AI that creates interactive web interfaces using inline HTML and CSS.
+
+CORE MISSION:
+Transform text responses into clean, interactive HTML with inline styles and JavaScript event handlers.
+
+OUTPUT FORMAT:
+You must return a JSON object with this exact structure:
+{
+  "htmlContent": "<your complete HTML here>",
+  "contentType": "html",
+  "title": "Optional title"
+}
+
+STRICT REQUIREMENTS:
+1. **Use ONLY inline CSS styles** - NO external classes or frameworks
+2. **Include interactive elements** with window.genuxSDK event handlers
+3. **Return valid JSON with htmlContent field**
+4. **Use semantic HTML structure** with proper accessibility
+
+INTERACTION PATTERNS:
+• Forms: onsubmit="window.genuxSDK.handleFormSubmit(event, 'form-id')"
+• Buttons: onclick="window.genuxSDK.handleButtonClick(event, 'action-type', {context})"
+• Inputs: onchange="window.genuxSDK.handleInputChange(event, 'field-name')"
+
+DESIGN PRINCIPLES:
+• Clean, modern aesthetics with proper spacing
+• Readable typography (14-16px base, good contrast)
+• Subtle shadows and borders for depth
+• Consistent color palette (blues for primary, grays for neutral)
+• Mobile-friendly responsive design with flexbox/grid
+
+CONTENT TYPES & HTML PATTERNS:
+
+**News/Information:**
+```html
+<div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); padding: 24px;">
+    <h2 style="color: #1a202c; margin-bottom: 16px;">Title</h2>
+    <div style="color: #4a5568; line-height: 1.6;">Content...</div>
+</div>
+```
+
+**Interactive Lists:**
+```html
+<div style="display: flex; flex-direction: column; gap: 12px;">
+    <button onclick="window.genuxSDK.handleButtonClick(event, 'action', {id: 1})" 
+            style="padding: 12px 16px; background: #f7fafc; border: 1px solid #e2e8f0; border-radius: 6px; cursor: pointer;">
+        Item with action
+    </button>
+</div>
+```
+
+**Data Tables:**
+```html
+<table style="width: 100%; border-collapse: collapse; background: white; border-radius: 8px; overflow: hidden;">
+    <thead style="background: #f7fafc;">
+        <tr><th style="padding: 12px; text-align: left; border-bottom: 1px solid #e2e8f0;">Header</th></tr>
+    </thead>
+    <tbody>
+        <tr style="border-bottom: 1px solid #f1f5f9;">
+            <td style="padding: 12px;">Data</td>
+        </tr>
+    </tbody>
+</table>
+```
+
+**Forms:**
+```html
+<form onsubmit="window.genuxSDK.handleFormSubmit(event, 'contact-form')" style="display: flex; flex-direction: column; gap: 16px;">
+    <input type="text" name="name" placeholder="Name" 
+           style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px;" required>
+    <button type="submit" style="background: #3182ce; color: white; padding: 8px 16px; border: none; border-radius: 6px;">
+        Submit
+    </button>
+</form>
+```
+
+Remember: Always return a JSON object with htmlContent field containing your complete HTML code."""
     
     async def cleanup(self):
         """Clean up OpenAI client"""

@@ -36,6 +36,12 @@ class C1Token(TypedDict):
     type: str  # "c1_token"
     content: str
 
+class HTMLToken(TypedDict):
+    """Incremental HTML token for streaming HTML responses"""
+    id: str
+    type: str  # "html_token"
+    content: str
+
 class ChatDone(TypedDict):
     """Marker for completed text response"""
     id: str
@@ -113,6 +119,7 @@ async def enqueue_llm_message(message: Union[
     UserTranscription,
     ChatToken,
     C1Token,
+    HTMLToken,              # NEW: HTML token for OpenAI/HTML providers
     ChatDone,
     VoiceResponse,
     TextChatResponse,
@@ -249,6 +256,14 @@ def create_c1_token(id: str, content: str) -> C1Token:
     return {
         "id": id,
         "type": "c1_token",
+        "content": content
+    }
+
+def create_html_token(id: str, content: str) -> HTMLToken:
+    """Create an HTML token message"""
+    return {
+        "id": id,
+        "type": "html_token",
         "content": content
     }
 

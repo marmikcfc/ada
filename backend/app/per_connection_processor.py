@@ -13,7 +13,7 @@ from typing import Dict, List, Any, Optional
 
 from app.models import ConnectionState
 from app.queues import (
-    create_text_chat_response, create_c1_token, create_chat_done,
+    create_text_chat_response, create_c1_token, create_html_token, create_chat_done,
     create_enhancement_started
 )
 from schemas import EnhancementDecision
@@ -234,8 +234,15 @@ class PerConnectionProcessor:
             async for chunk in self.context.visualization_provider.stream_response(messages):
                 chunk_count += 1
                 
-                # Send chunk to frontend
-                chunk_msg = create_c1_token(id=message_id, content=chunk)
+                # Send chunk to frontend using appropriate token type based on provider
+                provider_type = self.context.visualization_provider.provider_type.lower()
+                if provider_type in ['openai', 'anthropic', 'google']:
+                    # HTML-based providers
+                    chunk_msg = create_html_token(id=message_id, content=chunk)
+                else:
+                    # C1-based providers (TheSys, Tomorrow, etc.)
+                    chunk_msg = create_c1_token(id=message_id, content=chunk)
+                
                 await self._send_to_frontend(chunk_msg)
                 
                 # Small delay for smooth streaming

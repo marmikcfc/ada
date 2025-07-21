@@ -45,6 +45,12 @@ export default function PerConnectionDemo() {
   const [enableVoice, setEnableVoice] = useState(true);
   const [customMcpServers, setCustomMcpServers] = useState<MCPServerConfig[]>([]);
   const [showMcpConfig, setShowMcpConfig] = useState(false);
+  const [showVizConfig, setShowVizConfig] = useState(false);
+  const [customVizProvider, setCustomVizProvider] = useState({
+    provider_type: 'thesys' as const,
+    model: 'c1-nightly',
+    api_key_env: 'THESYS_API_KEY'
+  });
 
   const handleConnect = () => {
     setError('');
@@ -61,7 +67,8 @@ export default function PerConnectionDemo() {
     mcp_config: {
       ...DEFAULT_CONFIGS[selectedConfig].mcp_config,
       servers: customMcpServers
-    }
+    },
+    visualization_provider: customVizProvider
   };
 
   const addMcpServer = () => {
@@ -364,6 +371,171 @@ export default function PerConnectionDemo() {
                         No MCP servers configured. Use the buttons above to add some.
                       </div>
                     )}
+                  </div>
+                )}
+              </div>
+
+              {/* Visualization Provider Configuration */}
+              <div style={{ marginBottom: '20px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                  <label style={{ fontWeight: '500' }}>
+                    Visualization Provider ({customVizProvider.provider_type})
+                  </label>
+                  <button
+                    onClick={() => setShowVizConfig(!showVizConfig)}
+                    style={{
+                      ...secondaryButtonStyle,
+                      fontSize: '12px',
+                      padding: '6px 12px'
+                    }}
+                  >
+                    {showVizConfig ? 'Hide Config' : 'Configure Provider'}
+                  </button>
+                </div>
+
+                {showVizConfig && (
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    padding: '16px'
+                  }}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '4px' }}>
+                        Provider Type:
+                      </label>
+                      <select
+                        value={customVizProvider.provider_type}
+                        onChange={(e) => {
+                          const providerType = e.target.value as any;
+                          let apiKeyEnv = 'THESYS_API_KEY';
+                          let model = 'c1-nightly';
+                          
+                          // Set appropriate defaults based on provider type
+                          if (providerType === 'openai') {
+                            apiKeyEnv = 'OPENAI_API_KEY';
+                            model = 'gpt-4o-mini';
+                          } else if (providerType === 'anthropic') {
+                            apiKeyEnv = 'ANTHROPIC_API_KEY';
+                            model = 'claude-3-haiku-20240307';
+                          } else if (providerType === 'google') {
+                            apiKeyEnv = 'GOOGLE_API_KEY';
+                            model = 'gemini-pro';
+                          } else if (providerType === 'tomorrow') {
+                            apiKeyEnv = 'TOMORROW_API_KEY';
+                            model = 'tomorrow-v1';
+                          }
+                          
+                          setCustomVizProvider({
+                            ...customVizProvider,
+                            provider_type: providerType,
+                            api_key_env: apiKeyEnv,
+                            model: model
+                          });
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      >
+                        <option value="thesys">TheSys (C1 Components)</option>
+                        <option value="openai">OpenAI (Text)</option>
+                        <option value="anthropic">Anthropic (Text)</option>
+                        <option value="custom">Custom</option>
+                      </select>
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '4px' }}>
+                        Model:
+                      </label>
+                      <input
+                        type="text"
+                        value={customVizProvider.model}
+                        onChange={(e) => setCustomVizProvider({
+                          ...customVizProvider,
+                          model: e.target.value
+                        })}
+                        placeholder="e.g., c1-nightly, gpt-4o-mini"
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '4px' }}>
+                        API Key Environment Variable:
+                      </label>
+                      <input
+                        type="text"
+                        value={customVizProvider.api_key_env}
+                        onChange={(e) => setCustomVizProvider({
+                          ...customVizProvider,
+                          api_key_env: e.target.value
+                        })}
+                        placeholder="e.g., THESYS_API_KEY, OPENAI_API_KEY"
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      />
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => setCustomVizProvider({
+                          provider_type: 'thesys',
+                          model: 'c1-nightly',
+                          api_key_env: 'THESYS_API_KEY'
+                        })}
+                        style={{
+                          ...secondaryButtonStyle,
+                          fontSize: '12px',
+                          padding: '4px 8px'
+                        }}
+                      >
+                        TheSys Preset
+                      </button>
+                      <button
+                        onClick={() => setCustomVizProvider({
+                          provider_type: 'openai',
+                          model: 'gpt-4o-mini',
+                          api_key_env: 'OPENAI_API_KEY'
+                        })}
+                        style={{
+                          ...secondaryButtonStyle,
+                          fontSize: '12px',
+                          padding: '4px 8px'
+                        }}
+                      >
+                        OpenAI Preset
+                      </button>
+                      <button
+                        onClick={() => setCustomVizProvider({
+                          provider_type: 'anthropic',
+                          model: 'claude-3-5-sonnet-20241022',
+                          api_key_env: 'ANTHROPIC_API_KEY'
+                        })}
+                        style={{
+                          ...secondaryButtonStyle,
+                          fontSize: '12px',
+                          padding: '4px 8px'
+                        }}
+                      >
+                        Anthropic Preset
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

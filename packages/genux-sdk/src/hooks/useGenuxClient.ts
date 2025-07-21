@@ -61,6 +61,7 @@ export function useGenuxClient(options: UseGenuxClientOptions): GenuxClient & {
   const [streamingContent, setStreamingContent] = useState('');
   const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const [isStreamingActive, setIsStreamingActive] = useState(false);
+  const [streamingContentType, setStreamingContentType] = useState<'c1' | 'html'>('c1');
   
   // Audio stream
   const [audioStream, setAudioStream] = useState<MediaStream | null>(null);
@@ -95,6 +96,7 @@ export function useGenuxClient(options: UseGenuxClientOptions): GenuxClient & {
       reconnectInterval: options.reconnectInterval,
       maxReconnectAttempts: options.maxReconnectAttempts,
       uiFramework: options.uiFramework,
+      visualizationProvider: options.visualizationProvider,
       onFormSubmit: options.onFormSubmit,
       onButtonClick: options.onButtonClick,
       onInputChange: options.onInputChange,
@@ -135,22 +137,29 @@ export function useGenuxClient(options: UseGenuxClientOptions): GenuxClient & {
       // message here.  Keep this handler only for potential side-effects
       // (e.g. live transcript display in the future).
     };
-    const handleStreamingStarted = (data: { id: string, content: string }) => {
+    const handleStreamingStarted = (data: { id: string, content: string, contentType?: string }) => {
       setStreamingMessageId(data.id);
       setStreamingContent(data.content);
       setIsStreamingActive(true);
+      // Store content type for proper rendering
+      setStreamingContentType(data.contentType === 'html' ? 'html' : 'c1');
       // Enhancement (slow-path) has now produced its first token,
       // so we can hide the "Generating enhanced display…" indicator.
       setIsEnhancing(false);
     };
-    const handleStreamingChunk = (data: { id: string, accumulatedContent: string }) => {
+    const handleStreamingChunk = (data: { id: string, accumulatedContent: string, contentType?: string }) => {
       setStreamingContent(data.accumulatedContent);
+      // Update content type if provided in chunk
+      if (data.contentType) {
+        setStreamingContentType(data.contentType === 'html' ? 'html' : 'c1');
+      }
     };
     const handleStreamingDone = () => {
       // The final message is added via MESSAGE_RECEIVED, so just reset streaming state
       setStreamingMessageId(null);
       setStreamingContent('');
       setIsStreamingActive(false);
+      setStreamingContentType('c1'); // Reset to default
     };
     const handleEnhancementStarted = () => setIsEnhancing(true);
     const handleAudioStream = (stream: MediaStream) => setAudioStream(stream);
@@ -200,7 +209,7 @@ export function useGenuxClient(options: UseGenuxClientOptions): GenuxClient & {
   }, []);
 
   // Send a text message
-  const sendText = useCallback((message: string) => {
+  const sendText = useCallback(async (message: string) => {
     if (!connectionServiceRef.current) {
       console.error('Cannot send message: Connection service not initialized');
       return;
@@ -219,7 +228,7 @@ export function useGenuxClient(options: UseGenuxClientOptions): GenuxClient & {
         timestamp: new Date()
       };
       setMessages(prev => [...prev, userMessage]);
-      connectionServiceRef.current.sendChatMessage(message, threadId);
+      await connectionServiceRef.current.sendChatMessage(message, threadId);
     } catch (error) {
       console.error('Error sending text message:', error);
       setIsLoading(false);
@@ -227,7 +236,7 @@ export function useGenuxClient(options: UseGenuxClientOptions): GenuxClient & {
   }, [threadId]);
 
   // Send a C1Component action
-  const sendC1Action = useCallback((action: { llmFriendlyMessage: string, humanFriendlyMessage: string }) => {
+  const sendC1Action = useCallback(async (action: { llmFriendlyMessage: string, humanFriendlyMessage: string }) => {
     if (!connectionServiceRef.current) {
       console.error('Cannot send C1 action: Connection service not initialized');
       return;
@@ -244,7 +253,7 @@ export function useGenuxClient(options: UseGenuxClientOptions): GenuxClient & {
         };
         setMessages(prev => [...prev, userAction]);
       }
-      connectionServiceRef.current.sendC1Action(action, threadId);
+      await connectionServiceRef.current.sendC1Action(action, threadId);
     } catch (error) {
       console.error('Error sending C1 action:', error);
       setIsLoading(false);
@@ -294,6 +303,7 @@ export function useGenuxClient(options: UseGenuxClientOptions): GenuxClient & {
     streamingContent,
     streamingMessageId,
     isStreamingActive,
+    streamingContentType,
     audioStream,
     
     // Additional methods
