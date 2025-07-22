@@ -1,7 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { VoiceBotUI } from '../../../packages/genux-sdk/src/components/core';
-import VoiceBotFullscreenLayout from '../../../packages/genux-sdk/src/components/composite/VoiceBotFullscreenLayout';
-import { useGenuxClient } from '../../../packages/genux-sdk/src/hooks/useGenuxClient';
+import { VoiceBotUI } from '../../../packages/geui-sdk/src/components/core';
+import VoiceBotFullscreenLayout from '../../../packages/geui-sdk/src/components/composite/VoiceBotFullscreenLayout';
+import { useGeUIClient } from '../../../packages/geui-sdk/src/hooks/useGeUIClient';
 
 /**
  * Demo: Standalone VoiceBot UI Component
@@ -17,7 +17,7 @@ const StandaloneVoiceBotDemo: React.FC = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
   
   // Initialize real GenUX client with backend connections
-  const client = useGenuxClient({
+  const client = useGeUIClient({
     webrtcURL: '/api/offer',
     websocketURL: '/ws/messages',
     autoConnect: true
@@ -289,13 +289,13 @@ const StandaloneVoiceBotDemo: React.FC = () => {
           lineHeight: '1.6',
           border: '1px solid rgba(255, 255, 255, 0.1)'
         }}>
-{`import { VoiceBotUI } from '@your-org/genux-sdk';
-import { useGenuxClient } from '@your-org/genux-sdk';
+{`import { VoiceBotUI } from '@your-org/geui-sdk';
+import { useGeUIClient } from '@your-org/geui-sdk';
 
 const MyVoiceApp = () => {
   const audioRef = useRef<HTMLAudioElement>(null);
   
-  const client = useGenuxClient({
+  const client = useGeUIClient({
     webrtcURL: '/api/offer',
     websocketURL: '/ws/messages',
     autoConnect: true
@@ -400,7 +400,7 @@ const MyVoiceApp = () => {
           Click the animated blob above to toggle voice states and see the component in action!
         </p>
         <p style={{ marginTop: '16px', fontSize: '12px', opacity: 0.6 }}>
-          ⚠️ Note: When using useGenuxClient directly, you must include a hidden audio element 
+          ⚠️ Note: When using useGeUIClient directly, you must include a hidden audio element 
           with autoPlay to hear voice responses. The Genux component handles this automatically.
         </p>
       </div>

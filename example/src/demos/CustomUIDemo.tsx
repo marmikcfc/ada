@@ -1,7 +1,7 @@
 import React from 'react';
-import Genux from '../../../packages/genux-sdk/src/components/Genux';
-import { ChatMessageProps } from '../../../packages/genux-sdk/src/components/core/ChatMessage';
-import { MessageComposerProps } from '../../../packages/genux-sdk/src/components/core/MessageComposer';
+import GeUI from '../../../packages/geui-sdk/src/components/GeUI';
+import { ChatMessageProps } from '../../../packages/geui-sdk/src/components/core/ChatMessage';
+import { MessageComposerProps } from '../../../packages/geui-sdk/src/components/core/MessageComposer';
 
 /**
  * Demo 4: Custom Chat UI Design
@@ -377,7 +377,7 @@ const CustomUIDemo: React.FC = () => {
                 lineHeight: '1.5'
               }}>
 {`// Custom component overrides
-<Genux
+<GeUI
   webrtcURL="/api/offer"
   websocketURL="/ws/messages"
   bubbleEnabled={false}
@@ -422,7 +422,7 @@ const CustomUIDemo: React.FC = () => {
               </div>
               
               <div style={{ height: 'calc(100% - 88px)' }}>
-                <Genux
+                <GeUI
                   webrtcURL="/api/offer"
                   websocketURL="/ws/messages"
                   bubbleEnabled={false}

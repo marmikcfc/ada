@@ -159,7 +159,7 @@ const DemoRouter: React.FC = () => {
             margin: '0 0 20px 0',
             textShadow: '0 2px 4px rgba(0,0,0,0.3)'
           }}>
-            GenUX SDK Demos
+            GeUI SDK Demos
           </h1>
           <p style={{
             fontSize: '24px',

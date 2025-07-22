@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ConfigurableGenuxClient } from '../ConfigurableGenuxClient';
+import { ConfigurableGeUIClient } from '../ConfigurableGeUIClient';
 
 interface MCPServerConfig {
   name: string;
@@ -756,7 +756,7 @@ export default function PerConnectionDemo() {
               </div>
 
               <div style={{ height: '600px', border: '1px solid #e5e7eb', borderRadius: '8px' }}>
-                <ConfigurableGenuxClient
+                <ConfigurableGeUIClient
                   clientId={activeConfig.client_id}
                   connectionConfig={activeConfig}
                   onConnectionStateChange={setConnectionState}

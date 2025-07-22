@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import Genux from '../../../packages/genux-sdk/src/components/Genux';
+import GeUI from '../../../packages/geui-sdk/src/components/GeUI';
 
 /**
  * Demo: Tailwind CSS & ShadCN Component Generation
@@ -220,7 +220,7 @@ const TailwindCSSDemo: React.FC = () => {
         {/* Chat Interface */}
         <div className="flex-1 p-8">
           <div className="h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
-            <Genux
+            <GeUI
               webrtcURL="/api/offer"
               websocketURL="/ws/messages"
               bubbleEnabled={false}

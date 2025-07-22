@@ -1,6 +1,6 @@
 import React from 'react';
-import Genux from '../../../packages/genux-sdk/src/components/Genux';
-import type { ThreadListProps, VoiceBotUIProps, ChatWindowProps } from '../../../packages/genux-sdk/src/types';
+import GeUI from '../../../packages/geui-sdk/src/components/GeUI';
+import type { ThreadListProps, VoiceBotUIProps, ChatWindowProps } from '../../../packages/geui-sdk/src/types';
 import { C1Component } from '@thesysai/genui-sdk';
 import { ThemeProvider } from '@crayonai/react-ui';
 
@@ -317,7 +317,7 @@ const CustomFullscreenDemo: React.FC = () => {
       left: 0,
       zIndex: 1000
     }}>
-      <Genux
+      <GeUI
         webrtcURL="/api/offer"
         websocketURL="/ws/messages"
         bubbleEnabled={false}  // Show fullscreen directly

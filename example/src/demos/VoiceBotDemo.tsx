@@ -1,6 +1,6 @@
 import React from 'react';
-import Genux from '../../../packages/genux-sdk/src/components/Genux';
-import { ChatWindow } from '../../../packages/genux-sdk/src/components/composite/ChatWindow';
+import GeUI from '../../../packages/geui-sdk/src/components/GeUI';
+import { ChatWindow } from '../../../packages/geui-sdk/src/components/composite/ChatWindow';
 
 /**
  * Demo 3: Voice Bot Demo (Partial Support)
@@ -119,7 +119,7 @@ const VoiceBotDemo: React.FC = () => {
           lineHeight: '1.6'
         }}>
 {`// Voice-focused configuration with fullscreen mode
-<Genux
+<GeUI
   webrtcURL="/api/offer"
   websocketURL="/ws/messages"
   bubbleEnabled={true}
@@ -193,7 +193,7 @@ const VoiceBotDemo: React.FC = () => {
       </div>
 
       {/* The actual Genux widget - now shows fullscreen voice experience directly */}
-      <Genux
+      <GeUI
         webrtcURL="/api/offer"
         websocketURL="/ws/messages"
         bubbleEnabled={false}  // This now defaults to fullscreen voice experience!

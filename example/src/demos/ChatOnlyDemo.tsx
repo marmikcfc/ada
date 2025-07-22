@@ -1,5 +1,5 @@
 import React from 'react';
-import Genux from '../../../packages/genux-sdk/src/components/Genux';
+import GeUI from '../../../packages/geui-sdk/src/components/GeUI';
 
 /**
  * Demo 2: Chat-Only Bot Usage
@@ -153,7 +153,7 @@ const ChatOnlyDemo: React.FC = () => {
                 overflow: 'auto'
               }}>
 {`// True chat-only interface - no voice features
-<Genux
+<GeUI
   webrtcURL="/api/offer"
   websocketURL="/ws/messages"
   bubbleEnabled={false}  // Embeds directly in your layout
@@ -173,7 +173,7 @@ const ChatOnlyDemo: React.FC = () => {
 
             {/* Chat Interface */}
             <div style={{ flex: 1 }}>
-              <Genux
+              <GeUI
                 webrtcURL="/api/offer"
                 websocketURL="/ws/messages"
                 bubbleEnabled={false}

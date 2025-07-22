@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Genux from '../../../packages/genux-sdk/src/components/Genux';
+import GeUI from '../../../packages/geui-sdk/src/components/GeUI';
 
 /**
  * MCP Configuration Demo using standard Genux component
@@ -261,7 +261,7 @@ export default function MCPGenuxDemo() {
 
         {/* Genux Chat */}
         <div style={{ flex: 1, position: 'relative' }}>
-          <Genux
+          <GeUI
             key={connectionKey} // Force remount on config change
             webrtcURL="/api/offer"
             websocketURL={websocketUrl}

@@ -1,5 +1,5 @@
 import React from 'react';
-import Genux from '../../../packages/genux-sdk/src/components/Genux';
+import GeUI from '../../../packages/geui-sdk/src/components/GeUI';
 
 /**
  * Demo: Voice-First Mode
@@ -19,7 +19,7 @@ const VoiceFirstModeDemo: React.FC = () => {
       left: 0,
       zIndex: 1000
     }}>
-      <Genux
+      <GeUI
         webrtcURL="/api/offer"
         websocketURL="/ws/messages"
         voiceFirstMode={true}  // This is the key prop!

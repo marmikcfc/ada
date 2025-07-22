@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Genux from '../../../packages/genux-sdk/src/components/Genux';
+import GeUI from '../../../packages/geui-sdk/src/components/GeUI';
 
 /**
  * Demo: UI Framework Support Testing
@@ -233,7 +233,7 @@ selectedFramework === 'tailwind' ? `<!-- Tailwind CSS Example -->
             height: '100%',
             overflow: 'hidden'
           }}>
-            <Genux
+            <GeUI
               webrtcURL="/api/offer"
               websocketURL="/ws/messages"
               bubbleEnabled={false}

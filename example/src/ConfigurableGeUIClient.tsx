@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import Genux from '../../packages/genux-sdk/src/components/Genux';
-import type { GenuxProps } from '../../packages/genux-sdk/src/types';
+import GeUI from '../../packages/geui-sdk/src/components/GeUI';
+import type { GeUIProps } from '../../packages/geui-sdk/src/types';
 
 interface MCPServerConfig {
   name: string;
@@ -24,26 +24,26 @@ interface ConnectionConfig {
   };
 }
 
-interface ConfigurableGenuxClientProps extends Omit<GenuxProps, 'websocketURL' | 'webrtcURL'> {
+interface ConfigurableGeUIClientProps extends Omit<GeUIProps, 'websocketURL' | 'webrtcURL'> {
   clientId: string;
   connectionConfig: ConnectionConfig;
   onConnectionStateChange?: (state: string) => void;
   onError?: (error: any) => void;
 }
 
-export const ConfigurableGenuxClient: React.FC<ConfigurableGenuxClientProps> = ({
+export const ConfigurableGeUIClient: React.FC<ConfigurableGeUIClientProps> = ({
   clientId,
   connectionConfig,
   onConnectionStateChange,
   onError,
-  ...genuxProps
+  ...geuiProps
 }) => {
   const [isReady, setIsReady] = useState(false);
   const [connectionState, setConnectionState] = useState<string>('initializing');
   const [configSent, setConfigSent] = useState(false);
 
   useEffect(() => {
-    console.log('[ConfigurableGenuxClient] Initializing with config:', connectionConfig);
+    console.log('[ConfigurableGeUIClient] Initializing with config:', connectionConfig);
     setIsReady(true);
   }, [connectionConfig]);
 
@@ -54,7 +54,7 @@ export const ConfigurableGenuxClient: React.FC<ConfigurableGenuxClientProps> = (
 
   // Handler for WebSocket connection that sends configuration
   const handleWebSocketConnect = useCallback((ws: WebSocket) => {
-    console.log('[ConfigurableGenuxClient] WebSocket connected, setting up config handler');
+    console.log('[ConfigurableGeUIClient] WebSocket connected, setting up config handler');
     
     let configHandled = false;
     
@@ -62,17 +62,17 @@ export const ConfigurableGenuxClient: React.FC<ConfigurableGenuxClientProps> = (
       if (!configHandled) {
         try {
           const data = JSON.parse(event.data);
-          console.log('[ConfigurableGenuxClient] Received message:', data.type);
+          console.log('[ConfigurableGeUIClient] Received message:', data.type);
           
           if (data.type === 'connection_established') {
-            console.log('[ConfigurableGenuxClient] Received connection_established, sending config');
+            console.log('[ConfigurableGeUIClient] Received connection_established, sending config');
             
             const configMessage = {
               type: 'connection_config',
               config: connectionConfig
             };
             
-            console.log('[ConfigurableGenuxClient] Sending configuration:', configMessage);
+            console.log('[ConfigurableGeUIClient] Sending configuration:', configMessage);
             ws.send(JSON.stringify(configMessage));
             configHandled = true;
             setConfigSent(true);
@@ -86,11 +86,11 @@ export const ConfigurableGenuxClient: React.FC<ConfigurableGenuxClientProps> = (
             handleStateChange(data.state);
           } else if (data.type === 'error') {
             // Handle errors
-            console.error('[ConfigurableGenuxClient] Server error:', data.message);
+            console.error('[ConfigurableGeUIClient] Server error:', data.message);
             onError?.(new Error(data.message || 'Server error'));
           }
         } catch (e) {
-          console.error('[ConfigurableGenuxClient] Error parsing message:', e);
+          console.error('[ConfigurableGeUIClient] Error parsing message:', e);
         }
       }
     };
@@ -99,7 +99,7 @@ export const ConfigurableGenuxClient: React.FC<ConfigurableGenuxClientProps> = (
     
     // Return cleanup function
     return () => {
-      console.log('[ConfigurableGenuxClient] Cleaning up message handler');
+      console.log('[ConfigurableGeUIClient] Cleaning up message handler');
       ws.removeEventListener('message', messageHandler);
     };
   }, [connectionConfig, onError, handleStateChange]);
@@ -117,12 +117,12 @@ export const ConfigurableGenuxClient: React.FC<ConfigurableGenuxClientProps> = (
   const webrtcURL = '/api/offer';
 
   return (
-    <Genux
-      {...genuxProps}
+    <GeUI
+      {...geuiProps}
       websocketURL={websocketURL}
       webrtcURL={webrtcURL}
       options={{
-        ...genuxProps.options,
+        ...geuiProps.options,
         // Pass our WebSocket connection handler
         onWebSocketConnect: handleWebSocketConnect,
         onStateChange: handleStateChange,

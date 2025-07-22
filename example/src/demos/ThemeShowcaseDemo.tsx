@@ -12,7 +12,7 @@ import {
   crayonDefaultTheme,
   createTheme,
   toCrayonTheme
-} from '../../../packages/genux-sdk/src';
+} from '../../../packages/geui-sdk/src';
 import './demo-styles.css';
 
 /**
@@ -212,7 +212,7 @@ const myTheme = createTheme({
   }
 });
 
-<Genux
+<GeUI
   options={{
     theme: myTheme,
     crayonTheme: toCrayonTheme(myTheme)
@@ -353,7 +353,7 @@ const myTheme = createTheme({
         </div>
 
         {/* Full Immersive Experience */}
-        <Genux
+        <GeUI
           webrtcURL="ws://localhost:8000/api/offer"
           websocketURL="ws://localhost:8000/ws/messages"
           bubbleEnabled={false}
@@ -738,7 +738,7 @@ const myTheme = createTheme({
               width: '100%',
               height: '100%'
             }}>
-              <Genux
+              <GeUI
                 webrtcURL="ws://localhost:8000/api/offer"
                 websocketURL="ws://localhost:8000/ws/messages"
                 bubbleEnabled={false}
@@ -790,7 +790,7 @@ const myTheme = createTheme({
               Windowed Chat Mode
             </div>
             
-            <Genux
+            <GeUI
               webrtcURL="ws://localhost:8000/api/offer"
               websocketURL="ws://localhost:8000/ws/messages"
               bubbleEnabled={true}
@@ -841,7 +841,7 @@ const myTheme = createTheme({
     selectedTheme.name.includes('Comprehensive') ? 
       selectedTheme.name.toLowerCase().replace(' ', '') + ', toCrayonTheme' :
       selectedTheme.name.toLowerCase().replace(' ', '') + ', crayon' + selectedTheme.name.replace(' ', '')}
-} from '@your-org/genux-sdk';
+} from '@your-org/geui-sdk';
 
 ${selectedTheme.name.includes('Custom') ? `// Create custom theme
 const customTheme = createTheme({
@@ -855,7 +855,7 @@ const customTheme = createTheme({
 
 const customCrayonTheme = toCrayonTheme(customTheme);
 
-<Genux
+<GeUI
   webrtcURL="/api/offer"
   websocketURL="/ws/messages"
   ${useFullscreen ? 'bubbleEnabled={false}' : 'bubbleEnabled={true}'}
@@ -865,7 +865,7 @@ const customCrayonTheme = toCrayonTheme(customTheme);
     agentName: "${selectedTheme.name} Demo"
   }}
 />` : selectedTheme.name.includes('Comprehensive') ? `// Use comprehensive theme with full token coverage
-<Genux
+<GeUI
   webrtcURL="/api/offer"
   websocketURL="/ws/messages"
   ${useFullscreen ? 'bubbleEnabled={false}' : 'bubbleEnabled={true}'}
@@ -881,7 +881,7 @@ const customCrayonTheme = toCrayonTheme(customTheme);
     }` : 'enableThreadManager: false'}
   }}
 />` : `// Use legacy theme (backwards compatibility)
-<Genux
+<GeUI
   webrtcURL="/api/offer"
   websocketURL="/ws/messages"
   ${useFullscreen ? 'bubbleEnabled={false}' : 'bubbleEnabled={true}'}

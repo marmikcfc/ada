@@ -1,5 +1,5 @@
 import React from 'react';
-import Genux from '../../../packages/genux-sdk/src/components/Genux';
+import GeUI from '../../../packages/geui-sdk/src/components/GeUI';
 
 /**
  * Demo 1: Simple Widget Import for SaaS Onboarding
@@ -142,9 +142,9 @@ const SaaSOnboardingDemo: React.FC = () => {
             color: '#334155'
           }}>
 {`// Complete SaaS onboarding widget with fullscreen support
-import Genux from 'genux-sdk';
+import GeUI from 'geui-sdk';
 
-<Genux
+<GeUI
   webrtcURL="/api/offer"
   websocketURL="/ws/messages"
   bubbleEnabled={true}
@@ -202,7 +202,7 @@ import Genux from 'genux-sdk';
       </div>
 
       {/* The actual Genux widget - minimal configuration */}
-      <Genux
+      <GeUI
         webrtcURL="/api/offer"
         websocketURL="/ws/messages"
         bubbleEnabled={true}
