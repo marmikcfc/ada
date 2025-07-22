@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ConfigurableGenuxClient } from '../ConfigurableGenuxClient';
 
 interface MCPServerConfig {
@@ -20,6 +20,10 @@ const DEFAULT_CONFIGS = {
       provider_type: 'thesys' as const,
       model: 'c1-nightly',
       api_key_env: 'THESYS_API_KEY'
+    },
+    preferences: {
+      ui_framework: 'c1' as const, // TheSys uses C1 components, not HTML frameworks
+      theme: 'default'
     }
   },
   weather: {
@@ -33,6 +37,10 @@ const DEFAULT_CONFIGS = {
       provider_type: 'openai' as const,
       model: 'gpt-4o-mini',
       api_key_env: 'OPENAI_API_KEY'
+    },
+    preferences: {
+      ui_framework: 'tailwind' as const,
+      theme: 'default'
     }
   }
 };
@@ -51,6 +59,20 @@ export default function PerConnectionDemo() {
     model: 'c1-nightly',
     api_key_env: 'THESYS_API_KEY'
   });
+  const [uiFramework, setUiFramework] = useState<'tailwind' | 'shadcn'>('tailwind');
+  const [showFrameworkConfig, setShowFrameworkConfig] = useState(false);
+
+  // Update framework when config changes
+  useEffect(() => {
+    const newProvider = DEFAULT_CONFIGS[selectedConfig].visualization_provider;
+    setCustomVizProvider(newProvider);
+    
+    // For TheSys provider, framework selection is disabled (uses C1 components)
+    // For other providers, default to tailwind
+    if (newProvider.provider_type !== 'thesys') {
+      setUiFramework(DEFAULT_CONFIGS[selectedConfig].preferences.ui_framework as 'tailwind' | 'shadcn');
+    }
+  }, [selectedConfig]);
 
   const handleConnect = () => {
     setError('');
@@ -68,7 +90,11 @@ export default function PerConnectionDemo() {
       ...DEFAULT_CONFIGS[selectedConfig].mcp_config,
       servers: customMcpServers
     },
-    visualization_provider: customVizProvider
+    visualization_provider: customVizProvider,
+    preferences: {
+      ...DEFAULT_CONFIGS[selectedConfig].preferences,
+      ui_framework: uiFramework
+    }
   };
 
   const addMcpServer = () => {
@@ -540,6 +566,119 @@ export default function PerConnectionDemo() {
                 )}
               </div>
 
+              {/* UI Framework Configuration - Only for non-TheSys providers */}
+              {customVizProvider.provider_type !== 'thesys' && (
+                <div style={{ marginBottom: '20px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                    <label style={{ fontWeight: '500' }}>
+                      UI Framework ({uiFramework})
+                    </label>
+                    <button
+                      onClick={() => setShowFrameworkConfig(!showFrameworkConfig)}
+                      style={{
+                        ...secondaryButtonStyle,
+                        fontSize: '12px',
+                        padding: '6px 12px'
+                      }}
+                    >
+                      {showFrameworkConfig ? 'Hide Framework' : 'Configure Framework'}
+                    </button>
+                  </div>
+
+                {showFrameworkConfig && (
+                  <div style={{
+                    backgroundColor: '#f9fafb',
+                    border: '1px solid #e5e7eb',
+                    borderRadius: '6px',
+                    padding: '16px'
+                  }}>
+                    <div style={{ marginBottom: '16px' }}>
+                      <label style={{ fontSize: '12px', color: '#6b7280', display: 'block', marginBottom: '4px' }}>
+                        Framework Type:
+                      </label>
+                      <select
+                        value={uiFramework}
+                        onChange={(e) => {
+                          const framework = e.target.value as 'tailwind' | 'shadcn';
+                          setUiFramework(framework);
+                        }}
+                        style={{
+                          width: '100%',
+                          padding: '6px 8px',
+                          border: '1px solid #d1d5db',
+                          borderRadius: '4px',
+                          fontSize: '14px'
+                        }}
+                      >
+                        <option value="tailwind">Tailwind CSS (Utility Classes)</option>
+                        <option value="shadcn">ShadCN (Component Library)</option>
+                      </select>
+                    </div>
+
+                    <div style={{
+                      backgroundColor: '#f3f4f6',
+                      padding: '12px',
+                      borderRadius: '4px',
+                      marginBottom: '16px'
+                    }}>
+                      <h5 style={{ fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: '#374151' }}>
+                        Framework Info:
+                      </h5>
+                      <p style={{ fontSize: '11px', margin: 0, color: '#6b7280', lineHeight: '1.4' }}>
+                        {uiFramework === 'tailwind' && 'Modern utility-first CSS framework. Generates responsive, maintainable components.'}
+                        {uiFramework === 'shadcn' && 'Tailwind-based component system with beautiful defaults. Professional UI patterns.'}
+                      </p>
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      <button
+                        onClick={() => setUiFramework('tailwind')}
+                        style={{
+                          ...secondaryButtonStyle,
+                          fontSize: '12px',
+                          padding: '6px 10px',
+                          backgroundColor: uiFramework === 'tailwind' ? '#dbeafe' : '#f9fafb',
+                          color: uiFramework === 'tailwind' ? '#1e40af' : '#374151'
+                        }}
+                      >
+                        Tailwind
+                      </button>
+                      <button
+                        onClick={() => setUiFramework('shadcn')}
+                        style={{
+                          ...secondaryButtonStyle,
+                          fontSize: '12px',
+                          padding: '6px 10px',
+                          backgroundColor: uiFramework === 'shadcn' ? '#ecfdf5' : '#f9fafb',
+                          color: uiFramework === 'shadcn' ? '#065f46' : '#374151'
+                        }}
+                      >
+                        ShadCN
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+              )}
+
+              {/* TheSys Provider Notice */}
+              {customVizProvider.provider_type === 'thesys' && (
+                <div style={{
+                  backgroundColor: '#f0f9ff',
+                  border: '1px solid #0ea5e9',
+                  borderRadius: '6px',
+                  padding: '12px',
+                  marginBottom: '20px'
+                }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                    <span style={{ fontSize: '14px', fontWeight: '600', color: '#0c4a6e' }}>🎨 TheSys Provider</span>
+                  </div>
+                  <p style={{ fontSize: '12px', margin: 0, color: '#0369a1' }}>
+                    TheSys uses C1 Components for rich interactive content. UI framework selection is not available.
+                  </p>
+                </div>
+              )}
+
               <div style={{ 
                 backgroundColor: '#f9fafb', 
                 padding: '16px', 
@@ -630,7 +769,8 @@ export default function PerConnectionDemo() {
                   allowFullScreen={true}
                   options={{
                     agentName: `${activeConfig.client_id} Assistant`,
-                    welcomeMessage: `Connected with ${activeConfig.visualization_provider.provider_type} provider and ${activeConfig.mcp_config.servers.length} MCP server(s)`
+                    welcomeMessage: `Connected with ${activeConfig.visualization_provider.provider_type} provider and ${activeConfig.mcp_config.servers.length} MCP server(s).${activeConfig.visualization_provider.provider_type !== 'thesys' ? ` UI Framework: ${uiFramework}` : ' Using C1 Components.'}`,
+                    uiFramework: activeConfig.visualization_provider.provider_type !== 'thesys' ? uiFramework : undefined
                   }}
                 />
               </div>
@@ -671,7 +811,7 @@ export default function PerConnectionDemo() {
             </ul>
           </div>
 
-          <div>
+          <div style={{ marginBottom: '24px' }}>
             <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>
               Use Cases:
             </h4>
@@ -680,7 +820,60 @@ export default function PerConnectionDemo() {
               <li>Different AI tools per customer</li>
               <li>A/B testing different models</li>
               <li>Enterprise isolation requirements</li>
+              <li>Framework-specific UI generation</li>
             </ul>
+          </div>
+
+          <div>
+            <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px' }}>
+              {customVizProvider.provider_type === 'thesys' ? 'Try These C1 Component Prompts:' : `Try These ${uiFramework} Prompts:`}
+            </h4>
+            <div style={{
+              backgroundColor: '#f8f9fa',
+              border: '1px solid #e9ecef',
+              borderRadius: '6px',
+              padding: '12px'
+            }}>
+              {customVizProvider.provider_type === 'thesys' && (
+                <div>
+                  <p style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '500', color: '#495057' }}>
+                    🎨 Try these C1 Component prompts:
+                  </p>
+                  <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '13px', lineHeight: '1.6' }}>
+                    <li>"Create an interactive data visualization with charts and filters"</li>
+                    <li>"Build a dynamic form with conditional fields and validation"</li>
+                    <li>"Design a rich content editor with formatting tools"</li>
+                    <li>"Make an interactive dashboard with real-time data updates"</li>
+                  </ul>
+                </div>
+              )}
+              {customVizProvider.provider_type !== 'thesys' && uiFramework === 'tailwind' && (
+                <div>
+                  <p style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '500', color: '#495057' }}>
+                    📱 Try these Tailwind prompts:
+                  </p>
+                  <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '13px', lineHeight: '1.6' }}>
+                    <li>"Create a dashboard card with user stats and progress bars"</li>
+                    <li>"Build a responsive pricing table with feature comparisons"</li>
+                    <li>"Design a contact form with validation styling"</li>
+                    <li>"Make a notification panel with different alert types"</li>
+                  </ul>
+                </div>
+              )}
+              {customVizProvider.provider_type !== 'thesys' && uiFramework === 'shadcn' && (
+                <div>
+                  <p style={{ margin: '0 0 8px 0', fontSize: '14px', fontWeight: '500', color: '#495057' }}>
+                    🎨 Try these ShadCN prompts:
+                  </p>
+                  <ul style={{ margin: 0, paddingLeft: '16px', fontSize: '13px', lineHeight: '1.6' }}>
+                    <li>"Create a modern data table with sorting and filtering"</li>
+                    <li>"Build a user profile card with avatar and action buttons"</li>
+                    <li>"Design a settings panel with form controls"</li>
+                    <li>"Make a command palette search interface"</li>
+                  </ul>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>

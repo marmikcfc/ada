@@ -86,7 +86,7 @@ const demos: Demo[] = [
   {
     id: 'perconnection',
     title: 'Per-Connection Multi-Tenant',
-    description: 'Scalable architecture with different AI models and MCP tools per connection',
+    description: 'Scalable multi-tenant architecture with framework selection, AI models, and MCP tools per connection',
     icon: '🏢',
     status: 'supported',
     component: PerConnectionDemo

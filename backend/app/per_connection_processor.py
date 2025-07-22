@@ -193,8 +193,22 @@ class PerConnectionProcessor:
         conversation_history: List[Dict[str, Any]]
     ) -> List[Dict[str, Any]]:
         """Prepare messages for visualization provider"""
-        # Get base system prompt from provider
-        base_prompt = self.context.visualization_provider.get_system_prompt()
+        # Get framework preference from client configuration
+        framework = "inline"  # Default fallback
+        if (hasattr(self.context, 'config') and 
+            self.context.config and 
+            hasattr(self.context.config, 'preferences') and 
+            self.context.config.preferences):
+            framework = self.context.config.preferences.get('ui_framework', 'inline')
+        
+        # Get base system prompt from provider (with framework support for OpenAI)
+        provider_type = getattr(self.context.visualization_provider, 'provider_type', '').lower()
+        if provider_type == 'openai' and hasattr(self.context.visualization_provider, 'get_system_prompt'):
+            # OpenAI provider supports framework-specific prompts
+            base_prompt = self.context.visualization_provider.get_system_prompt(framework)
+        else:
+            # Other providers use default prompts
+            base_prompt = self.context.visualization_provider.get_system_prompt()
         
         # Enhance with MCP tools if available
         mcp_tools = []
