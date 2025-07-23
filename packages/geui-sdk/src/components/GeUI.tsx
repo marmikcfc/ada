@@ -14,8 +14,9 @@ import { createTheme } from '../theming/defaultTheme';
  *  2. Existing custom GeUI overrides (must come after to ensure
  *     custom rules can override the base styles if needed)
  * ------------------------------------------------------------------ */
-import "@crayonai/react-ui/styles/index.css";
-import "./thesys-css.css";
+//import "@crayonai/react-ui/styles/index.css";
+//import "./thesys-css.css";
+
 /**
  * Main GeUI component - the entry point for the SDK
  * 
