@@ -59,7 +59,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   isStreamingActive = false,
   onC1Action,
   sendC1Action,
-  renderMessage,
+  renderMessage: _renderMessage, // Reserved for future use
   isMinimized = false,
   onMinimize,
   onRestore,

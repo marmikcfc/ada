@@ -130,11 +130,8 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
       FORBID_TAGS: [], // Don't forbid any tags by default
     };
     
-    // Create a unique hook ID for this sanitization call
-    const hookId = 'geui-html-sanitize-' + Math.random().toString(36).substring(2);
-    
     // Add hook to allow JavaScript event handlers - scoped to this call only
-    DOMPurify.addHook('uponSanitizeAttribute', function (node, data) {
+    DOMPurify.addHook('uponSanitizeAttribute', function (_node, data) {
       // Allow onclick, onsubmit, onchange, etc. event handlers
       if (data.attrName && data.attrName.startsWith('on')) {
         // Only allow event handlers that call window.geuiSDK methods
@@ -222,6 +219,7 @@ export const ContentRenderer: React.FC<{
     <FlexibleContentRenderer
       content={content}
       contentType="auto"
+      onC1Action={onC1Action}
       isStreaming={isStreaming}
       crayonTheme={crayonTheme}
     />

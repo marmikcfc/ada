@@ -84,7 +84,7 @@ export class ConnectionService extends EventEmitter {
   
   // UI Framework support
   private uiFramework: string = 'inline';
-  private visualizationProvider?: VisualizationProvider;
+  private _visualizationProvider?: VisualizationProvider; // Reserved for future use
   private onFormSubmit?: (formId: string, formData: FormData) => void;
   private onButtonClick?: (actionType: string, context: any) => void;
   private onInputChange?: (fieldName: string, value: any) => void;
@@ -125,7 +125,7 @@ export class ConnectionService extends EventEmitter {
     
     // UI Framework support
     this.uiFramework = options.uiFramework || 'inline';
-    this.visualizationProvider = options.visualizationProvider;
+    this._visualizationProvider = options.visualizationProvider;
     this.onFormSubmit = options.onFormSubmit;
     this.onButtonClick = options.onButtonClick;
     this.onInputChange = options.onInputChange;
@@ -306,6 +306,10 @@ export class ConnectionService extends EventEmitter {
     
     const messageId = crypto.randomUUID();
     
+    if (!this.webSocket) {
+      throw new Error('WebSocket is not connected');
+    }
+    
     this.webSocket.send(JSON.stringify({
       type: 'chat',
       message: message,
@@ -341,6 +345,10 @@ export class ConnectionService extends EventEmitter {
     }
     
     const messageId = crypto.randomUUID();
+    
+    if (!this.webSocket) {
+      throw new Error('WebSocket is not connected');
+    }
     
     this.webSocket.send(JSON.stringify({
       type: 'thesys_bridge',

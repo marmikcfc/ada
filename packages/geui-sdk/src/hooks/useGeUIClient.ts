@@ -303,7 +303,6 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
     streamingContent,
     streamingMessageId,
     isStreamingActive,
-    streamingContentType,
     audioStream,
     
     // Additional methods
