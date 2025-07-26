@@ -43,7 +43,9 @@ export const ConfigurableGeUIClient: React.FC<ConfigurableGeUIClientProps> = ({
   const [configSent, setConfigSent] = useState(false);
 
   useEffect(() => {
-    console.log('[ConfigurableGeUIClient] Initializing with config:', connectionConfig);
+    console.log('🚀 ConfigurableGeUIClient: Component effect triggered');
+    console.log('🚀 ConfigurableGeUIClient: Config:', connectionConfig);
+    console.log('🚀 ConfigurableGeUIClient: Config object reference:', connectionConfig === connectionConfig);
     setIsReady(true);
   }, [connectionConfig]);
 
@@ -59,39 +61,36 @@ export const ConfigurableGeUIClient: React.FC<ConfigurableGeUIClientProps> = ({
     let configHandled = false;
     
     const messageHandler = (event: MessageEvent) => {
-      if (!configHandled) {
-        try {
-          const data = JSON.parse(event.data);
-          console.log('[ConfigurableGeUIClient] Received message:', data.type);
+      try {
+        const data = JSON.parse(event.data);
+        console.log('[ConfigurableGeUIClient] Received message:', data.type);
+        
+        // Only handle connection_established message, then remove handler
+        if (data.type === 'connection_established' && !configHandled) {
+          console.log('[ConfigurableGeUIClient] Received connection_established, sending config');
           
-          if (data.type === 'connection_established') {
-            console.log('[ConfigurableGeUIClient] Received connection_established, sending config');
-            
-            const configMessage = {
-              type: 'connection_config',
-              config: connectionConfig
-            };
-            
-            console.log('[ConfigurableGeUIClient] Sending configuration:', configMessage);
-            ws.send(JSON.stringify(configMessage));
-            configHandled = true;
-            setConfigSent(true);
-            
-            // Update state based on server response
-            if (data.state) {
-              handleStateChange(data.state);
-            }
-          } else if (data.type === 'state_update') {
-            // Handle state updates from server
+          const configMessage = {
+            type: 'connection_config',
+            config: connectionConfig
+          };
+          
+          console.log('[ConfigurableGeUIClient] Sending configuration:', configMessage);
+          ws.send(JSON.stringify(configMessage));
+          configHandled = true;
+          setConfigSent(true);
+          
+          // Update state based on server response
+          if (data.state) {
             handleStateChange(data.state);
-          } else if (data.type === 'error') {
-            // Handle errors
-            console.error('[ConfigurableGeUIClient] Server error:', data.message);
-            onError?.(new Error(data.message || 'Server error'));
           }
-        } catch (e) {
-          console.error('[ConfigurableGeUIClient] Error parsing message:', e);
+          
+          // Remove this handler after config is sent to allow ConnectionService to handle all messages
+          console.log('[ConfigurableGeUIClient] Config sent, removing custom message handler');
+          ws.removeEventListener('message', messageHandler);
         }
+        // Let all other messages be handled by ConnectionService's built-in handler
+      } catch (e) {
+        console.error('[ConfigurableGeUIClient] Error parsing message:', e);
       }
     };
     

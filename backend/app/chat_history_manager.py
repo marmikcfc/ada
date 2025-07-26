@@ -77,7 +77,7 @@ class ChatHistoryManager:
             self._update_thread_activity(thread_id)
             
             # Trim history if needed
-            await self._trim_history_if_needed(thread_id)
+            self._trim_history_if_needed(thread_id)
             
             logger.debug(f"Added user message to thread {thread_id}: {message[:50]}...")
     
@@ -110,7 +110,7 @@ class ChatHistoryManager:
             self._update_thread_activity(thread_id)
             
             # Trim history if needed
-            await self._trim_history_if_needed(thread_id)
+            self._trim_history_if_needed(thread_id)
             
             logger.debug(f"Added assistant message to thread {thread_id}: {message[:50]}...")
     
@@ -140,7 +140,7 @@ class ChatHistoryManager:
             self._update_thread_activity(thread_id)
             
             # Trim history if needed
-            await self._trim_history_if_needed(thread_id)
+            self._trim_history_if_needed(thread_id)
             
             logger.debug(f"Added function message to thread {thread_id} for function {function_name}: {content[:50]}...")
     
@@ -175,7 +175,7 @@ class ChatHistoryManager:
             self._update_thread_activity(thread_id)
             
             # Trim history if needed
-            await self._trim_history_if_needed(thread_id)
+            self._trim_history_if_needed(thread_id)
             
             logger.debug(f"Added function call to thread {thread_id} for function {function_name}")
     
@@ -203,7 +203,7 @@ class ChatHistoryManager:
             self._update_thread_activity(thread_id)
             
             # Trim history if needed
-            await self._trim_history_if_needed(thread_id)
+            self._trim_history_if_needed(thread_id)
             
             logger.debug(f"Added system message to thread {thread_id}: {message[:50]}...")
     
@@ -400,7 +400,7 @@ class ChatHistoryManager:
                 'last_activity': current_time
             }
     
-    async def _trim_history_if_needed(self, thread_id: str) -> None:
+    def _trim_history_if_needed(self, thread_id: str) -> None:
         """
         Trim the history if it exceeds the maximum allowed size.
         

@@ -124,6 +124,7 @@ const GeUI: React.FC<GeUIProps> = ({
   };
   
   // Props for the MinimizableChatWindow
+  console.log('🎯 Passing messages to ChatWindow:', client.messages);
   const chatWindowProps: MinimizableChatWindowProps = {
     messages: client.messages,
     onSendMessage: client.sendText,
@@ -156,46 +157,25 @@ const GeUI: React.FC<GeUIProps> = ({
       {/* Hidden audio element for voice output - only render if voice is enabled */}
       {!disableVoice && <audio ref={audioRef} autoPlay style={{ display: 'none' }} />}
       
-      {/* bubbleEnabled=false - shows VoiceBotFullscreenLayout directly */}
-      {!bubbleEnabled && !disableVoice ? (
-        <VoiceBotFullscreenLayout
-          isVoiceConnected={client.voiceState === 'connected'}
-          isVoiceLoading={client.voiceState === 'connecting'}
-          onToggleVoice={handleToggleVoice}
-          onSendMessage={client.sendText}
-          messages={client.messages}
-          onC1Action={(action: any) => {
-            // Handle C1 actions - for now just send the human-friendly message
-            if (action.humanFriendlyMessage) {
-              client.sendText(action.humanFriendlyMessage);
-            }
-          }}
-          sendC1Action={client.sendC1Action}
-          isLoading={client.isLoading}
-          isEnhancing={client.isEnhancing}
-          streamingContent={client.streamingContent}
-          streamingMessageId={client.streamingMessageId}
-          isStreamingActive={client.isStreamingActive}
-          config={{
-            agentName: options.agentName || "Ada",
-            agentSubtitle: options.agentSubtitle || "How can I help you today?",
-            logoUrl: options.logoUrl || "/favicon.ico",
-            backgroundColor: options.backgroundColor || "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-            primaryColor: options.primaryColor || "#667eea",
-            accentColor: options.accentColor || "#5a67d8",
-            threadManagerTitle: options.threadManagerTitle || "Conversations",
-            enableThreadManager: options.enableThreadManager ?? true,
-            startCallButtonText: options.startCallButtonText || "Start a call",
-            endCallButtonText: options.endCallButtonText || "End call",
-            connectingText: options.connectingText || "Connecting...",
-            webrtcURL,
-            websocketURL,
-          }}
-          componentOverrides={options.fullscreenComponents}
-          layoutConfig={options.fullscreenLayout}
-          crayonTheme={options.crayonTheme}
-          containerMode={options.containerMode}
-        />
+      {/* bubbleEnabled=false - shows ChatWindow in fullscreen directly */}
+      {!bubbleEnabled ? (
+        <div style={{
+          position: 'relative',
+          width: '100%',
+          height: '100vh',
+          overflow: 'hidden',
+        }}>
+          <ChatWindowComponent 
+            {...(chatWindowProps as any)}
+            showMinimizeButton={false}
+            style={{
+              height: '100%',
+              border: 'none',
+              borderRadius: '0',
+              boxShadow: 'none'
+            }}
+          />
+        </div>
       ) : (
         <>
           {/* Chat button - shown only when bubbleEnabled is true and chat is not open */}
@@ -216,17 +196,17 @@ const GeUI: React.FC<GeUIProps> = ({
         )
       )}
       
-      {/* Chat window - shown when chat is open (bubble mode) OR when voice is disabled but bubbleEnabled=false */}
-      {((isChatOpen && bubbleEnabled) || (!bubbleEnabled && disableVoice)) && (
+      {/* Chat window - shown when chat is open (bubble mode only) */}
+      {(isChatOpen && bubbleEnabled) && (
         <div style={{
-          position: bubbleEnabled ? 'fixed' : 'relative',
-          bottom: bubbleEnabled ? '20px' : 'auto',
-          right: bubbleEnabled ? '20px' : 'auto',
-          width: bubbleEnabled ? '400px' : '100%',
-          height: bubbleEnabled ? '600px' : '100vh',
-          zIndex: bubbleEnabled ? 10000 : 'auto',
-          boxShadow: bubbleEnabled ? '0 8px 32px rgba(0, 0, 0, 0.2)' : 'none',
-          borderRadius: bubbleEnabled ? '12px' : '0',
+          position: 'fixed',
+          bottom: '20px',
+          right: '20px',
+          width: '400px',
+          height: '600px',
+          zIndex: 10000,
+          boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)',
+          borderRadius: '12px',
           overflow: 'hidden',
         }}>
           <ChatWindowComponent {...(chatWindowProps as any)} />

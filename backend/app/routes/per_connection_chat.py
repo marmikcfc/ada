@@ -128,15 +128,16 @@ async def _wait_for_configuration(websocket: WebSocket, connection_id: str) -> b
         return False
 
 async def _run_connection_loops(context):
-    """Run sender and receiver loops for the connection"""
+    """Run sender, receiver, and voice bridge loops for the connection"""
     try:
-        # Start both sender and receiver tasks
+        # Start sender, receiver, and voice bridge tasks
         sender_task = asyncio.create_task(_per_connection_sender(context))
         receiver_task = asyncio.create_task(_per_connection_receiver(context))
+        voice_bridge_task = asyncio.create_task(_per_connection_voice_bridge(context))
         
-        # Wait for either task to complete
+        # Wait for any task to complete
         done, pending = await asyncio.wait(
-            {sender_task, receiver_task}, 
+            {sender_task, receiver_task, voice_bridge_task}, 
             return_when=asyncio.FIRST_COMPLETED
         )
         
@@ -201,6 +202,47 @@ async def _per_connection_receiver(context):
         except Exception as e:
             logger.error(f"Receiver error for {context.connection_id}: {e}")
             break
+
+async def _per_connection_voice_bridge(context):
+    """Bridge voice messages from global queue to per-connection queue"""
+    from app.queues import get_llm_message, mark_llm_message_done
+    
+    while context.state in [ConnectionState.ACTIVE, ConnectionState.READY]:
+        try:
+            # Get message from global llm_message_queue (used by voice agent)
+            message = await asyncio.wait_for(get_llm_message(), timeout=1.0)
+            
+            # Check if this is a voice-related message that should be forwarded
+            if _should_forward_voice_message(message):
+                logger.info(f"Forwarding voice message to connection {context.connection_id}: {message.get('type')}")
+                # Forward to per-connection queue
+                await context.message_queue.put(message)
+            
+            # Mark the message as done in the global queue
+            mark_llm_message_done()
+            
+        except asyncio.TimeoutError:
+            # No message available, continue
+            continue
+        except Exception as e:
+            logger.error(f"Voice bridge error for {context.connection_id}: {e}")
+            break
+
+def _should_forward_voice_message(message: dict) -> bool:
+    """Determine if a message from the global queue should be forwarded to per-connection"""
+    if not isinstance(message, dict):
+        return False
+    
+    message_type = message.get('type', '')
+    
+    # Forward voice-related message types
+    voice_message_types = {
+        'user_transcription',      # User voice transcriptions
+        'immediate_voice_response', # Fast-path voice responses
+        'voice_response'           # Complete voice responses
+    }
+    
+    return message_type in voice_message_types
 
 async def _process_per_connection_chat(context, chat_message: ChatMessage):
     """Process a chat message using connection's resources"""

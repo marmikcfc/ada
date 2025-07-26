@@ -127,7 +127,13 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
       }
     };
     const handleMessageReceived = (message: Message) => {
-      setMessages(prev => [...prev, message]);
+      console.log('🔥 MESSAGE_RECEIVED handler called:', message);
+      setMessages(prev => {
+        console.log('🔥 Previous messages:', prev);
+        const newMessages = [...prev, message];
+        console.log('🔥 New messages:', newMessages);
+        return newMessages;
+      });
       setIsLoading(false);
       setIsEnhancing(false);
     };
