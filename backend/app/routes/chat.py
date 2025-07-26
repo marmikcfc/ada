@@ -12,6 +12,7 @@ import logging
 import json
 import uuid
 from typing import Dict, List, Any, Optional
+import re
 
 import asyncio  # Needed for asyncio.sleep used in WebSocket loop
 
@@ -30,7 +31,7 @@ from app.queues import (
     create_text_chat_response
 )
 from agent.enhanced_mcp_client_agent import EnhancedMCPClient
-from utils.thesys_prompts import format_thesys_messages_for_visualize
+from utils.thesys_prompts import format_thesys_messages_for_visualize, load_thesys_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -77,6 +78,462 @@ def extract_message_and_thread_id(request: Union[ChatRequest, ThesysBridgeReques
         raise ValueError(f"Unsupported request type: {type(request)}")
 
 
+async def _handle_debug_command(message: str, thread_id: str) -> Optional[str]:
+    """
+    Handle debug commands for UI framework testing.
+    
+    Supported commands:
+    - "tailwind form", "tailwind table", "tailwind list", "tailwind tabs"
+    - "shadcn form", "shadcn table", "shadcn list", "shadcn tabs"
+    
+    Returns:
+        HTML content if debug command detected, None otherwise
+    """
+    # Pattern matching for debug commands
+    pattern = r'^(tailwind|shadcn)\s+(form|table|list|tabs)$'
+    match = re.match(pattern, message.lower().strip())
+    
+    if not match:
+        return None
+    
+    framework, element = match.groups()
+    logger.info(f"Debug command detected: {framework} {element}")
+    
+    # Load appropriate prompt
+    if framework == 'tailwind':
+        system_prompt = load_thesys_prompt('openai_tailwind_generator_system')
+    else:  # shadcn
+        system_prompt = load_thesys_prompt('openai_shadcn_generator_system')
+    
+    # Element-specific instructions
+    element_instructions = {
+        'form': f"Create a contact form with name, email, and message fields using {framework} styling.",
+        'table': f"Create a user management table with name, email, status columns and action buttons using {framework} styling.",
+        'list': f"Create an interactive task list with checkboxes and action buttons using {framework} styling.",
+        'tabs': f"Create a dashboard with 3 tabs (Overview, Analytics, Settings) using {framework} styling."
+    }
+    
+    # Return hardcoded HTML components based on framework and element
+    try:
+        html_content = _get_hardcoded_component(framework, element)
+        logger.info(f"Returned hardcoded {framework} {element} component")
+        return html_content
+        
+    except Exception as e:
+        logger.error(f"Error generating debug component: {e}", exc_info=True)
+        
+        # Return error component
+        error_html = f'''
+        <div class="p-4 border border-red-300 rounded-md bg-red-50">
+            <h3 class="text-red-800 font-semibold">Debug Command Error</h3>
+            <p class="text-red-700">Failed to generate {framework} {element}: {str(e)}</p>
+        </div>
+        '''
+        return error_html
+
+
+def _get_hardcoded_component(framework: str, element: str) -> str:
+    """Return hardcoded HTML components for testing."""
+    
+    if framework == 'tailwind':
+        if element == 'form':
+            return '''
+            <div class="max-w-md mx-auto bg-white p-6 rounded-lg shadow-md">
+                <h2 class="text-2xl font-bold mb-6 text-gray-800">Contact Form</h2>
+                <form onsubmit="window.geuiSDK.handleFormSubmit(event, 'contact-form')" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Name</label>
+                        <input type="text" name="name" placeholder="Enter your name" 
+                               onchange="window.geuiSDK.handleInputChange(event, 'name')"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                               required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Email</label>
+                        <input type="email" name="email" placeholder="Enter your email" 
+                               onchange="window.geuiSDK.handleInputChange(event, 'email')"
+                               class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                               required>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Message</label>
+                        <textarea name="message" rows="4" placeholder="Enter your message"
+                                  onchange="window.geuiSDK.handleInputChange(event, 'message')"
+                                  class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent" 
+                                  required></textarea>
+                    </div>
+                    <button type="submit" 
+                            class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200">
+                        Send Message
+                    </button>
+                </form>
+            </div>
+            '''
+            
+        elif element == 'table':
+            return '''
+            <div class="overflow-x-auto bg-white rounded-lg shadow">
+                <table class="min-w-full table-auto">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Name</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Email</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">John Doe</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">john@example.com</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-green-100 text-green-800">Active</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                <button onclick="window.geuiSDK.handleButtonClick(event, 'edit-user', {id: 1})"
+                                        class="text-blue-600 hover:text-blue-900">Edit</button>
+                                <button onclick="window.geuiSDK.handleButtonClick(event, 'delete-user', {id: 1})"
+                                        class="text-red-600 hover:text-red-900">Delete</button>
+                            </td>
+                        </tr>
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">Jane Smith</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">jane@example.com</td>
+                            <td class="px-6 py-4 whitespace-nowrap">
+                                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full bg-yellow-100 text-yellow-800">Pending</span>
+                            </td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium space-x-2">
+                                <button onclick="window.geuiSDK.handleButtonClick(event, 'edit-user', {id: 2})"
+                                        class="text-blue-600 hover:text-blue-900">Edit</button>
+                                <button onclick="window.geuiSDK.handleButtonClick(event, 'delete-user', {id: 2})"
+                                        class="text-red-600 hover:text-red-900">Delete</button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            '''
+            
+        elif element == 'list':
+            return '''
+            <div class="max-w-md mx-auto bg-white rounded-lg shadow-md p-6">
+                <h2 class="text-xl font-bold mb-4 text-gray-800">Task List</h2>
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" onchange="window.geuiSDK.handleInputChange(event, 'task-1')"
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <span class="text-sm text-gray-700">Complete project proposal</span>
+                        </div>
+                        <button onclick="window.geuiSDK.handleButtonClick(event, 'delete-task', {id: 1})"
+                                class="text-red-500 hover:text-red-700">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" checked onchange="window.geuiSDK.handleInputChange(event, 'task-2')"
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <span class="text-sm text-gray-700 line-through">Review team feedback</span>
+                        </div>
+                        <button onclick="window.geuiSDK.handleButtonClick(event, 'delete-task', {id: 2})"
+                                class="text-red-500 hover:text-red-700">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                            </svg>
+                        </button>
+                    </div>
+                    <div class="flex items-center justify-between p-3 bg-gray-50 rounded-md">
+                        <div class="flex items-center space-x-3">
+                            <input type="checkbox" onchange="window.geuiSDK.handleInputChange(event, 'task-3')"
+                                   class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded">
+                            <span class="text-sm text-gray-700">Update documentation</span>
+                        </div>
+                        <button onclick="window.geuiSDK.handleButtonClick(event, 'delete-task', {id: 3})"
+                                class="text-red-500 hover:text-red-700">
+                            <svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+                <button onclick="window.geuiSDK.handleButtonClick(event, 'add-task', {})"
+                        class="mt-4 w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200">
+                    Add New Task
+                </button>
+            </div>
+            '''
+            
+        elif element == 'tabs':
+            return '''
+            <div class="w-full max-w-4xl mx-auto bg-white rounded-lg shadow-lg">
+                <div class="border-b border-gray-200">
+                    <nav class="flex space-x-8 px-6" aria-label="Tabs">
+                        <button onclick="window.geuiSDK.handleButtonClick(event, 'switch-tab', {tab: 'overview'})"
+                                class="border-b-2 border-blue-500 py-4 px-1 text-sm font-medium text-blue-600">
+                            Overview
+                        </button>
+                        <button onclick="window.geuiSDK.handleButtonClick(event, 'switch-tab', {tab: 'analytics'})"
+                                class="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                            Analytics
+                        </button>
+                        <button onclick="window.geuiSDK.handleButtonClick(event, 'switch-tab', {tab: 'settings'})"
+                                class="border-b-2 border-transparent py-4 px-1 text-sm font-medium text-gray-500 hover:text-gray-700 hover:border-gray-300">
+                            Settings
+                        </button>
+                    </nav>
+                </div>
+                <div class="p-6">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                        <div class="bg-blue-50 p-4 rounded-lg">
+                            <h3 class="text-lg font-semibold text-blue-900">Total Users</h3>
+                            <p class="text-3xl font-bold text-blue-600">2,543</p>
+                            <p class="text-sm text-blue-700">+12% from last month</p>
+                        </div>
+                        <div class="bg-green-50 p-4 rounded-lg">
+                            <h3 class="text-lg font-semibold text-green-900">Revenue</h3>
+                            <p class="text-3xl font-bold text-green-600">$45,231</p>
+                            <p class="text-sm text-green-700">+8% from last month</p>
+                        </div>
+                        <div class="bg-purple-50 p-4 rounded-lg">
+                            <h3 class="text-lg font-semibold text-purple-900">Orders</h3>
+                            <p class="text-3xl font-bold text-purple-600">1,234</p>
+                            <p class="text-sm text-purple-700">+15% from last month</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            '''
+    
+    elif framework == 'shadcn':
+        if element == 'form':
+            return '''
+            <div class="rounded-lg border bg-card text-card-foreground shadow-sm max-w-md mx-auto">
+                <div class="flex flex-col space-y-1.5 p-6">
+                    <h3 class="text-2xl font-semibold leading-none tracking-tight">Contact Form</h3>
+                    <p class="text-sm text-muted-foreground">Send us a message and we'll get back to you.</p>
+                </div>
+                <div class="p-6 pt-0">
+                    <form onsubmit="window.geuiSDK.handleFormSubmit(event, 'shadcn-contact-form')" class="space-y-4">
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Name</label>
+                            <input type="text" name="name" placeholder="Enter your name" 
+                                   onchange="window.geuiSDK.handleInputChange(event, 'name')"
+                                   class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
+                                   required>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Email</label>
+                            <input type="email" name="email" placeholder="Enter your email" 
+                                   onchange="window.geuiSDK.handleInputChange(event, 'email')"
+                                   class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
+                                   required>
+                        </div>
+                        <div class="space-y-2">
+                            <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Message</label>
+                            <textarea name="message" rows="4" placeholder="Enter your message"
+                                      onchange="window.geuiSDK.handleInputChange(event, 'message')"
+                                      class="flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" 
+                                      required></textarea>
+                        </div>
+                        <button type="submit" 
+                                class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full">
+                            Send Message
+                        </button>
+                    </form>
+                </div>
+            </div>
+            '''
+            
+        elif element == 'table':
+            return '''
+            <div class="w-full overflow-auto">
+                <table class="w-full caption-bottom text-sm">
+                    <thead class="[&_tr]:border-b">
+                        <tr class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                            <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Name</th>
+                            <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Email</th>
+                            <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Status</th>
+                            <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="[&_tr:last-child]:border-0">
+                        <tr class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                            <td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">John Doe</td>
+                            <td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">john@example.com</td>
+                            <td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+                                <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
+                                    Active
+                                </div>
+                            </td>
+                            <td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+                                <button onclick="window.geuiSDK.handleButtonClick(event, 'edit-user', {id: 1})"
+                                        class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8">
+                                    ✏️
+                                </button>
+                                <button onclick="window.geuiSDK.handleButtonClick(event, 'delete-user', {id: 1})"
+                                        class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 text-destructive">
+                                    🗑️
+                                </button>
+                            </td>
+                        </tr>
+                        <tr class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+                            <td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">Jane Smith</td>
+                            <td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">jane@example.com</td>
+                            <td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+                                <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground">
+                                    Pending
+                                </div>
+                            </td>
+                            <td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">
+                                <button onclick="window.geuiSDK.handleButtonClick(event, 'edit-user', {id: 2})"
+                                        class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8">
+                                    ✏️
+                                </button>
+                                <button onclick="window.geuiSDK.handleButtonClick(event, 'delete-user', {id: 2})"
+                                        class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 text-destructive">
+                                    🗑️
+                                </button>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            '''
+            
+        elif element == 'list':
+            return '''
+            <div class="rounded-lg border bg-card text-card-foreground shadow-sm max-w-md mx-auto">
+                <div class="flex flex-col space-y-1.5 p-6">
+                    <h3 class="text-2xl font-semibold leading-none tracking-tight">Task List</h3>
+                    <p class="text-sm text-muted-foreground">Manage your daily tasks</p>
+                </div>
+                <div class="p-6 pt-0 space-y-3">
+                    <div class="flex items-center space-x-2 p-3 rounded-md border">
+                        <input type="checkbox" onchange="window.geuiSDK.handleInputChange(event, 'task-1')"
+                               class="peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                        <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            Complete project proposal
+                        </label>
+                        <button onclick="window.geuiSDK.handleButtonClick(event, 'delete-task', {id: 1})"
+                                class="ml-auto inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 text-destructive">
+                            🗑️
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-2 p-3 rounded-md border">
+                        <input type="checkbox" checked onchange="window.geuiSDK.handleInputChange(event, 'task-2')"
+                               class="peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                        <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 line-through text-muted-foreground">
+                            Review team feedback
+                        </label>
+                        <button onclick="window.geuiSDK.handleButtonClick(event, 'delete-task', {id: 2})"
+                                class="ml-auto inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 text-destructive">
+                            🗑️
+                        </button>
+                    </div>
+                    <div class="flex items-center space-x-2 p-3 rounded-md border">
+                        <input type="checkbox" onchange="window.geuiSDK.handleInputChange(event, 'task-3')"
+                               class="peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                        <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                            Update documentation
+                        </label>
+                        <button onclick="window.geuiSDK.handleButtonClick(event, 'delete-task', {id: 3})"
+                                class="ml-auto inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 text-destructive">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+                <div class="flex items-center p-6 pt-0">
+                    <button onclick="window.geuiSDK.handleButtonClick(event, 'add-task', {})"
+                            class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full">
+                        Add New Task
+                    </button>
+                </div>
+            </div>
+            '''
+            
+        elif element == 'tabs':
+            return '''
+            <div class="w-full max-w-4xl mx-auto">
+                <div class="inline-flex h-10 items-center justify-center rounded-md bg-muted p-1 text-muted-foreground w-full">
+                    <button onclick="window.geuiSDK.handleButtonClick(event, 'switch-tab', {tab: 'overview'})"
+                            class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-background text-foreground shadow-sm">
+                        Overview
+                    </button>
+                    <button onclick="window.geuiSDK.handleButtonClick(event, 'switch-tab', {tab: 'analytics'})"
+                            class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50">
+                        Analytics
+                    </button>
+                    <button onclick="window.geuiSDK.handleButtonClick(event, 'switch-tab', {tab: 'settings'})"
+                            class="inline-flex items-center justify-center whitespace-nowrap rounded-sm px-3 py-1.5 text-sm font-medium ring-offset-background transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50">
+                        Settings
+                    </button>
+                </div>
+                <div class="mt-6 rounded-lg border bg-card text-card-foreground shadow-sm">
+                    <div class="p-6">
+                        <div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                            <div class="rounded-lg border bg-card text-card-foreground shadow-sm">
+                                <div class="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <h3 class="tracking-tight text-sm font-medium">Total Revenue</h3>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="h-4 w-4 text-muted-foreground">
+                                        <path d="M12 2v20m9-9H3"/>
+                                    </svg>
+                                </div>
+                                <div class="p-6 pt-0">
+                                    <div class="text-2xl font-bold">$45,231.89</div>
+                                    <p class="text-xs text-muted-foreground">+20.1% from last month</p>
+                                </div>
+                            </div>
+                            <div class="rounded-lg border bg-card text-card-foreground shadow-sm">
+                                <div class="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <h3 class="tracking-tight text-sm font-medium">Subscriptions</h3>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="h-4 w-4 text-muted-foreground">
+                                        <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+                                        <circle cx="9" cy="7" r="4"/>
+                                        <path d="m22 21-3-3m0 0-3-3m3 3 3-3m-3 3-3 3"/>
+                                    </svg>
+                                </div>
+                                <div class="p-6 pt-0">
+                                    <div class="text-2xl font-bold">+2350</div>
+                                    <p class="text-xs text-muted-foreground">+180.1% from last month</p>
+                                </div>
+                            </div>
+                            <div class="rounded-lg border bg-card text-card-foreground shadow-sm">
+                                <div class="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <h3 class="tracking-tight text-sm font-medium">Sales</h3>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="h-4 w-4 text-muted-foreground">
+                                        <rect width="20" height="14" x="2" y="5" rx="2"/>
+                                        <path d="M2 10h20"/>
+                                    </svg>
+                                </div>
+                                <div class="p-6 pt-0">
+                                    <div class="text-2xl font-bold">+12,234</div>
+                                    <p class="text-xs text-muted-foreground">+19% from last month</p>
+                                </div>
+                            </div>
+                            <div class="rounded-lg border bg-card text-card-foreground shadow-sm">
+                                <div class="p-6 flex flex-row items-center justify-between space-y-0 pb-2">
+                                    <h3 class="tracking-tight text-sm font-medium">Active Now</h3>
+                                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" class="h-4 w-4 text-muted-foreground">
+                                        <path d="M22 12h-4l-3 9L9 3l-3 9H2"/>
+                                    </svg>
+                                </div>
+                                <div class="p-6 pt-0">
+                                    <div class="text-2xl font-bold">+573</div>
+                                    <p class="text-xs text-muted-foreground">+201 since last hour</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            '''
+    
+    return f'<div class="p-4 text-center">Unknown component: {framework} {element}</div>'
+
+
 async def _process_chat_logic(message: str, thread_id: str, *, is_c1_action: bool, app_state) -> None:
     """Internal helper to process a chat message just like the POST endpoint."""
 
@@ -100,6 +557,20 @@ async def _process_chat_logic(message: str, thread_id: str, *, is_c1_action: boo
 
     # Gather recent history for context
     conversation_history = await chat_history_manager.get_recent_history(thread_id)
+
+    # ------------------------------------------------------------------- #
+    # Check for debug commands before MCP client processing
+    # ------------------------------------------------------------------- #
+    debug_html = await _handle_debug_command(message, thread_id)
+    if debug_html:
+        # Send debug HTML response directly
+        response = create_text_chat_response(content=debug_html, thread_id=thread_id)
+        await enqueue_llm_message(response)
+        
+        # Persist debug response in history
+        await chat_history_manager.add_assistant_message(thread_id, debug_html)
+        logger.info(f"Debug command processed and response sent for thread {thread_id}")
+        return
 
     # Step 2: Process the message through the MCP client
     response = await enhanced_mcp_client.chat_with_tools(

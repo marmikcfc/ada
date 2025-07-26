@@ -199,6 +199,49 @@ class ChatMessage(BaseModel):
         
         return v
 
+class UserInteractionMessage(BaseModel):
+    """User interaction message from frontend (form submissions, button clicks, etc.)"""
+    type: str = Field(..., description="Message type (must be 'user_interaction')")
+    interactionType: str = Field(..., description="Type of interaction: form_submit, button_click, input_change")
+    context: Dict[str, Any] = Field(..., description="Interaction context data")
+    connection_id: Optional[str] = Field(None, description="Connection identifier")
+    
+    @validator('type')
+    def validate_type(cls, v):
+        """Validate message type"""
+        if v != 'user_interaction':
+            raise ValueError('Message type must be "user_interaction"')
+        return v
+    
+    @validator('interactionType')
+    def validate_interaction_type(cls, v):
+        """Validate interaction type"""
+        allowed_types = ['form_submit', 'button_click', 'input_change']
+        if v not in allowed_types:
+            raise ValueError(f'Interaction type must be one of: {", ".join(allowed_types)}')
+        return v
+    
+    @validator('context')
+    def validate_context(cls, v, values):
+        """Validate context based on interaction type"""
+        interaction_type = values.get('interactionType')
+        
+        if interaction_type == 'form_submit':
+            if 'formId' not in v:
+                raise ValueError('form_submit interactions must include formId in context')
+            if 'formData' not in v:
+                raise ValueError('form_submit interactions must include formData in context')
+        elif interaction_type == 'button_click':
+            if 'actionType' not in v:
+                raise ValueError('button_click interactions must include actionType in context')
+        elif interaction_type == 'input_change':
+            if 'fieldName' not in v:
+                raise ValueError('input_change interactions must include fieldName in context')
+            if 'value' not in v:
+                raise ValueError('input_change interactions must include value in context')
+        
+        return v
+
 class ConnectionMetrics(BaseModel):
     """Metrics for connection monitoring"""
     connection_id: str
@@ -218,5 +261,6 @@ WebSocketMessage = Union[
     ConnectionStateMessage,
     ConnectionEstablishedMessage,
     ErrorMessage,
-    ChatMessage
+    ChatMessage,
+    UserInteractionMessage
 ]

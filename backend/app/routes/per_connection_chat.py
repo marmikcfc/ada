@@ -16,7 +16,7 @@ from pydantic import ValidationError
 
 from app.models import (
     ConnectionConfig, ConnectionConfigMessage, ConnectionEstablishedMessage,
-    ErrorMessage, ChatMessage, ConnectionState
+    ErrorMessage, ChatMessage, UserInteractionMessage, ConnectionState
 )
 from app.connection_manager import connection_manager
 from app.chat_history_manager import chat_history_manager
@@ -183,18 +183,29 @@ async def _per_connection_receiver(context):
         try:
             # Receive message from WebSocket
             data = await context.websocket.receive_text()
+            logger.info(f"Received message: {data}")
             context.last_activity = asyncio.get_event_loop().time()
             
             # Parse message
             try:
                 payload = json.loads(data)
-                chat_message = ChatMessage(**payload)
+                logger.info(f"Payload: {payload}")
+                
+                # Determine message type and parse accordingly
+                message_type = payload.get('type', '')
+                
+                if message_type == 'user_interaction':
+                    # Handle user interaction message
+                    interaction_message = UserInteractionMessage(**payload)
+                    await _process_user_interaction(context, interaction_message)
+                else:
+                    # Handle chat message (chat, chat_request, thesys_bridge)
+                    chat_message = ChatMessage(**payload)
+                    await _process_per_connection_chat(context, chat_message)
+                    
             except (json.JSONDecodeError, ValidationError) as e:
                 logger.warning(f"Invalid message format from {context.connection_id}: {e}")
                 continue
-            
-            # Process chat message
-            await _process_per_connection_chat(context, chat_message)
             
         except WebSocketDisconnect:
             logger.info(f"WebSocket disconnected for {context.connection_id}")
@@ -243,6 +254,168 @@ def _should_forward_voice_message(message: dict) -> bool:
     }
     
     return message_type in voice_message_types
+
+async def _process_user_interaction(context, interaction_message: UserInteractionMessage):
+    """Process a user interaction message and display it as a user message"""
+    try:
+        # Extract interaction details
+        interaction_type = interaction_message.interactionType
+        interaction_context = interaction_message.context
+        
+        logger.info(f"Processing {interaction_type} for {context.connection_id}: {interaction_context}")
+        
+        # Convert interaction to human-readable user message
+        user_message_content = _convert_interaction_to_user_message(interaction_type, interaction_context)
+        logger.info(f"User message will be: {user_message_content}")
+        
+        # Use existing thread if available, otherwise create new one
+        # For now, just create a consistent thread per interaction type to avoid fragmentation
+        thread_id = f"{context.connection_id}:main_thread"
+        
+        # Send the user interaction as a user message first
+        # Create a proper user message structure
+        user_msg_response = {
+            "id": str(uuid.uuid4()),
+            "role": "user",
+            "type": "text_chat_response",
+            "content": user_message_content,
+            "threadId": thread_id
+        }
+        await context.message_queue.put(user_msg_response)
+        
+        # Store as user message in history
+        await _store_connection_message(
+            context.connection_id, thread_id, "user", user_message_content
+        )
+        
+        # For certain interaction types, we might want to trigger an AI response
+        if interaction_type in ['form_submit', 'button_click']:
+            # Create a contextual message for AI processing
+            ai_context_message = _convert_interaction_to_ai_context(interaction_type, interaction_context)
+            
+            # Create a synthetic ChatMessage for AI processing
+            synthetic_chat = ChatMessage(
+                type="chat",
+                message=ai_context_message,
+                connection_id=context.connection_id,
+                thread_id=thread_id
+            )
+            
+            # Process through the standard chat pipeline for AI response
+            await _process_per_connection_chat(context, synthetic_chat)
+        
+        # For input_change, just acknowledge the change without AI processing
+        # This prevents overwhelming the system with AI responses for every keystroke
+        
+    except Exception as e:
+        logger.error(f"User interaction processing error for {context.connection_id}: {e}", exc_info=True)
+        
+        # Send error response
+        error_card = {
+            "component": "Callout",
+            "props": {
+                "variant": "error",
+                "title": "Interaction Error", 
+                "description": f"Failed to process your interaction: {str(e)}"
+            }
+        }
+        
+        from app.queues import create_text_chat_response
+        error_response = create_text_chat_response(
+            content=f'<content>{json.dumps(error_card)}</content>',
+            thread_id=None
+        )
+        
+        await context.message_queue.put(error_response)
+
+def _convert_interaction_to_user_message(interaction_type: str, context: Dict[str, Any]) -> str:
+    """Convert user interaction data into a user message that will be displayed in chat"""
+    try:
+        if interaction_type == "form_submit":
+            form_id = context.get("formId", "form")
+            form_data = context.get("formData", {})
+            
+            # Create a user-friendly message about what they submitted
+            data_summary = []
+            for field, value in form_data.items():
+                if value and str(value).strip():  # Only include non-empty values
+                    data_summary.append(f"{field}: {value}")
+            
+            if data_summary:
+                return f"Submitted {form_id} with: {', '.join(data_summary)}"
+            else:
+                return f"Submitted {form_id}"
+                
+        elif interaction_type == "button_click":
+            action_type = context.get("actionType", "button")
+            button_context = context.get("context", {})
+            
+            if button_context:
+                context_str = ", ".join([f"{k}: {v}" for k, v in button_context.items() if v])
+                return f"Clicked {action_type} ({context_str})"
+            else:
+                return f"Clicked {action_type}"
+                
+        elif interaction_type == "input_change":
+            field_name = context.get("fieldName", "field")
+            value = context.get("value", "")
+            
+            # For input changes, show what they entered
+            return f"Updated {field_name}: {value}"
+            
+        else:
+            return f"Performed {interaction_type} interaction"
+            
+    except Exception as e:
+        logger.error(f"Error converting interaction to user message: {e}")
+        return f"Performed an interaction"
+
+def _convert_interaction_to_ai_context(interaction_type: str, context: Dict[str, Any]) -> str:
+    """Convert user interaction data into context for AI processing"""
+    try:
+        if interaction_type == "form_submit":
+            form_id = context.get("formId", "unknown form")
+            form_data = context.get("formData", {})
+            
+            # Create a detailed context message for AI
+            data_summary = []
+            for field, value in form_data.items():
+                if value and str(value).strip():  # Only include non-empty values
+                    data_summary.append(f"{field}: {value}")
+            
+            if data_summary:
+                return f"The user submitted a {form_id} with the following information: {', '.join(data_summary)}. Please acknowledge this submission and provide any relevant next steps or feedback."
+            else:
+                return f"The user submitted a {form_id} but it was empty. Please provide guidance on what information is needed."
+                
+        elif interaction_type == "button_click":
+            action_type = context.get("actionType", "unknown action")
+            button_context = context.get("context", {})
+            
+            if button_context:
+                context_str = ", ".join([f"{k}: {v}" for k, v in button_context.items() if v])
+                return f"The user clicked a {action_type} button with context: {context_str}. Please provide an appropriate response for this action."
+            else:
+                return f"The user clicked a {action_type} button. Please acknowledge this action and provide relevant information or next steps."
+                
+        elif interaction_type == "input_change":
+            # For input changes, we usually don't want to trigger AI responses
+            # But if we do, it should be minimal
+            field_name = context.get("fieldName", "unknown field")
+            value = context.get("value", "")
+            return f"The user updated the {field_name} field to: {value}. You can acknowledge this briefly if helpful."
+            
+        else:
+            return f"The user performed a {interaction_type} interaction. Please respond appropriately."
+            
+    except Exception as e:
+        logger.error(f"Error converting interaction to AI context: {e}")
+        return f"The user performed an interaction. Please acknowledge this."
+
+def _convert_interaction_to_chat(interaction_type: str, context: Dict[str, Any]) -> str:
+    """Convert user interaction data into a human-readable chat message (legacy function)"""
+    # Keep this for backward compatibility, but redirect to user message version
+    return _convert_interaction_to_user_message(interaction_type, context)
 
 async def _process_per_connection_chat(context, chat_message: ChatMessage):
     """Process a chat message using connection's resources"""

@@ -261,11 +261,12 @@ def create_c1_token(id: str, content: str) -> C1Token:
 
 def create_html_token(id: str, content: str) -> HTMLToken:
     """Create an HTML token message"""
-    return {
-        "id": id,
-        "type": "html_token",
-        "content": content
-    }
+    return create_text_chat_response(content, id)
+    # return {
+    #     "id": id,
+    #     "type": "html_token",
+    #     "content": content
+    # }
 
 def create_chat_done(id: str, content: Optional[str] = None) -> ChatDone:
     """Create a chat done message"""

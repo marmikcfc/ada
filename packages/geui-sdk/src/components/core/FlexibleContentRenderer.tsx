@@ -134,11 +134,14 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
     DOMPurify.addHook('uponSanitizeAttribute', function (_node, data) {
       // Allow onclick, onsubmit, onchange, etc. event handlers
       if (data.attrName && data.attrName.startsWith('on')) {
+        console.log(`DOMPurify: Processing ${data.attrName}="${data.attrValue}"`);
         // Only allow event handlers that call window.geuiSDK methods
         if (data.attrValue && data.attrValue.includes('window.geuiSDK')) {
+          console.log(`DOMPurify: Allowing ${data.attrName} with window.geuiSDK`);
           return; // Allow this attribute
         }
         // Remove other JavaScript event handlers for security
+        console.log(`DOMPurify: Removing ${data.attrName} (no window.geuiSDK)`);
         data.keepAttr = false;
       }
     });
@@ -193,7 +196,10 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
       
     case 'html':
       const html = htmlContent || content || '';
+      console.log('FlexibleContentRenderer: Original HTML:', html);
       const processedHtml = sanitizeHtml(html);
+      console.log('FlexibleContentRenderer: Processed HTML:', processedHtml);
+      console.log('FlexibleContentRenderer: window.geuiSDK available:', !!(window as any).geuiSDK);
       
       return (
         <div 
