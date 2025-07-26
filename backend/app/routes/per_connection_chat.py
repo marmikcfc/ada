@@ -247,18 +247,32 @@ def _should_forward_voice_message(message: dict) -> bool:
 async def _process_per_connection_chat(context, chat_message: ChatMessage):
     """Process a chat message using connection's resources"""
     try:
-        message = chat_message.message
-        thread_id = chat_message.thread_id or str(uuid.uuid4())
+        # Extract message content and thread_id based on message type
+        if chat_message.type == 'thesys_bridge':
+            # For thesys_bridge messages, extract content from prompt
+            message = chat_message.prompt.get('content', '') if chat_message.prompt else ''
+            thread_id = chat_message.threadId or chat_message.thread_id or str(uuid.uuid4())
+            is_c1_action = True
+        else:
+            # For regular chat messages
+            message = chat_message.message or ''
+            thread_id = chat_message.thread_id or str(uuid.uuid4())
+            is_c1_action = False
         
-        logger.info(f"Processing chat for {context.connection_id}: {message[:100]}...")
+        logger.info(f"Processing {chat_message.type} for {context.connection_id}: {message[:100]}...")
         
         # Get conversation history from connection's storage
         history = await _get_connection_history(context.connection_id, thread_id)
         
-        # Add user message to history
-        await _store_connection_message(
-            context.connection_id, thread_id, "user", message
-        )
+        # Add user message to history (using appropriate method based on message type)
+        if is_c1_action:
+            # For C1 actions, use add_c1_action method if available
+            await _store_connection_c1_action(context.connection_id, thread_id, message)
+        else:
+            # For regular chat, use regular user message
+            await _store_connection_message(
+                context.connection_id, thread_id, "user", message
+            )
         
         # Process through connection's MCP client
         if not context.mcp_client:
@@ -339,6 +353,15 @@ async def _store_connection_message(connection_id: str, thread_id: str, role: st
             
     except Exception as e:
         logger.error(f"Error storing message for {connection_id}:{thread_id}: {e}")
+
+async def _store_connection_c1_action(connection_id: str, thread_id: str, content: str):
+    """Store a C1 action in the connection's conversation history"""
+    try:
+        # Use the global chat history manager with connection prefix
+        prefixed_thread_id = f"{connection_id}:{thread_id}"
+        await chat_history_manager.add_c1_action(prefixed_thread_id, content)
+    except Exception as e:
+        logger.error(f"Error storing C1 action for {connection_id}:{thread_id}: {e}")
 
 # Add endpoint for connection metrics
 @router.get("/connections/metrics")

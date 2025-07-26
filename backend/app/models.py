@@ -149,27 +149,55 @@ class ErrorMessage(BaseModel):
 
 class ChatMessage(BaseModel):
     """Chat message from client"""
-    type: str = Field(..., description="Message type (chat, chat_request)")
-    message: str = Field(..., description="Chat message content")
+    type: str = Field(..., description="Message type (chat, chat_request, thesys_bridge)")
+    message: Optional[str] = Field(None, description="Chat message content (for chat messages)")
+    prompt: Optional[Dict[str, Any]] = Field(None, description="Prompt object (for thesys_bridge messages)")
+    responseId: Optional[str] = Field(None, description="Response ID (for thesys_bridge messages)")
     thread_id: Optional[str] = Field(None, description="Thread identifier")
+    threadId: Optional[str] = Field(None, description="Thread identifier (alternative field name)")
     connection_id: Optional[str] = Field(None, description="Connection identifier")
     metadata: Optional[Dict[str, Any]] = Field(None, description="Additional metadata")
     
     @validator('type')
     def validate_type(cls, v):
         """Validate message type"""
-        if v not in ['chat', 'chat_request']:
-            raise ValueError('Message type must be "chat" or "chat_request"')
+        if v not in ['chat', 'chat_request', 'thesys_bridge']:
+            raise ValueError('Message type must be "chat", "chat_request", or "thesys_bridge"')
         return v
     
     @validator('message')
-    def validate_message(cls, v):
-        """Validate message content"""
-        if not v or len(v.strip()) == 0:
-            raise ValueError('Message cannot be empty')
-        if len(v) > 10000:  # 10KB limit
+    def validate_message(cls, v, values):
+        """Validate message content for chat messages"""
+        message_type = values.get('type')
+        
+        # For chat messages, message field is required
+        if message_type in ['chat', 'chat_request']:
+            if not v or len(v.strip()) == 0:
+                raise ValueError('Message cannot be empty for chat messages')
+            if len(v) > 10000:  # 10KB limit
+                raise ValueError('Message too long (max 10KB)')
+            return v.strip()
+        
+        # For thesys_bridge messages, message field is optional
+        if v and len(v) > 10000:
             raise ValueError('Message too long (max 10KB)')
-        return v.strip()
+        return v.strip() if v else v
+    
+    @validator('prompt')
+    def validate_prompt(cls, v, values):
+        """Validate prompt for thesys_bridge messages"""
+        message_type = values.get('type')
+        
+        # For thesys_bridge messages, prompt field is required
+        if message_type == 'thesys_bridge':
+            if not v:
+                raise ValueError('Prompt is required for thesys_bridge messages')
+            if not isinstance(v, dict):
+                raise ValueError('Prompt must be a dictionary')
+            if 'content' not in v:
+                raise ValueError('Prompt must contain a content field')
+        
+        return v
 
 class ConnectionMetrics(BaseModel):
     """Metrics for connection monitoring"""
