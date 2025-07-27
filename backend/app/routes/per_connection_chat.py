@@ -474,7 +474,7 @@ async def _process_per_connection_chat(context, chat_message: ChatMessage):
                 "connection_id": context.connection_id,
                 "thread_id": thread_id,
                 "message_id": str(uuid.uuid4()),
-                "source": "per_connection_chat"
+                "source": "text_chat"
             }
         })
         

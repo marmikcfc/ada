@@ -86,7 +86,7 @@ class PerConnectionProcessor:
             
             # Step 1: Make enhancement decision using connection's MCP client
             enhancement_decision = await self._make_enhancement_decision(
-                assistant_response, conversation_history
+                assistant_response, conversation_history, metadata
             )
             
             logger.info(f"Enhancement decision for {self.connection_id}: {enhancement_decision.displayEnhancement}")
@@ -108,9 +108,20 @@ class PerConnectionProcessor:
     async def _make_enhancement_decision(
         self, 
         assistant_response: str, 
-        conversation_history: List[Dict[str, Any]]
+        conversation_history: List[Dict[str, Any]],
+        metadata: Dict[str, Any] = None
     ) -> EnhancementDecision:
         """Make enhancement decision using connection's MCP client"""
+        
+        # Check if we should bypass enhancement decision for text_chat
+        if metadata and metadata.get("source") == "text_chat":
+            logger.info(f"Bypassing enhancement decision for text_chat source in connection {self.connection_id}")
+            return EnhancementDecision(
+                displayEnhancement=True,  # Still show enhanced UI
+                displayEnhancedText=assistant_response,
+                voiceOverText=None
+            )
+        
         try:
             if not self.context.mcp_client:
                 logger.warning(f"No MCP client for connection {self.connection_id}")
