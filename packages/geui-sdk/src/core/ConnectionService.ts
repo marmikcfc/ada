@@ -506,30 +506,15 @@ export class ConnectionService extends EventEmitter {
         case 'text_chat_response': {
           console.log(`[WS:${this.wsConnectionId}] Received ${data.type} message:`, data);
           
-          // Check if this is an HTML response
-          if (data.htmlContent && data.contentType === 'html') {
-            const assistantMessage: AssistantMessage = {
-              id: data.id || crypto.randomUUID(),
-              role: 'assistant',
-              htmlContent: data.htmlContent,
-              contentType: 'html',
-              hasVoiceOver: data.isVoiceOverOnly || false,
-              timestamp: new Date()
-            };
-            this.emit(ConnectionEvent.MESSAGE_RECEIVED, assistantMessage);
-          } else {
-            // Regular C1 or text content
-            const { c1Content, textContent } = this._parseAssistantContent(data.content);
-            const assistantMessage: AssistantMessage = {
-              id: data.id || crypto.randomUUID(),
-              role: 'assistant',
-              content: textContent,
-              c1Content: c1Content,
-              hasVoiceOver: data.isVoiceOverOnly || false,
-              timestamp: new Date()
-            };
-            this.emit(ConnectionEvent.MESSAGE_RECEIVED, assistantMessage);
-          }
+          const assistantMessage: AssistantMessage = {
+            id: data.id || crypto.randomUUID(),
+            role: 'assistant',
+            content: data.content || '',
+            contentType: data.contentType || 'c1', // Default to C1 for backward compatibility
+            hasVoiceOver: data.isVoiceOverOnly || false,
+            timestamp: new Date()
+          };
+          this.emit(ConnectionEvent.MESSAGE_RECEIVED, assistantMessage);
           break;
         }
           
@@ -573,7 +558,8 @@ export class ConnectionService extends EventEmitter {
               // Emit streaming started event
               this.emit(ConnectionEvent.STREAMING_STARTED, {
                 id: msgId,
-                content: this.streamingContent
+                content: this.streamingContent,
+                contentType: 'c1' // Mark as C1 content
               });
             } else {
               // Accumulate content for subsequent chunks
@@ -584,7 +570,8 @@ export class ConnectionService extends EventEmitter {
               this.emit(ConnectionEvent.STREAMING_CHUNK, {
                 id: msgId,
                 content: data.content || '',
-                accumulatedContent: this.streamingContent
+                accumulatedContent: this.streamingContent,
+                contentType: 'c1' // Mark as C1 content
               });
             }
           }
@@ -639,31 +626,13 @@ export class ConnectionService extends EventEmitter {
              * 1. Build **final assistant message** from the accumulated stream
              * ---------------------------------------------------------------- */
             if (this.streamingContent.trim().length > 0) {
-              let finalAssistant: AssistantMessage;
-              
-              if (this.streamingContentType === 'html') {
-                // HTML content from OpenAI/Anthropic providers
-                finalAssistant = {
-                  id: doneId,
-                  role: 'assistant',
-                  htmlContent: this.streamingContent,
-                  contentType: 'html',
-                  timestamp: new Date(),
-                };
-              } else {
-                // C1 content from TheSys/Tomorrow providers
-                const { c1Content, textContent } = this._parseAssistantContent(
-                  this.streamingContent,
-                );
-
-                finalAssistant = {
-                  id: doneId,
-                  role: 'assistant',
-                  content: textContent,
-                  c1Content,
-                  timestamp: new Date(),
-                };
-              }
+              const finalAssistant: AssistantMessage = {
+                id: doneId,
+                role: 'assistant',
+                content: this.streamingContent,
+                contentType: this.streamingContentType, // Use the streaming content type directly
+                timestamp: new Date(),
+              };
 
               // Surface to consumers before we clear the buffer
               this.emit(ConnectionEvent.MESSAGE_RECEIVED, finalAssistant);

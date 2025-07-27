@@ -33,6 +33,7 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
   isLoading: boolean;
   isVoiceLoading: boolean;
   streamingContent: string;
+  streamingContentType: 'c1' | 'html';
   streamingMessageId: string | null;
   isStreamingActive: boolean;
   audioStream: MediaStream | null;
@@ -307,6 +308,7 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
     isLoading,
     isVoiceLoading,
     streamingContent,
+    streamingContentType,
     streamingMessageId,
     isStreamingActive,
     audioStream,

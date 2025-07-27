@@ -135,6 +135,7 @@ const GeUI: React.FC<GeUIProps> = ({
     onVoiceToggle: disableVoice ? undefined : handleToggleVoice,
     isVoiceActive: disableVoice ? false : client.voiceState === 'connected',
     streamingContent: client.streamingContent,
+    streamingContentType: client.streamingContentType,
     streamingMessageId: client.streamingMessageId,
     isStreamingActive: client.isStreamingActive,
     showMinimizeButton: bubbleEnabled, // Only show minimize button in floating mode

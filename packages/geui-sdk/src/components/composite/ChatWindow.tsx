@@ -1,5 +1,5 @@
 import React, { useRef, useEffect, CSSProperties } from 'react';
-import { Message } from '../../types';
+import { Message, AssistantMessage } from '../../types';
 import { ChatMessage } from '../core/ChatMessage';
 import { MessageComposer } from '../core/MessageComposer';
 import { FlexibleContentRenderer } from '../core/FlexibleContentRenderer';
@@ -22,6 +22,7 @@ export interface ChatWindowProps {
   isVoiceActive?: boolean;
   // Streaming support
   streamingContent?: string;
+  streamingContentType?: 'c1' | 'html';
   streamingMessageId?: string | null;
   isStreamingActive?: boolean;
   // C1Component support
@@ -55,6 +56,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   onVoiceToggle,
   isVoiceActive = false,
   streamingContent = '',
+  streamingContentType = 'c1',
   streamingMessageId = null,
   isStreamingActive = false,
   onC1Action,
@@ -141,34 +143,11 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   
   // Add streaming message if active
   if (isStreamingActive && streamingContent) {
-    // Parse streaming content to extract C1 content if present
-    const parseStreamingContent = (rawContent: string) => {
-      // Check if it contains C1 content wrapper
-      if (rawContent.includes('<content>')) {
-        // Try to extract C1 content (even if incomplete)
-        const completeMatch = rawContent.match(/<content>([\s\S]*?)<\/content>/);
-        if (completeMatch) {
-          return { c1Content: completeMatch[1], content: undefined };
-        }
-        
-        // For streaming content, extract partial content if <content> tag is present
-        const partialMatch = rawContent.match(/<content>([\s\S]*)/);
-        if (partialMatch) {
-          return { c1Content: partialMatch[1], content: undefined };
-        }
-      }
-      
-      // Default to regular content
-      return { content: rawContent, c1Content: undefined };
-    };
-    
-    const { content, c1Content } = parseStreamingContent(streamingContent);
-    
-    const streamingMessage: Message = {
+    const streamingMessage: AssistantMessage = {
       id: streamingMessageId || 'streaming',
       role: 'assistant',
-      content,
-      c1Content,
+      content: streamingContent,
+      contentType: streamingContentType,
       timestamp: new Date(),
     };
     displayMessages.push(streamingMessage);
@@ -257,11 +236,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                 if (message.role === 'assistant') {
                   return (
                     <FlexibleContentRenderer
-                      content={message.content}
-                      c1Content={'c1Content' in message ? message.c1Content : undefined}
-                      htmlContent={'htmlContent' in message ? message.htmlContent : undefined}
+                      content={message.content || ''}
+                      contentType={message.contentType}
                       reactContent={'reactContent' in message ? message.reactContent : undefined}
-                      contentType={'contentType' in message ? message.contentType : 'auto'}
                       allowDangerousHtml={'allowDangerousHtml' in message ? message.allowDangerousHtml : false}
                       onC1Action={onC1Action}
                       sendC1Action={sendC1Action}

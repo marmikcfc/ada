@@ -518,15 +518,12 @@ export interface UserMessage extends BaseMessage {
  */
 export interface AssistantMessage extends BaseMessage {
   role: 'assistant';
-  content?: string;
-  /** C1Component content for rich display */
-  c1Content?: string;
-  /** Raw HTML content for direct rendering */
-  htmlContent?: string;
-  /** React component/node for custom rendering */
+  /** Primary content field - contains C1Component JSON, HTML, or plain text */
+  content: string;
+  /** Content type - determines how content should be rendered */
+  contentType: 'c1' | 'html' | 'react' | 'text';
+  /** React component/node for custom rendering (only used when contentType is 'react') */
   reactContent?: React.ReactNode;
-  /** Explicit content type (auto-detected if not specified) */
-  contentType?: 'auto' | 'c1' | 'html' | 'react' | 'text';
   /** Whether this message has voice-over audio */
   hasVoiceOver?: boolean;
   /** Whether to allow dangerous HTML (bypasses sanitization) */

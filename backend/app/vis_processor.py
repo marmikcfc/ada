@@ -32,7 +32,8 @@ from app.queues import (
     create_voice_response,
     create_text_chat_response,
     create_c1_token,
-    create_chat_done
+    create_chat_done,
+    get_content_type_for_provider
 )
 from utils.thesys_prompts import format_thesys_messages_for_visualize, load_thesys_prompt
 
@@ -261,11 +262,13 @@ class VisualizationProcessor:
                         thread_id = metadata.get("thread_id")
                         message_for_frontend = create_text_chat_response(
                             content=assistant_response,
+                            content_type="c1",  # Default to C1 for vis_processor
                             thread_id=thread_id
                         )
                     else:
                         message_for_frontend = create_voice_response(
                             content=assistant_response,
+                            content_type="c1",  # Default to C1 for vis_processor
                             voice_text=""
                         )
                     await enqueue_llm_message(message_for_frontend)
@@ -462,11 +465,13 @@ class VisualizationProcessor:
                             thread_id = metadata.get("thread_id")
                             message_for_frontend = create_text_chat_response(
                                 content=visualized_ui_payload,
+                                content_type="c1",  # Default to C1 for vis_processor
                                 thread_id=thread_id
                             )
                         else:
                             message_for_frontend = create_voice_response(
                                 content=visualized_ui_payload,
+                                content_type="c1",  # Default to C1 for vis_processor
                                 voice_text=""
                             )
                         
@@ -502,11 +507,13 @@ class VisualizationProcessor:
                         thread_id = metadata.get("thread_id")
                         message_for_frontend = create_text_chat_response(
                             content=visualized_ui_payload,
+                            content_type="c1",  # Default to C1 for vis_processor
                             thread_id=thread_id
                         )
                     else:
                         message_for_frontend = create_voice_response(
                             content=visualized_ui_payload,
+                            content_type="c1",  # Default to C1 for vis_processor
                             voice_text=""
                         )
                     
@@ -535,11 +542,13 @@ class VisualizationProcessor:
                     thread_id = item.get("metadata", {}).get("thread_id") if item else None
                     error_message = create_text_chat_response(
                         content=f'<content>{json.dumps(error_card)}</content>',
+                        content_type="c1",  # Default to C1 for vis_processor
                         thread_id=thread_id
                     )
                 else:
                     error_message = create_voice_response(
-                        content=f'<content>{json.dumps(error_card)}</content>'
+                        content=f'<content>{json.dumps(error_card)}</content>',
+                        content_type="c1"  # Default to C1 for vis_processor
                     )
 
                 try:

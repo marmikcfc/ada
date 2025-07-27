@@ -54,6 +54,7 @@ class VoiceResponse(TypedDict):
     role: str  # "assistant"
     type: str  # "voice_response"
     content: str  # UI payload
+    contentType: str  # "c1" or "html" - indicates how to render content
     voiceText: Optional[str]  # TTS text if different from display
     isVoiceOverOnly: bool  # Flag indicating if voiceText should not be displayed in UI
 
@@ -63,6 +64,7 @@ class TextChatResponse(TypedDict):
     role: str  # "assistant"
     type: str  # "text_chat_response"
     content: str  # UI payload
+    contentType: str  # "c1" or "html" - indicates how to render content
     threadId: Optional[str]  # Thread ID for conversation tracking
 
 class RawLLMOutput(TypedDict):
@@ -85,6 +87,7 @@ class ImmediateVoiceResponse(TypedDict):
     role: str              # "assistant"
     type: str              # "immediate_voice_response"
     content: str           # Simple C1Component payload (usually a basic card)
+    contentType: str       # "c1" or "html" - indicates how to render content
     voiceText: Optional[str]  # Optionally override spoken text
     isVoiceOverOnly: bool  # Flag indicating if voiceText should not be displayed in UI
 
@@ -235,6 +238,23 @@ def mark_raw_llm_output_done():
     raw_llm_output_queue.task_done()
 
 # Helper functions for creating common message types
+def get_content_type_for_provider(provider_type: str) -> str:
+    """
+    Determine the appropriate content type based on the visualization provider
+    
+    Args:
+        provider_type: The provider type (e.g., "thesys", "openai", "anthropic")
+    
+    Returns:
+        Content type: "html" for HTML-based providers, "c1" for C1-based providers
+    """
+    provider_lower = provider_type.lower()
+    if provider_lower in ['openai', 'anthropic', 'google']:
+        return "html"
+    else:
+        # Default to C1 for TheSys, Tomorrow, and any unknown providers
+        return "c1"
+
 def create_user_transcription(content: str, id: Optional[str] = None) -> UserTranscription:
     """Create a user transcription message"""
     return {
@@ -261,12 +281,11 @@ def create_c1_token(id: str, content: str) -> C1Token:
 
 def create_html_token(id: str, content: str) -> HTMLToken:
     """Create an HTML token message"""
-    return create_text_chat_response(content, id)
-    # return {
-    #     "id": id,
-    #     "type": "html_token",
-    #     "content": content
-    # }
+    return {
+        "id": id,
+        "type": "html_token",
+        "content": content
+    }
 
 def create_chat_done(id: str, content: Optional[str] = None) -> ChatDone:
     """Create a chat done message"""
@@ -278,6 +297,7 @@ def create_chat_done(id: str, content: Optional[str] = None) -> ChatDone:
 
 def create_voice_response(
     content: str, 
+    content_type: str = "c1",
     voice_text: Optional[str] = None,
     is_voice_over_only: bool = True
 ) -> VoiceResponse:
@@ -286,6 +306,7 @@ def create_voice_response(
     
     Args:
         content: The UI content payload
+        content_type: Type of content - "c1" for C1Components, "html" for HTML (defaults to "c1")
         voice_text: Optional text for TTS that differs from display text
         is_voice_over_only: Flag indicating if voice_text should not be displayed in UI
                            (defaults to True since voice-over is typically for audio only)
@@ -298,17 +319,33 @@ def create_voice_response(
         "role": "assistant",
         "type": "voice_response",
         "content": content,
+        "contentType": content_type,
         "voiceText": voice_text,
         "isVoiceOverOnly": is_voice_over_only if voice_text else False
     }
 
-def create_text_chat_response(content: str, thread_id: Optional[str] = None) -> TextChatResponse:
-    """Create a text chat response message"""
+def create_text_chat_response(
+    content: str, 
+    content_type: str = "c1",
+    thread_id: Optional[str] = None
+) -> TextChatResponse:
+    """
+    Create a text chat response message
+    
+    Args:
+        content: The UI content payload
+        content_type: Type of content - "c1" for C1Components, "html" for HTML (defaults to "c1")
+        thread_id: Optional thread ID for conversation tracking
+    
+    Returns:
+        A TextChatResponse object
+    """
     return {
         "id": str(uuid.uuid4()),
         "role": "assistant",
         "type": "text_chat_response",
         "content": content,
+        "contentType": content_type,
         "threadId": thread_id
     }
 
@@ -350,6 +387,7 @@ def create_simple_card_content(text_markdown: str) -> str:
 # --------------------------------------------------------------------------- #
 def create_immediate_voice_response(
     content: str,
+    content_type: str = "c1",
     voice_text: Optional[str] = None,
     is_voice_over_only: bool = True
 ) -> ImmediateVoiceResponse:
@@ -361,6 +399,7 @@ def create_immediate_voice_response(
     
     Args:
         content: The UI content payload
+        content_type: Type of content - "c1" for C1Components, "html" for HTML (defaults to "c1")
         voice_text: Optional text for TTS that differs from display text
         is_voice_over_only: Flag indicating if voice_text should not be displayed in UI
                            (defaults to True since voice-over is typically for audio only)
@@ -373,6 +412,7 @@ def create_immediate_voice_response(
         "role": "assistant",
         "type": "immediate_voice_response",
         "content": content,
+        "contentType": content_type,
         "voiceText": voice_text,
         "isVoiceOverOnly": is_voice_over_only if voice_text else False
     }
