@@ -264,6 +264,11 @@ async def _process_user_interaction(context, interaction_message: UserInteractio
         
         logger.info(f"Processing {interaction_type} for {context.connection_id}: {interaction_context}")
         
+        # Detect framework from interaction context
+        detected_framework = _detect_framework_from_interaction(interaction_context)
+        if detected_framework:
+            logger.info(f"Detected framework from interaction: {detected_framework}")
+        
         # Convert interaction to human-readable user message
         user_message_content = _convert_interaction_to_user_message(interaction_type, interaction_context)
         logger.info(f"User message will be: {user_message_content}")
@@ -323,6 +328,8 @@ async def _process_user_interaction(context, interaction_message: UserInteractio
         from app.queues import create_text_chat_response
         error_response = create_text_chat_response(
             content=f'<content>{json.dumps(error_card)}</content>',
+            content_type="c1",
+            framework="c1",
             thread_id=None
         )
         
@@ -412,6 +419,76 @@ def _convert_interaction_to_ai_context(interaction_type: str, context: Dict[str,
         logger.error(f"Error converting interaction to AI context: {e}")
         return f"The user performed an interaction. Please acknowledge this."
 
+def _detect_framework_from_interaction(context: Dict[str, Any]) -> Optional[str]:
+    """
+    Detect UI framework based on interaction context clues
+    
+    Args:
+        context: Interaction context containing form data, element classes, etc.
+        
+    Returns:
+        Detected framework name or None if unable to detect
+    """
+    try:
+        # Check for framework-specific CSS classes or patterns
+        
+        # Look for element classes in context
+        element_classes = context.get("elementClasses", "")
+        if element_classes:
+            # Shadcn/ui specific classes
+            if any(cls in element_classes for cls in [
+                "rounded-lg border bg-card text-card-foreground",
+                "bg-primary text-primary-foreground",
+                "border-input bg-background",
+                "text-muted-foreground"
+            ]):
+                return "shadcn"
+            
+            # Tailwind specific patterns
+            if any(cls in element_classes for cls in [
+                "bg-blue-600 text-white",
+                "border-gray-300 rounded-md",
+                "focus:ring-blue-500",
+                "hover:bg-blue-700"
+            ]):
+                return "tailwind"
+            
+            # Chakra UI specific classes
+            if any(cls in element_classes for cls in [
+                "chakra-",
+                "css-"
+            ]):
+                return "chakra"
+            
+            # Material UI specific classes
+            if any(cls in element_classes for cls in [
+                "MuiButton-",
+                "MuiTextField-",
+                "makeStyles-"
+            ]):
+                return "mui"
+        
+        # Check for framework markers in form data or metadata
+        framework_hint = context.get("framework")
+        if framework_hint:
+            return framework_hint
+        
+        # Check for data attributes that might indicate framework
+        if context.get("dataFramework"):
+            return context.get("dataFramework")
+        
+        # Look for bootstrap classes
+        if element_classes and any(cls in element_classes for cls in [
+            "btn-primary", "form-control", "card-body", "table-striped"
+        ]):
+            return "bootstrap"
+        
+        return None
+        
+    except Exception as e:
+        logger.error(f"Error detecting framework from interaction: {e}")
+        return None
+
 def _convert_interaction_to_chat(interaction_type: str, context: Dict[str, Any]) -> str:
     """Convert user interaction data into a human-readable chat message (legacy function)"""
     # Keep this for backward compatibility, but redirect to user message version
@@ -496,6 +573,8 @@ async def _process_per_connection_chat(context, chat_message: ChatMessage):
         from app.queues import create_text_chat_response
         error_response = create_text_chat_response(
             content=f'<content>{json.dumps(error_card)}</content>',
+            content_type="c1",
+            framework="c1",
             thread_id=chat_message.thread_id
         )
         

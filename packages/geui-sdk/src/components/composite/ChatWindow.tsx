@@ -238,6 +238,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
                     <FlexibleContentRenderer
                       content={message.content || ''}
                       contentType={message.contentType}
+                      framework={'framework' in message ? message.framework : undefined}
                       reactContent={'reactContent' in message ? message.reactContent : undefined}
                       allowDangerousHtml={'allowDangerousHtml' in message ? message.allowDangerousHtml : false}
                       onC1Action={onC1Action}

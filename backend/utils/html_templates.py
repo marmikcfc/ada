@@ -168,6 +168,103 @@ def escape_html(text: str) -> str:
             .replace("'", "&#x27;"))
 
 
+def ensure_html_wrapped(html_content: str, framework: str = "tailwind") -> str:
+    """
+    Ensure HTML content is properly wrapped in a framework-appropriate container.
+    
+    Args:
+        html_content: The HTML content to check and potentially wrap
+        framework: UI framework ("tailwind", "shadcn", "chakra", "mui", "bootstrap", "inline")
+        
+    Returns:
+        HTML content wrapped in appropriate container if needed
+    """
+    # Strip whitespace for checking
+    content = html_content.strip()
+    
+    # If content is empty, return it as-is
+    if not content:
+        return content
+    
+    # Check if content already starts with a div or other block element
+    # This is a simple check - content starting with these tags is likely already properly wrapped
+    if content.lower().startswith(('<div', '<section', '<article', '<main', '<header', '<footer', '<aside', '<nav')):
+        return content
+    
+    # Check if it's already a complete HTML structure
+    if content.lower().startswith('<!doctype') or content.lower().startswith('<html'):
+        return content
+    
+    # If it's inline content or fragment, wrap it appropriately
+    return _wrap_html_fragment(content, framework)
+
+
+def _wrap_html_fragment(html_fragment: str, framework: str) -> str:
+    """
+    Wrap HTML fragment in framework-appropriate container.
+    
+    Args:
+        html_fragment: The HTML fragment to wrap
+        framework: UI framework
+        
+    Returns:
+        Wrapped HTML content
+    """
+    if framework == "tailwind":
+        return f"""
+        <div class="w-full max-w-4xl mx-auto p-4">
+            <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+                {html_fragment}
+            </div>
+        </div>
+        """.strip()
+    
+    elif framework == "shadcn":
+        return f"""
+        <div class="w-full max-w-4xl mx-auto p-4">
+            <div class="rounded-lg border bg-card text-card-foreground shadow-sm overflow-hidden">
+                {html_fragment}
+            </div>
+        </div>
+        """.strip()
+    
+    elif framework == "chakra":
+        return f"""
+        <div class="chakra-container" style="width: 100%; max-width: 1024px; margin: 0 auto; padding: 16px;">
+            <div class="chakra-box" style="background: white; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); border: 1px solid #e2e8f0; overflow: hidden;">
+                {html_fragment}
+            </div>
+        </div>
+        """.strip()
+    
+    elif framework == "mui":
+        return f"""
+        <div class="MuiContainer-root MuiContainer-maxWidthLg" style="width: 100%; max-width: 1024px; margin: 0 auto; padding: 16px;">
+            <div class="MuiPaper-root MuiPaper-elevation1" style="background: white; border-radius: 8px; box-shadow: 0px 2px 1px -1px rgba(0,0,0,0.2),0px 1px 1px 0px rgba(0,0,0,0.14),0px 1px 3px 0px rgba(0,0,0,0.12); overflow: hidden;">
+                {html_fragment}
+            </div>
+        </div>
+        """.strip()
+    
+    elif framework == "bootstrap":
+        return f"""
+        <div class="container" style="max-width: 1024px;">
+            <div class="card" style="border: 1px solid rgba(0,0,0,.125); border-radius: 0.375rem; background: white; box-shadow: 0 0.125rem 0.25rem rgba(0,0,0,0.075); overflow: hidden;">
+                {html_fragment}
+            </div>
+        </div>
+        """.strip()
+    
+    else:  # inline or unknown
+        return f"""
+        <div style="width: 100%; max-width: 1024px; margin: 0 auto; padding: 16px;">
+            <div style="background: white; border-radius: 8px; border: 1px solid #e5e7eb; box-shadow: 0 1px 3px rgba(0,0,0,0.1); overflow: hidden;">
+                {html_fragment}
+            </div>
+        </div>
+        """.strip()
+
+
 def create_interactive_form_html(framework: str = "tailwind") -> str:
     """
     Create HTML for a sample interactive form (for testing).

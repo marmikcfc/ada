@@ -8,6 +8,8 @@ export interface FlexibleContentRendererProps {
   content: string;
   /** Content type - determines how content should be rendered */
   contentType: 'c1' | 'html' | 'react' | 'text';
+  /** Framework used for HTML content - helps with styling and interactions */
+  framework?: 'tailwind' | 'shadcn' | 'chakra' | 'mui' | 'bootstrap' | 'c1' | 'inline';
   /** React component/node for custom rendering (only used when contentType is 'react') */
   reactContent?: React.ReactNode;
   onC1Action?: (action: any) => void;
@@ -32,6 +34,7 @@ export interface FlexibleContentRendererProps {
 export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = ({
   content,
   contentType,
+  framework,
   reactContent,
   onC1Action,
   sendC1Action,
@@ -385,10 +388,38 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
         }
       }, [processedHtml]);
       
+      // Generate framework-specific CSS classes
+      const getFrameworkClasses = () => {
+        const baseClasses = "geui-html-content geui-framework-content";
+        if (!framework) return baseClasses;
+        
+        switch (framework) {
+          case 'tailwind':
+            return `${baseClasses} geui-tailwind-content`;
+          case 'shadcn':
+            return `${baseClasses} geui-shadcn-content`;
+          case 'chakra':
+            return `${baseClasses} geui-chakra-content`;
+          case 'mui':
+            return `${baseClasses} geui-mui-content`;
+          case 'bootstrap':
+            return `${baseClasses} geui-bootstrap-content`;
+          case 'c1':
+            return `${baseClasses} geui-c1-content`;
+          case 'inline':
+            return `${baseClasses} geui-inline-content`;
+          default:
+            return baseClasses;
+        }
+      };
+
+      console.log('🎨 FlexibleContentRenderer: Framework detected:', framework);
+      
       return (
         <div 
           ref={containerRef}
-          className="geui-html-content geui-framework-content"
+          className={getFrameworkClasses()}
+          data-framework={framework}
           dangerouslySetInnerHTML={{ __html: processedHtml }}
         />
       );
@@ -402,10 +433,11 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
 // Export a simpler version for backward compatibility
 export const ContentRenderer: React.FC<{
   content?: string;
+  framework?: 'tailwind' | 'shadcn' | 'chakra' | 'mui' | 'bootstrap' | 'c1' | 'inline';
   onC1Action?: (action: any) => void;
   isStreaming?: boolean;
   crayonTheme?: Record<string, any>;
-}> = ({ content, onC1Action, isStreaming, crayonTheme }) => {
+}> = ({ content, framework, onC1Action, isStreaming, crayonTheme }) => {
   // Auto-detect content type for backward compatibility
   const detectLegacyContentType = (): 'c1' | 'html' | 'text' => {
     if (!content) return 'text';
@@ -418,6 +450,7 @@ export const ContentRenderer: React.FC<{
     <FlexibleContentRenderer
       content={content || ''}
       contentType={detectLegacyContentType()}
+      framework={framework}
       onC1Action={onC1Action}
       isStreaming={isStreaming}
       crayonTheme={crayonTheme}

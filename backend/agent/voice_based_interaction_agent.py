@@ -346,6 +346,8 @@ class ResponseAggregatorProcessor(FrameProcessor):
                     simple_content = create_simple_card_content(assistant_response)
                     immediate_msg = create_immediate_voice_response(
                         content=simple_content,
+                        content_type="c1",
+                        framework="c1",
                         voice_text=None,
                     )
                     # Prefer the agent-scoped queue if supplied, otherwise fall back

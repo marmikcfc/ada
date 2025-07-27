@@ -78,7 +78,7 @@ def extract_message_and_thread_id(request: Union[ChatRequest, ThesysBridgeReques
         raise ValueError(f"Unsupported request type: {type(request)}")
 
 
-async def _handle_debug_command(message: str, thread_id: str) -> Optional[str]:
+async def _handle_debug_command(message: str, thread_id: str) -> Optional[tuple[str, str]]:
     """
     Handle debug commands for UI framework testing.
     
@@ -87,7 +87,7 @@ async def _handle_debug_command(message: str, thread_id: str) -> Optional[str]:
     - "shadcn form", "shadcn table", "shadcn list", "shadcn tabs"
     
     Returns:
-        HTML content if debug command detected, None otherwise
+        Tuple of (HTML content, framework) if debug command detected, None otherwise
     """
     # Pattern matching for debug commands
     pattern = r'^(tailwind|shadcn)\s+(form|table|list|tabs)$'
@@ -117,7 +117,7 @@ async def _handle_debug_command(message: str, thread_id: str) -> Optional[str]:
     try:
         html_content = _get_hardcoded_component(framework, element)
         logger.info(f"Returned hardcoded {framework} {element} component")
-        return html_content
+        return (html_content, framework)
         
     except Exception as e:
         logger.error(f"Error generating debug component: {e}", exc_info=True)
@@ -129,7 +129,7 @@ async def _handle_debug_command(message: str, thread_id: str) -> Optional[str]:
             <p class="text-red-700">Failed to generate {framework} {element}: {str(e)}</p>
         </div>
         '''
-        return error_html
+        return (error_html, framework)
 
 
 def _get_hardcoded_component(framework: str, element: str) -> str:
@@ -561,15 +561,21 @@ async def _process_chat_logic(message: str, thread_id: str, *, is_c1_action: boo
     # ------------------------------------------------------------------- #
     # Check for debug commands before MCP client processing
     # ------------------------------------------------------------------- #
-    debug_html = await _handle_debug_command(message, thread_id)
-    if debug_html:
-        # Send debug HTML response directly
-        response = create_text_chat_response(content=debug_html, thread_id=thread_id)
+    debug_result = await _handle_debug_command(message, thread_id)
+    if debug_result:
+        debug_html, framework = debug_result
+        # Send debug HTML response directly with framework info
+        response = create_text_chat_response(
+            content=debug_html, 
+            content_type="html",
+            framework=framework,
+            thread_id=thread_id
+        )
         await enqueue_llm_message(response)
         
         # Persist debug response in history
         await chat_history_manager.add_assistant_message(thread_id, debug_html)
-        logger.info(f"Debug command processed and response sent for thread {thread_id}")
+        logger.info(f"Debug command processed and response sent for thread {thread_id} with framework {framework}")
         return
 
     # Step 2: Process the message through the MCP client

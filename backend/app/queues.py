@@ -55,6 +55,7 @@ class VoiceResponse(TypedDict):
     type: str  # "voice_response"
     content: str  # UI payload
     contentType: str  # "c1" or "html" - indicates how to render content
+    framework: Optional[str]  # Framework used for HTML content (e.g., "tailwind", "shadcn", "c1")
     voiceText: Optional[str]  # TTS text if different from display
     isVoiceOverOnly: bool  # Flag indicating if voiceText should not be displayed in UI
 
@@ -65,6 +66,7 @@ class TextChatResponse(TypedDict):
     type: str  # "text_chat_response"
     content: str  # UI payload
     contentType: str  # "c1" or "html" - indicates how to render content
+    framework: Optional[str]  # Framework used for HTML content (e.g., "tailwind", "shadcn", "c1")
     threadId: Optional[str]  # Thread ID for conversation tracking
 
 class RawLLMOutput(TypedDict):
@@ -88,6 +90,7 @@ class ImmediateVoiceResponse(TypedDict):
     type: str              # "immediate_voice_response"
     content: str           # Simple C1Component payload (usually a basic card)
     contentType: str       # "c1" or "html" - indicates how to render content
+    framework: Optional[str]  # Framework used for HTML content (e.g., "tailwind", "shadcn", "c1")
     voiceText: Optional[str]  # Optionally override spoken text
     isVoiceOverOnly: bool  # Flag indicating if voiceText should not be displayed in UI
 
@@ -298,6 +301,7 @@ def create_chat_done(id: str, content: Optional[str] = None) -> ChatDone:
 def create_voice_response(
     content: str, 
     content_type: str = "c1",
+    framework: Optional[str] = None,
     voice_text: Optional[str] = None,
     is_voice_over_only: bool = True
 ) -> VoiceResponse:
@@ -307,6 +311,7 @@ def create_voice_response(
     Args:
         content: The UI content payload
         content_type: Type of content - "c1" for C1Components, "html" for HTML (defaults to "c1")
+        framework: Framework used for HTML content (e.g., "tailwind", "shadcn", "c1")
         voice_text: Optional text for TTS that differs from display text
         is_voice_over_only: Flag indicating if voice_text should not be displayed in UI
                            (defaults to True since voice-over is typically for audio only)
@@ -320,6 +325,7 @@ def create_voice_response(
         "type": "voice_response",
         "content": content,
         "contentType": content_type,
+        "framework": framework,
         "voiceText": voice_text,
         "isVoiceOverOnly": is_voice_over_only if voice_text else False
     }
@@ -327,6 +333,7 @@ def create_voice_response(
 def create_text_chat_response(
     content: str, 
     content_type: str = "c1",
+    framework: Optional[str] = None,
     thread_id: Optional[str] = None
 ) -> TextChatResponse:
     """
@@ -335,6 +342,7 @@ def create_text_chat_response(
     Args:
         content: The UI content payload
         content_type: Type of content - "c1" for C1Components, "html" for HTML (defaults to "c1")
+        framework: Framework used for HTML content (e.g., "tailwind", "shadcn", "c1")
         thread_id: Optional thread ID for conversation tracking
     
     Returns:
@@ -346,6 +354,7 @@ def create_text_chat_response(
         "type": "text_chat_response",
         "content": content,
         "contentType": content_type,
+        "framework": framework,
         "threadId": thread_id
     }
 
@@ -388,6 +397,7 @@ def create_simple_card_content(text_markdown: str) -> str:
 def create_immediate_voice_response(
     content: str,
     content_type: str = "c1",
+    framework: Optional[str] = None,
     voice_text: Optional[str] = None,
     is_voice_over_only: bool = True
 ) -> ImmediateVoiceResponse:
@@ -400,6 +410,7 @@ def create_immediate_voice_response(
     Args:
         content: The UI content payload
         content_type: Type of content - "c1" for C1Components, "html" for HTML (defaults to "c1")
+        framework: Framework used for HTML content (e.g., "tailwind", "shadcn", "c1")
         voice_text: Optional text for TTS that differs from display text
         is_voice_over_only: Flag indicating if voice_text should not be displayed in UI
                            (defaults to True since voice-over is typically for audio only)
@@ -413,6 +424,7 @@ def create_immediate_voice_response(
         "type": "immediate_voice_response",
         "content": content,
         "contentType": content_type,
+        "framework": framework,
         "voiceText": voice_text,
         "isVoiceOverOnly": is_voice_over_only if voice_text else False
     }

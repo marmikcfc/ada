@@ -16,7 +16,7 @@ from app.queues import (
     create_text_chat_response, create_c1_token, create_html_token, create_chat_done,
     create_enhancement_started, get_content_type_for_provider
 )
-from utils.html_templates import create_simple_message_html, create_error_message_html, escape_html
+from utils.html_templates import create_simple_message_html, create_error_message_html, escape_html, ensure_html_wrapped
 from schemas import EnhancementDecision
 from app.viz_provider_factory import create_enhanced_system_prompt
 
@@ -307,6 +307,8 @@ class PerConnectionProcessor:
                 # Escape content to prevent XSS
                 safe_content = escape_html(content)
                 response_content = create_simple_message_html(safe_content, framework)
+                # Ensure HTML is properly wrapped
+                response_content = ensure_html_wrapped(response_content, framework)
             else:
                 # For C1 providers (TheSys, Tomorrow), use C1Component format
                 simple_card = {
@@ -324,9 +326,22 @@ class PerConnectionProcessor:
                 }
                 response_content = f'<content>{json.dumps(simple_card)}</content>'
             
+            # Determine framework for response
+            framework = None
+            if content_type == "html":
+                framework = "tailwind"  # Default framework
+                if (hasattr(self.context, 'config') and 
+                    self.context.config and 
+                    hasattr(self.context.config, 'preferences') and 
+                    self.context.config.preferences):
+                    framework = self.context.config.preferences.get('ui_framework', 'tailwind')
+            else:
+                framework = "c1"  # C1 framework for C1Component content
+            
             response_msg = create_text_chat_response(
                 content=response_content,
                 content_type=content_type,
+                framework=framework,
                 thread_id=thread_id
             )
             
@@ -358,6 +373,8 @@ class PerConnectionProcessor:
                 # Escape error message to prevent XSS
                 safe_error_message = escape_html(f"Failed to process your message: {error_message}")
                 error_content = create_error_message_html(safe_error_message, framework)
+                # Ensure HTML is properly wrapped
+                error_content = ensure_html_wrapped(error_content, framework)
             else:
                 # For C1 providers (TheSys, Tomorrow), use C1Component format
                 error_card = {
@@ -370,9 +387,22 @@ class PerConnectionProcessor:
                 }
                 error_content = f'<content>{json.dumps(error_card)}</content>'
             
+            # Determine framework for error response
+            framework = None
+            if content_type == "html":
+                framework = "tailwind"  # Default framework
+                if (hasattr(self.context, 'config') and 
+                    self.context.config and 
+                    hasattr(self.context.config, 'preferences') and 
+                    self.context.config.preferences):
+                    framework = self.context.config.preferences.get('ui_framework', 'tailwind')
+            else:
+                framework = "c1"  # C1 framework for C1Component content
+            
             error_msg = create_text_chat_response(
                 content=error_content,
                 content_type=content_type,
+                framework=framework,
                 thread_id=thread_id
             )
             

@@ -263,12 +263,14 @@ class VisualizationProcessor:
                         message_for_frontend = create_text_chat_response(
                             content=assistant_response,
                             content_type="c1",  # Default to C1 for vis_processor
+                            framework="c1",
                             thread_id=thread_id
                         )
                     else:
                         message_for_frontend = create_voice_response(
                             content=assistant_response,
                             content_type="c1",  # Default to C1 for vis_processor
+                            framework="c1",
                             voice_text=""
                         )
                     await enqueue_llm_message(message_for_frontend)
@@ -466,12 +468,14 @@ class VisualizationProcessor:
                             message_for_frontend = create_text_chat_response(
                                 content=visualized_ui_payload,
                                 content_type="c1",  # Default to C1 for vis_processor
+                                framework="c1",
                                 thread_id=thread_id
                             )
                         else:
                             message_for_frontend = create_voice_response(
                                 content=visualized_ui_payload,
                                 content_type="c1",  # Default to C1 for vis_processor
+                                framework="c1",
                                 voice_text=""
                             )
                         
@@ -508,12 +512,14 @@ class VisualizationProcessor:
                         message_for_frontend = create_text_chat_response(
                             content=visualized_ui_payload,
                             content_type="c1",  # Default to C1 for vis_processor
+                            framework="c1",
                             thread_id=thread_id
                         )
                     else:
                         message_for_frontend = create_voice_response(
                             content=visualized_ui_payload,
                             content_type="c1",  # Default to C1 for vis_processor
+                            framework="c1",
                             voice_text=""
                         )
                     
@@ -543,12 +549,14 @@ class VisualizationProcessor:
                     error_message = create_text_chat_response(
                         content=f'<content>{json.dumps(error_card)}</content>',
                         content_type="c1",  # Default to C1 for vis_processor
+                        framework="c1",
                         thread_id=thread_id
                     )
                 else:
                     error_message = create_voice_response(
                         content=f'<content>{json.dumps(error_card)}</content>',
-                        content_type="c1"  # Default to C1 for vis_processor
+                        content_type="c1",  # Default to C1 for vis_processor
+                        framework="c1"
                     )
 
                 try:
