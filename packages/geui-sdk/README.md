@@ -1,494 +1,494 @@
-# Genux SDK
+# GenUX SDK
 
-A lightweight, fully-customizable JavaScript/TypeScript SDK for voice and chat interfaces with **complete component override capabilities** and **immersive fullscreen mode**.
+A powerful, fully-customizable React SDK for building conversational AI interfaces with voice and text chat capabilities, rich AI-generated UI components, and seamless real-time interactions.
 
-## ✨ **New in v2.1: Fullscreen Immersive Experience**
+## ✨ **Latest Features**
 
-- 🌟 **Fullscreen 3-Column Layout** - Immersive conversational interface
-- 🎯 **3D Animated Blob** - Three.js-powered voice-reactive sphere
-- 🔄 **Circular Button Arrangement** - Enhanced bubble widget interactions  
-- 🧵 **Advanced Thread Manager** - Collapsible conversation management
-- 🎨 **Glass Morphism Design** - Modern blur effects and translucent interfaces
-- ⚙️ **Complete Configuration** - Agent branding, colors, and custom text
-
-## ✨ **Previous: v2.0 Complete Customization**
-
-- 🎨 **Component Override System** - Replace any UI component with your own
-- 🧵 **Enhanced Thread Manager** - Improved conversation management  
-- 📦 **Default Component Access** - Extend existing components easily
-- 🎯 **No Breaking Changes** - All existing code continues to work
+- 🎤 **Voice & Text Chat** - WebRTC voice + WebSocket text with real-time streaming
+- 🤖 **AI-Generated UI** - Rich interactive components from AI responses  
+- 🎨 **Dual Theme System** - Complete customization with light/dark/custom themes
+- 🌟 **Fullscreen Mode** - Immersive 3-column layout with 3D voice visualization
+- 🧩 **Component Overrides** - Replace any UI component with your own
+- 🌐 **Multi-Framework Support** - Generate HTML for Tailwind, Chakra UI, Material UI
+- 🔧 **Headless Mode** - Build completely custom interfaces with hooks
 
 ## 🚀 **Quick Start**
 
-### **Basic Usage**
+### **Installation**
+```bash
+npm install @your-org/genux-sdk @thesysai/genui-sdk @crayonai/react-ui
+# Or with pnpm
+pnpm add @your-org/genux-sdk @thesysai/genui-sdk @crayonai/react-ui
+```
+
+### **Basic Chat Interface**
 ```tsx
-import { Genux } from 'genux-sdk';
+import { Genux } from '@your-org/genux-sdk';
 
 function App() {
   return (
     <Genux
-      webrtcURL="/api/offer"
-      websocketURL="wss://api.example.com/ws/messages"
+      webrtcURL="http://localhost:8000/api/offer"
+      websocketURL="ws://localhost:8000/ws/per-connection-messages"
+      bubbleEnabled={true}
     />
   );
 }
 ```
 
-### **✨ With Fullscreen Mode**
+### **Chat-Only Mode (No Voice)**
 ```tsx
-import { Genux } from 'genux-sdk';
+import { Genux } from '@your-org/genux-sdk';
 
 function App() {
   return (
     <Genux
-      webrtcURL="/api/offer"
-      websocketURL="wss://api.example.com/ws/messages"
+      webrtcURL="http://localhost:8000/api/offer"
+      websocketURL="ws://localhost:8000/ws/per-connection-messages"
+      disableVoice={true}
+      bubbleEnabled={false}
+    />
+  );
+}
+```
+
+### **Fullscreen Immersive Mode**
+```tsx
+import { Genux } from '@your-org/genux-sdk';
+
+function App() {
+  return (
+    <Genux
+      webrtcURL="http://localhost:8000/api/offer"
+      websocketURL="ws://localhost:8000/ws/per-connection-messages"
+      bubbleEnabled={false}  // Starts in fullscreen mode
       allowFullScreen={true}
       options={{
-        agentName: "Ada",
-        agentSubtitle: "Your intelligent assistant",
-        backgroundColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-        primaryColor: "#667eea",
-        startCallButtonText: "🎤 Start Voice Chat",
-        threadManagerTitle: "Chat History",
+        agentName: "AI Assistant",
+        theme: lightTheme,
+        crayonTheme: crayonLightTheme
       }}
     />
   );
 }
 ```
 
-### **With Custom Components**
+### **With Custom Themes**
 ```tsx
-import { Genux, ComponentOverrides } from 'genux-sdk';
-
-const customComponents: Partial<ComponentOverrides> = {
-  ChatButton: MyCustomButton,
-  ChatMessage: MyCustomMessage,
-};
+import { Genux, lightTheme, darkTheme, crayonLightTheme, crayonDarkTheme } from '@your-org/genux-sdk';
 
 function App() {
+  const [isDark, setIsDark] = useState(false);
+  
   return (
     <Genux
-      webrtcURL="/api/offer"  
-      websocketURL="wss://api.example.com/ws/messages"
-      allowFullScreen={true}
+      webrtcURL="http://localhost:8000/api/offer"
+      websocketURL="ws://localhost:8000/ws/per-connection-messages"
       options={{
-        components: customComponents,
-        theme: customTheme,
+        theme: isDark ? darkTheme : lightTheme,
+        crayonTheme: isDark ? crayonDarkTheme : crayonLightTheme,
+        agentName: "Support Assistant"
       }}
     />
   );
 }
 ```
 
-## 🌟 **Fullscreen Immersive Mode**
+## 🎨 **Comprehensive Theme System**
 
-### **3-Column Layout Experience**
-When `allowFullScreen={true}`, users can click the fullscreen button in the bubble hover menu to access an immersive 3-column interface:
+GenUX provides a dual theme system for complete visual control:
 
-| Column | Content | Features |
-|--------|---------|----------|
-| **Left** | Thread Manager | Collapsible, create/rename/delete conversations |
-| **Middle** | 3D Animated Blob | Voice-reactive sphere, agent branding, call controls |
-| **Right** | Chat Interface | Message history, input composer, real-time chat |
+### **Built-in Themes**
+```tsx
+import { 
+  lightTheme, darkTheme, defaultTheme,
+  crayonLightTheme, crayonDarkTheme, crayonDefaultTheme 
+} from '@your-org/genux-sdk';
 
-### **3D Animated Blob Features**
-- 🎭 **Three.js WebGL Rendering** - Smooth 60fps animations
-- 🎵 **Voice-Reactive Effects** - Blob responds to audio input/output
-- 🖱️ **Mouse Interactions** - Hover effects and position-based displacement
-- 🌊 **Noise-Based Animation** - Organic vertex displacement with shaders
-- 🎨 **Configurable Styling** - Custom gradients and color schemes
+// Light theme for everything
+<Genux
+  options={{
+    theme: lightTheme,           // SDK components
+    crayonTheme: crayonLightTheme // Rich content (tables, lists, etc.)
+  }}
+/>
 
-### **Enhanced Bubble Widget**
-- 🔄 **Circular Button Layout** - Chat (top), Fullscreen (left), Mic (bottom)
-- 📱 **Improved Positioning** - Fixed positioning issues and better spacing
-- ✨ **Smooth Animations** - Scale effects and position transitions
-- 🎯 **Touch-Friendly** - Optimized for mobile interactions
+// Dark theme
+<Genux
+  options={{
+    theme: darkTheme,
+    crayonTheme: crayonDarkTheme
+  }}
+/>
+
+// Default GenUX brand theme
+<Genux
+  options={{
+    theme: defaultTheme,
+    crayonTheme: crayonDefaultTheme
+  }}
+/>
+```
+
+### **Custom Theme Creation**
+```tsx
+import { createTheme, toCrayonTheme } from '@your-org/genux-sdk';
+
+const myBrandTheme = createTheme({
+  colors: {
+    primary: '#your-brand-color',
+    background: '#your-bg-color',
+    surface: '#your-surface-color'
+  },
+  typography: {
+    fontFamily: 'Your-Brand-Font'
+  }
+});
+
+const myCrayonTheme = toCrayonTheme(myBrandTheme);
+
+<Genux
+  options={{
+    theme: myBrandTheme,
+    crayonTheme: myCrayonTheme
+  }}
+/>
+```
+
+## 🌟 **Key Features**
+
+### **Voice & Text Communication**
+- **WebRTC Voice** - Real-time audio with speech-to-text and text-to-speech
+- **WebSocket Chat** - Live text messaging with streaming AI responses
+- **Dual Mode Support** - Use voice, text, or both simultaneously
+- **Audio Playback** - Automatic audio element management for voice responses
+
+### **AI-Generated Rich Content**
+- **C1 Components** - Interactive UI components from TheSys AI
+- **HTML Generation** - Framework-specific HTML from OpenAI/Anthropic
+- **Real-time Streaming** - Incremental content updates as AI generates responses
+- **Multi-Framework** - Support for Tailwind, Chakra UI, Material UI, and more
+
+### **Flexible UI Modes**
+- **Bubble Widget** - Floating chat button with expandable interface
+- **Fullscreen Mode** - Immersive 3-column layout with voice visualization
+- **Chat-Only Mode** - Text-focused interface without voice features
+- **Headless Mode** - Complete control with hooks for custom UIs
+
+## 🔧 **Headless Mode**
+
+For complete control over the UI, use the `useGenuxClient` hook:
+
+```tsx
+import { useGenuxClient } from '@your-org/genux-sdk';
+import { useRef, useEffect } from 'react';
+
+function CustomInterface() {
+  const audioRef = useRef<HTMLAudioElement>(null);
+  
+  const client = useGenuxClient({
+    webrtcURL: 'http://localhost:8000/api/offer',
+    websocketURL: 'ws://localhost:8000/ws/per-connection-messages'
+  });
+
+  // CRITICAL: Manual audio playback for voice responses
+  useEffect(() => {
+    if (audioRef.current && client.audioStream) {
+      audioRef.current.srcObject = client.audioStream;
+    }
+  }, [client.audioStream]);
+
+  const {
+    messages,
+    sendText,
+    startVoice,
+    stopVoice,
+    voiceState,
+    isLoading,
+    streamingContent
+  } = client;
+
+  return (
+    <div>
+      {/* Required for voice playback */}
+      <audio ref={audioRef} autoPlay style={{ display: 'none' }} />
+      
+      {/* Your custom UI */}
+      {messages.map(message => (
+        <div key={message.id}>
+          {message.c1Content ? (
+            <C1Component c1Response={message.c1Content} />
+          ) : (
+            message.content
+          )}
+        </div>
+      ))}
+      
+      <input 
+        onKeyPress={(e) => {
+          if (e.key === 'Enter') {
+            sendText(e.target.value);
+            e.target.value = '';
+          }
+        }}
+      />
+      
+      <button 
+        onClick={voiceState === 'active' ? stopVoice : startVoice}
+      >
+        {voiceState === 'active' ? 'Stop' : 'Start'} Voice
+      </button>
+    </div>
+  );
+}
+```
 
 ## 🎨 **Component Override System**
 
-Replace any part of the interface while keeping all functionality:
+Replace any UI component with your own implementation:
 
-| Component | Replaces | Use Case |
-|-----------|----------|----------|
-| `ChatButton` | Floating chat button | Custom branding, positioning |
-| `ChatWindow` | Entire chat interface | Complete redesign |
-| `ChatMessage` | Message bubbles | Custom styling, avatars |
-| `ChatComposer` | Input area | Enhanced features, emojis |
-| `VoiceButton` | Voice toggle | Custom animations, states |
-| `FullscreenLayout` | Fullscreen interface | Custom 3-column layouts |
-| `AnimatedBlob` | 3D blob | Custom animations, models |
-
-### **Quick Example**
 ```tsx
-// Custom gradient chat button
-const GradientButton: React.FC<ChatButtonProps> = ({ onClick, isOpen }) => (
-  <button
-    onClick={onClick}
-    style={{
-      background: 'linear-gradient(45deg, #ff6b6b, #4ecdc4)',
-      // ... your custom styles
-    }}
-  >
-    {isOpen ? '✕' : '💬'}
-  </button>
+import { Genux } from '@your-org/genux-sdk';
+
+// Custom components
+const MyCustomChatMessage = ({ message, onC1Action }) => (
+  <div className="my-custom-message">
+    {message.content}
+  </div>
 );
 
-// Use it
-<Genux options={{ components: { ChatButton: GradientButton } }} />
-```
+const MyCustomBubbleWidget = ({ onToggle, showVoiceButton }) => (
+  <div className="my-custom-bubble">
+    <button onClick={onToggle}>💬</button>
+    {showVoiceButton && <button>🎤</button>}
+  </div>
+);
 
-## 🧵 **Enhanced Thread Manager**
-
-Improved conversation management with:
-
-- ✅ **"New conversation" dedicated button** with visual distinction
-- ✅ **Duplicate prevention** - automatic filtering
-- ✅ **Better UX** - cleaner interface and interactions
-- ✅ **Header control** - hide/show internal headers
-- ✅ **Collapsible Design** - Expand/collapse to save space
-- ✅ **Real-time Persistence** - localStorage with configurable keys
-
-```tsx
-<Genux 
-  showThreadManager={true}
+// Use custom components
+<Genux
+  webrtcURL="http://localhost:8000/api/offer"
+  websocketURL="ws://localhost:8000/ws/per-connection-messages"
   options={{
-    threadManager: {
-      initiallyCollapsed: false,
-      allowThreadDeletion: true,
-      maxThreads: 50,
+    components: {
+      ChatMessage: MyCustomChatMessage,
+      BubbleWidget: MyCustomBubbleWidget,
+      // Override any component...
     }
   }}
 />
 ```
 
-## 📚 **Documentation**
+## 📚 **API Reference**
 
-### **Getting Started**
-- **[Component Overrides Quick Start](./docs/genux-sdk-component-overrides-quick-start.md)** - 5-minute setup guide
-- **[Fullscreen Mode Guide](./docs/genux-sdk-fullscreen-guide.md)** - Complete fullscreen setup
-- **[Release Notes](./docs/genux-sdk-release-notes.md)** - Complete v2.1 feature overview
-
-### **Guides**
-- **[Customization Guide](./docs/genux-sdk-customization.md)** - Complete theming and component guide
-- **[API Reference](./docs/genux-sdk-api-reference.md)** - All interfaces and props
-- **[Examples](./docs/genux-sdk-examples.md)** - Real-world implementation patterns
-
-### **Support**
-- **[Troubleshooting](./docs/genux-sdk-troubleshooting.md)** - Common issues and solutions
-
-## 🎯 **Features**
-
-### **Core Capabilities**
-- 🎤 **Voice Communication** - WebRTC-based real-time audio
-- 💬 **Text Chat** - Rich messaging with C1Component support
-- 🧵 **Thread Management** - Conversation history and persistence
-- 🎨 **Complete Customization** - Override any component
-- 📱 **Responsive Design** - Works on desktop and mobile
-- 🌟 **Fullscreen Mode** - Immersive 3-column experience
-
-### **Fullscreen Features**
-- 🎭 **3D Animations** - WebGL-powered blob with voice reactions
-- 🔄 **Thread Management** - Create, rename, delete conversations
-- 🎨 **Agent Branding** - Custom names, subtitles, logos, colors
-- 📱 **Responsive Layout** - Adapts to different screen sizes
-- ✨ **Glass Morphism** - Modern blur effects and transparency
-- 🎯 **Voice Controls** - Integrated call management
-
-### **Customization Options**
-- 🎨 **Theme System** - Colors, typography, spacing, borders
-- 🧩 **Component Overrides** - Replace any UI component
-- 🔧 **Headless Mode** - Build completely custom interfaces
-- 📦 **Default Components** - Extend existing implementations
-- ⚙️ **Fullscreen Config** - Agent details, colors, button text
-
-### **Developer Experience**
-- 🛠️ **TypeScript Support** - Full type safety
-- 📖 **Comprehensive Docs** - Guides, examples, and API reference
-- ⚡ **Quick Setup** - Working in minutes
-- 🔄 **No Breaking Changes** - Seamless upgrades
-
-## 🛠️ **Installation**
-
-```bash
-npm install genux-sdk three @types/three
-```
-
-### **Peer Dependencies**
-```bash
-npm install react react-dom
-```
-
-**Note**: Three.js is required for fullscreen mode 3D animations. If you don't use `allowFullScreen={true}`, the Three.js bundle won't be loaded.
-
-## 🔧 **Configuration Options**
-
+### **Main Component Props**
 ```tsx
 interface GenuxProps {
   webrtcURL: string;
   websocketURL: string;
-  bubbleEnabled?: boolean;
-  showThreadManager?: boolean;
-  allowFullScreen?: boolean;     // ✨ NEW: Enable fullscreen mode
+  bubbleEnabled?: boolean;     // Show floating bubble widget
+  disableVoice?: boolean;      // Remove all voice features
+  allowFullScreen?: boolean;   // Enable fullscreen mode
   options?: GenuxOptions;
 }
 
 interface GenuxOptions {
-  // Component customization
-  components?: Partial<ComponentOverrides>;
+  // Component overrides
+  components?: {
+    ChatMessage?: React.ComponentType<ChatMessageProps>;
+    BubbleWidget?: React.ComponentType<BubbleWidgetProps>;
+    ChatWindow?: React.ComponentType<ChatWindowProps>;
+    // ... other components
+  };
   
-  // Visual theming
-  theme?: Partial<ThemeTokens>;
+  // Theming
+  theme?: ThemeTokens;         // GenUX component theme
+  crayonTheme?: CrayonTheme;   // Rich content theme
   
   // Agent configuration
   agentName?: string;
-  agentSubtitle?: string;        // ✨ NEW: Subtitle for fullscreen
-  logoUrl?: string;
   
-  // ✨ NEW: Fullscreen styling
-  backgroundColor?: string;      // Background gradient/color
-  primaryColor?: string;         // Main accent color
-  accentColor?: string;         // Secondary accent color
-  
-  // ✨ NEW: Thread manager in fullscreen
-  threadManagerTitle?: string;   // Custom title
-  enableThreadManager?: boolean; // Show/hide thread manager
-  
-  // ✨ NEW: Button text customization
-  startCallButtonText?: string;  // "Start a call" button
-  endCallButtonText?: string;    // "End call" button
-  connectingText?: string;       // "Connecting..." text
-  
-  // Thread management
-  threadManager?: {
-    enablePersistence?: boolean;
-    maxThreads?: number;
-    allowThreadDeletion?: boolean;
-    initiallyCollapsed?: boolean;
+  // Fullscreen customization (when bubbleEnabled=false)
+  fullscreenComponents?: {
+    ThreadList?: React.ComponentType<ThreadListProps>;
+    VoiceBotUI?: React.ComponentType<VoiceBotUIProps>;
+    ChatWindow?: React.ComponentType<ChatWindowProps>;
   };
   
-  // Technical integration
-  mcpEndpoints?: MCPEndpoint[];
-  visualization?: {
-    provider: 'default' | 'custom' | 'none';
-    render?: (msg: AssistantMessage) => React.ReactNode;
+  fullscreenLayout?: {
+    showThreadList?: boolean;
+    showVoiceBot?: boolean;
+    showChatWindow?: boolean;
+    columnWidths?: string;
   };
 }
 ```
 
-## 📱 **Usage Patterns**
+### **Hook API**
+```tsx
+const client = useGenuxClient({
+  webrtcURL: string;
+  websocketURL: string;
+});
 
-### **E-commerce Support Widget with Fullscreen**
+// Returns:
+{
+  messages: Message[];
+  sendText: (text: string) => void;
+  startVoice: () => Promise<void>;
+  stopVoice: () => void;
+  voiceState: 'idle' | 'connecting' | 'active';
+  isLoading: boolean;
+  streamingContent: string;
+  audioStream: MediaStream | null;  // For voice playback
+}
+```
+
+## 🌐 **Multi-Framework Support**
+
+The backend can generate framework-specific HTML for different UI libraries:
+
+```tsx
+<Genux
+  webrtcURL="http://localhost:8000/api/offer"
+  websocketURL="ws://localhost:8000/ws/per-connection-messages"
+  options={{
+    uiFramework: 'tailwind', // or 'chakra', 'mui', 'antd', 'inline'
+    onFormSubmit: (formId, formData) => {
+      console.log('Form submitted:', formId, formData);
+    },
+    onButtonClick: (actionType, context) => {
+      console.log('Button clicked:', actionType, context);
+    }
+  }}
+/>
+```
+
+**Supported Frameworks:**
+- **Tailwind CSS** - Utility-first styling
+- **Chakra UI** - Modular component library
+- **Material UI (MUI)** - Google Material Design
+- **Ant Design** - Enterprise-grade components
+- **Inline Styles** - Framework-agnostic fallback
+
+## 🔧 **Usage Patterns**
+
+### **E-commerce Support Widget**
 ```tsx
 <Genux
   webrtcURL="/api/offer"
-  websocketURL="wss://api.shop.com/ws/support"
-  allowFullScreen={true}
+  websocketURL="wss://shop.example.com/ws/support"
+  bubbleEnabled={true}
   options={{
     agentName: "Shopping Assistant",
-    agentSubtitle: "I'm here to help with your purchase",
-    backgroundColor: "linear-gradient(135deg, #ff6b6b 0%, #ffd93d 100%)",
-    primaryColor: "#ff6b6b",
-    startCallButtonText: "🛍️ Talk to Assistant",
     theme: ecommerceTheme,
-    components: { ChatButton: BrandedButton },
+    crayonTheme: ecommerceCrayonTheme
   }}
 />
 ```
 
-### **SaaS Customer Support with Full Experience**
+### **SaaS Customer Support**
 ```tsx
 <Genux
-  bubbleEnabled={false} // Full-screen mode
-  showThreadManager={true}
-  allowFullScreen={true}
+  bubbleEnabled={false}      // Full page experience
+  disableVoice={false}       // Voice enabled
   options={{
     agentName: "Support Team",
-    agentSubtitle: "We're here to help you succeed",
-    threadManagerTitle: "Support History",
-    backgroundColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-    threadManager: { allowThreadDeletion: true },
-    components: { ChatWindow: SaaSChatWindow },
+    theme: darkTheme,
+    crayonTheme: crayonDarkTheme,
+    fullscreenLayout: {
+      showThreadList: true,
+      showVoiceBot: true,
+      showChatWindow: true,
+      columnWidths: "300px 1fr 400px"
+    }
   }}
 />
 ```
 
-### **Mobile-Optimized with Voice Focus**
+### **Voice-Only Experience**
 ```tsx
 <Genux
-  allowFullScreen={true}
+  bubbleEnabled={false}
   options={{
     agentName: "Voice Assistant",
-    agentSubtitle: "Tap to start voice conversation",
-    startCallButtonText: "🎤 Start Talking",
-    endCallButtonText: "🔇 End Call",
-    backgroundColor: "linear-gradient(135deg, #4ecdc4 0%, #44a08d 100%)",
-    components: {
-      ChatButton: MobileChatButton,
-      AnimatedBlob: CustomVoiceBlob,
-    },
-    theme: mobileTheme,
+    fullscreenLayout: {
+      showChatWindow: false,    // Hide chat, voice only
+      columnWidths: "300px 1fr"
+    }
   }}
 />
 ```
 
-## 🌟 **Examples**
-
-### **Basic Fullscreen Configuration**
+### **Chat-Only Experience**
 ```tsx
-import { Genux } from 'genux-sdk';
-
-const config = {
-  agentName: "Ada",
-  agentSubtitle: "Your AI assistant",
-  backgroundColor: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-  primaryColor: "#667eea",
-  accentColor: "#5a67d8",
-  startCallButtonText: "Start conversation",
-  threadManagerTitle: "Chat History",
-};
-
-<Genux allowFullScreen={true} options={config} />
-```
-
-### **Custom 3D Blob Animation**
-```tsx
-import { AnimatedBlob } from 'genux-sdk';
-
-const CustomBlob: React.FC<AnimatedBlobProps> = (props) => (
-  <AnimatedBlob
-    {...props}
-    style={{
-      background: 'radial-gradient(circle, #ff6b6b, #4ecdc4)',
-    }}
-  />
-);
-
-<Genux 
-  allowFullScreen={true}
-  options={{ 
-    components: { AnimatedBlob: CustomBlob } 
-  }} 
-/>
-```
-
-### **Extending Default Components**
-```tsx
-import { DefaultChatButton, FullscreenLayout } from 'genux-sdk';
-
-const NotificationButton: React.FC<ChatButtonProps> = (props) => (
-  <div style={{ position: 'relative' }}>
-    <DefaultChatButton {...props} />
-    <NotificationBadge count={3} />
-  </div>
-);
-
-const CustomFullscreen: React.FC<FullscreenLayoutProps> = (props) => (
-  <FullscreenLayout
-    {...props}
-    config={{
-      ...props.config,
-      backgroundColor: "linear-gradient(45deg, #your-brand-colors)",
-    }}
-  />
-);
-```
-
-### **Conditional Features**
-```tsx
-const features = useMemo(() => ({
-  allowFullScreen: !isMobile, // Disable on mobile
-  showThreadManager: isDesktop,
-  components: isMobile ? mobileComponents : desktopComponents,
-}), [isMobile, isDesktop]);
-
-<Genux {...features} />
-```
-
-## 🎨 **Theming & Styling**
-
-### **Fullscreen Theme Configuration**
-```tsx
-const customTheme = {
-  // Background gradient for fullscreen
-  backgroundColor: "linear-gradient(135deg, #your-primary 0%, #your-secondary 100%)",
-  
-  // Color scheme
-  primaryColor: "#your-primary",
-  accentColor: "#your-accent", 
-  
-  // Traditional theme tokens
-  colors: {
-    primary: "#your-primary",
-    background: "#f8fafc",
-    surface: "rgba(255, 255, 255, 0.9)",
-  },
-  
-  // Glass morphism effects (built-in)
-  // - backdrop-filter: blur(20px)
-  // - rgba backgrounds with transparency
-  // - Smooth transitions and animations
-};
-```
-
-### **Advanced Styling Options**
-```css
-/* Custom CSS for additional styling */
-.genux-fullscreen-layout {
-  /* Override fullscreen layout styles */
-}
-
-.animated-blob-container {
-  /* Custom blob container styling */
-}
-
-.thread-manager-column {
-  /* Thread manager customization */
-}
-```
-
-## 🔌 **Available Components for Override**
-
-| Component | Props Interface | Purpose |
-|-----------|----------------|---------|
-| `Genux` | `GenuxProps` | Main SDK component |
-| `BubbleWidget` | `BubbleWidgetProps` | Floating button widget |
-| `FullscreenLayout` | `FullscreenLayoutProps` | 3-column fullscreen interface |
-| `AnimatedBlob` | `AnimatedBlobProps` | 3D WebGL blob animation |
-| `ChatWindow` | `ChatWindowProps` | Chat interface container |
-| `ChatMessage` | `ChatMessageProps` | Individual message display |
-| `ChatComposer` | `ChatComposerProps` | Message input area |
-| `ThreadManager` | `ThreadManagerProps` | Conversation management |
-
-## 🔄 **Migration Guide**
-
-### **From v2.0 to v2.1**
-✅ **No breaking changes** - all existing code continues to work.
-
-**New Features Available:**
-```tsx
-// Add fullscreen mode to existing implementation
 <Genux
-  // ... existing props
-  allowFullScreen={true}  // ✨ NEW
+  disableVoice={true}        // No voice features
+  bubbleEnabled={false}
   options={{
-    // ... existing options
-    agentName: "Your Agent",           // ✨ NEW
-    backgroundColor: "your-gradient",   // ✨ NEW
-    startCallButtonText: "Custom text" // ✨ NEW
+    agentName: "Chat Support",
+    fullscreenLayout: {
+      showVoiceBot: false,     // Hide voice UI
+      columnWidths: "300px 1fr"
+    }
   }}
 />
 ```
 
-### **Enabling Fullscreen Features**
-1. **Install Three.js**: `npm install three @types/three`
-2. **Add prop**: `allowFullScreen={true}`
-3. **Configure**: Add fullscreen options to `options` prop
-4. **Customize**: Override `FullscreenLayout` or `AnimatedBlob` if needed
+## 🛠️ **Development**
+
+### **Dependencies**
+- **React 18+** - Core framework
+- **TypeScript** - Type safety
+- **@thesysai/genui-sdk** - C1 component rendering
+- **@crayonai/react-ui** - Theme system
+
+### **Optional Dependencies**
+- **three** - 3D animations in fullscreen mode
+- **@types/three** - TypeScript definitions
+
+## 🚀 **Troubleshooting**
+
+### **Common Issues**
+
+1. **WebSocket connection failed**
+   - Ensure backend server is running
+   - Check WebSocket URL format: `ws://localhost:8000/ws/per-connection-messages`
+   - Verify CORS settings on backend
+
+2. **Voice not working**
+   - Ensure HTTPS is used (required for microphone access)
+   - Check microphone permissions in browser
+   - Verify WebRTC offer endpoint returns valid response
+
+3. **No audio playback in headless mode**
+   - Add hidden audio element with `audioStream` from `useGenuxClient`
+   - Ensure `autoPlay` attribute is set
+   - Check browser autoplay policies
+
+4. **C1 components not rendering**
+   - Ensure `@thesysai/genui-sdk` is installed
+   - Check that C1 content is valid JSON
+   - Verify ThemeProvider is wrapping C1Component
+
+5. **Themes not applying**
+   - Ensure both `theme` and `crayonTheme` are provided
+   - Check CSS import order
+   - Verify theme objects match expected structure
+
+### **Debug Tips**
+
+- Open browser DevTools Network tab to monitor WebSocket messages
+- Check console for SDK-related errors
+- Use connection status indicators in UI
+- Enable verbose logging in SDK options
 
 ## 🤝 **Contributing**
 
-We welcome contributions! Please see our contributing guidelines for details.
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes with proper TypeScript types
+4. Add comprehensive examples and tests
+5. Submit a pull request
 
 ## 📄 **License**
 
@@ -496,9 +496,6 @@ MIT License - see LICENSE file for details.
 
 ---
 
-**Ready to get started?** 
-- **Quick Setup**: [Component Overrides Quick Start](./docs/genux-sdk-component-overrides-quick-start.md)
-- **Fullscreen Mode**: [Fullscreen Guide](./docs/genux-sdk-fullscreen-guide.md)
-- **API Reference**: [Complete API Documentation](./docs/genux-sdk-api-reference.md)
+**Ready to build amazing conversational AI interfaces?** 
 
-**Experience the immersive fullscreen mode with 3D animations and advanced thread management! 🌟**
+Start with the [example app](../example/) to see all features in action, or dive into the [backend](../backend/) to understand the full architecture.
