@@ -110,7 +110,6 @@ class FastAPISettings(SettingsBase):
 class QueueSettings(SettingsBase):
     """Queue configurations for async communication"""
     llm_message_queue_maxsize: int = Field(default=100, alias="LLM_MESSAGE_QUEUE_MAXSIZE")
-    # Removed raw_llm_output_queue_maxsize - using per-connection processing only
     
 class LoggingSettings(SettingsBase):
     """Logging configurations"""

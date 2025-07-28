@@ -119,3 +119,4 @@ Rules:
 2. After successful create/attach operations, surface IDs returned so later calls can reference them.
 3. Keep `displayEnhancedText` *action-oriented* (e.g., "VRM 'Alice' created! What next?").
 4. For each visual suggestion, still supply `voiceOverText` summarising outcome (<2 sentences). 
+5. If you decide to include images, the images must be from the 'getImageSrc' tool. Pass the alt text of the image to the 'getImageSrc' tool to get an image src.

@@ -19,6 +19,9 @@ from streaming_parser import (
     EnhancementStreamingParser,  # <-- NEW: correct low-level parser
 )
 
+# Built-in tools
+from tools import get_image_src, get_images
+
 logger = logging.getLogger(__name__)
 
 @dataclass
@@ -48,6 +51,9 @@ class EnhancedMCPClient:
         self.available_tools: Dict[str, Any] = {}
         # Store connection resources for proper cleanup
         self._connection_resources: Dict[str, Tuple[Any, Any, Any]] = {}
+        
+        # Add built-in tools to available tools
+        self._add_builtin_tools()
         
     async def initialize(self):
         """Initialize the MCP client with configuration from JSON file."""
@@ -126,6 +132,74 @@ class EnhancedMCPClient:
         
         # Replace {VAR_NAME} with environment variable values
         return re.sub(r'\{([A-Z_][A-Z0-9_]*)\}', replace_var, text)
+    
+    def _add_builtin_tools(self):
+        """Add built-in Python tools to the available tools."""
+        try:
+            # Add image search tools
+            self.available_tools["builtin_get_image_src"] = {
+                'server': 'builtin',
+                'tool': type('Tool', (), {
+                    'name': 'get_image_src',
+                    'description': 'Get the image src URL for the given alt text using Google Images search',
+                    'inputSchema': {
+                        "type": "object",
+                        "properties": {
+                            "altText": {
+                                "type": "string",
+                                "description": "The alt text/search query for the image"
+                            },
+                            "size": {
+                                "type": "string",
+                                "description": "Image size filter",
+                                "enum": ["small", "medium", "large", "xlarge"],
+                                "default": "medium"
+                            }
+                        },
+                        "required": ["altText"]
+                    }
+                })(),
+                'handler': get_image_src,
+                'session': None
+            }
+            
+            self.available_tools["builtin_get_images"] = {
+                'server': 'builtin',
+                'tool': type('Tool', (), {
+                    'name': 'get_images',
+                    'description': 'Get multiple images for the given search query using Google Images search',
+                    'inputSchema': {
+                        "type": "object",
+                        "properties": {
+                            "altText": {
+                                "type": "string",
+                                "description": "The search query for images"
+                            },
+                            "size": {
+                                "type": "string",
+                                "description": "Image size filter",
+                                "enum": ["small", "medium", "large", "xlarge"],
+                                "default": "medium"
+                            },
+                            "numResults": {
+                                "type": "integer",
+                                "description": "Number of results to return (1-10)",
+                                "minimum": 1,
+                                "maximum": 10,
+                                "default": 5
+                            }
+                        },
+                        "required": ["altText"]
+                    }
+                })(),
+                'handler': get_images,
+                'session': None
+            }
+            
+            logger.info("Built-in tools added successfully")
+            
+        except Exception as e:
+            logger.error(f"Failed to add built-in tools: {e}")
     
     async def _connect_to_servers(self):
         """Connect to all configured MCP servers."""
@@ -351,8 +425,32 @@ class EnhancedMCPClient:
         tool_name = tool_info['tool'].name
         
         try:
+            # Handle built-in tools
+            if tool_info['server'] == 'builtin':
+                handler = tool_info['handler']
+                logger.info(f"Calling built-in tool: {tool_name} with args {args}")
+                
+                # Convert camelCase to snake_case for function parameters
+                converted_args = {}
+                for key, value in args.items():
+                    if key == 'altText':
+                        converted_args['alt_text'] = value
+                    elif key == 'numResults':
+                        converted_args['num_results'] = value
+                    else:
+                        converted_args[key] = value
+                
+                # Call the built-in tool handler
+                result = await handler(**converted_args)
+                
+                # Convert result to string for consistency
+                if isinstance(result, list):
+                    return json.dumps(result, indent=2)
+                else:
+                    return str(result)
+            
             # If it's an HTTP server, reconnect for the tool call
-            if 'server_url' in tool_info:
+            elif 'server_url' in tool_info:
                 server_url = tool_info['server_url']
                 headers = tool_info.get('headers')
                 logger.info(f"Reconnecting to HTTP server for tool call: {tool_key}")
