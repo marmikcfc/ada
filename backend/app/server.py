@@ -32,11 +32,8 @@ from app.queues import initialize_queues
 
 # Import route modules
 # from app.routes.chat import router as chat_router, ws_router
-from app.routes.per_connection_chat import router as per_connection_router
+from app.routes.chat import router as per_connection_router
 from app.webrtc import router as webrtc_router, close_all_connections, get_prebuilt_ui
-
-# Import visualization processor
-from app.vis_processor import create_visualization_processor
 
 # Import MCP client
 from agent.enhanced_mcp_client_agent import EnhancedMCPClient
@@ -90,12 +87,12 @@ async def lifespan(app: FastAPI):
     # Start the visualization processor without global MCP client
     try:
         logger.info("Starting Visualization Processor (per-connection MCP only)...")
-        visualization_processor = await create_visualization_processor(
-            enhanced_mcp_client=None,  # No global MCP client
-            thesys_client=app.state.thesys_client,
-            app_state=app.state
-        )
-        app.state.visualization_processor = visualization_processor
+        # visualization_processor = await create_visualization_processor(
+        #     enhanced_mcp_client=None,  # No global MCP client
+        #     thesys_client=app.state.thesys_client,
+        #     app_state=app.state
+        # )
+        app.state.visualization_processor = None #visualization_processor
         logger.info("Visualization Processor started successfully (per-connection MCP only).")
     except Exception as e:
         logger.error(f"Failed to start Visualization Processor: {e}", exc_info=True)
@@ -178,16 +175,6 @@ def create_application() -> FastAPI:
         """Redirect root to health check"""
         return RedirectResponse(url="/health")
     
-    # Add MCP tools info endpoint
-    @app.get("/api/mcp/tools", tags=["mcp"])
-    async def list_mcp_tools(request: Request):
-        """List MCP tools info - now using per-connection MCP clients only"""
-        return {
-            "message": "MCP tools are now per-connection. Use /connections/{connection_id} to see tools for specific connections.",
-            "global_mcp": "disabled",
-            "per_connection_mcp": "enabled"
-        }
-
     # ------------------------------------------------------------------ #
     # Chat-history debugging / inspection endpoints (internal use only)
     # ------------------------------------------------------------------ #
