@@ -69,11 +69,7 @@ class TextChatResponse(TypedDict):
     framework: Optional[str]  # Framework used for HTML content (e.g., "tailwind", "shadcn", "c1")
     threadId: Optional[str]  # Thread ID for conversation tracking
 
-class RawLLMOutput(TypedDict):
-    """Raw output from the LLM in the fast path"""
-    assistant_response: str
-    history: List[Dict[str, Any]]
-    metadata: Optional[Dict[str, Any]]
+# Removed RawLLMOutput - using per-connection processing only
 
 # --------------------------------------------------------------------------- #
 #  NEW: Immediate voice response (sent before slow-path enhancement)
@@ -113,15 +109,14 @@ from app.voice_broadcast_manager import voice_broadcast_manager
 
 # Queue instances
 llm_message_queue: Optional[asyncio.Queue] = None
-raw_llm_output_queue: Optional[asyncio.Queue] = None
+# Removed raw_llm_output_queue - using per-connection processing only
 
 def initialize_queues():
     """Initialize all global queues with configured sizes"""
-    global llm_message_queue, raw_llm_output_queue
+    global llm_message_queue
     
     logger.info("Initializing communication queues...")
     llm_message_queue = asyncio.Queue(maxsize=config.queue.llm_message_queue_maxsize)
-    raw_llm_output_queue = asyncio.Queue(maxsize=config.queue.raw_llm_output_queue_maxsize)
     logger.info("Communication queues initialized successfully")
     logger.info("Voice broadcast manager ready for subscriptions")
 
@@ -184,33 +179,7 @@ async def broadcast_voice_message(message: Union[
         logger.error(f"Error broadcasting voice message: {e}")
         raise
 
-async def enqueue_raw_llm_output(assistant_response: str, history: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None):
-    """
-    Enqueue raw LLM output from the fast path to the slow path for enhancement
-    
-    Args:
-        assistant_response: The raw text response from the LLM
-        history: The conversation history
-        metadata: Optional metadata about the response
-    
-    Raises:
-        RuntimeError: If the queue is not initialized
-    """
-    global raw_llm_output_queue
-    if raw_llm_output_queue is None:
-        raise RuntimeError("Raw LLM output queue not initialized")
-    
-    try:
-        item: RawLLMOutput = {
-            "assistant_response": assistant_response,
-            "history": history,
-            "metadata": metadata
-        }
-        await raw_llm_output_queue.put(item)
-        logger.debug(f"Enqueued raw LLM output to raw_llm_output_queue: {assistant_response[:50]}...")
-    except Exception as e:
-        logger.error(f"Error enqueuing raw LLM output to raw_llm_output_queue: {e}")
-        raise
+# Removed enqueue_raw_llm_output - using per-connection processing only
 
 async def get_llm_message():
     """
@@ -234,27 +203,7 @@ async def get_llm_message():
         logger.error(f"Error getting message from llm_message_queue: {e}")
         raise
 
-async def get_raw_llm_output():
-    """
-    Get the next raw LLM output from the queue
-    
-    Returns:
-        The next raw LLM output in the queue
-    
-    Raises:
-        RuntimeError: If the queue is not initialized
-    """
-    global raw_llm_output_queue
-    if raw_llm_output_queue is None:
-        raise RuntimeError("Raw LLM output queue not initialized")
-    
-    try:
-        item = await raw_llm_output_queue.get()
-        logger.debug(f"Got raw LLM output from raw_llm_output_queue: {item['assistant_response'][:50]}...")
-        return item
-    except Exception as e:
-        logger.error(f"Error getting raw LLM output from raw_llm_output_queue: {e}")
-        raise
+# Removed get_raw_llm_output - using per-connection processing only
 
 def mark_llm_message_done():
     """Mark the last retrieved LLM message as done"""
@@ -264,13 +213,7 @@ def mark_llm_message_done():
     
     llm_message_queue.task_done()
 
-def mark_raw_llm_output_done():
-    """Mark the last retrieved raw LLM output as done"""
-    global raw_llm_output_queue
-    if raw_llm_output_queue is None:
-        raise RuntimeError("Raw LLM output queue not initialized")
-    
-    raw_llm_output_queue.task_done()
+# Removed mark_raw_llm_output_done - using per-connection processing only
 
 # Helper functions for creating common message types
 def get_content_type_for_provider(provider_type: str) -> str:

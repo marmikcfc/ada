@@ -96,10 +96,10 @@ def load_voice_agent_prompt() -> str:
         return "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."
 
 class VoiceInterfaceAgent:
-    def __init__(self, webrtc_connection: SmallWebRTCConnection, raw_llm_output_queue: asyncio.Queue, llm_message_queue: asyncio.Queue = None, connection_id: str = None):
+    def __init__(self, webrtc_connection: SmallWebRTCConnection, llm_message_queue: asyncio.Queue = None, connection_id: str = None):
         # Initialize voice agent identifiers and queues
         self.webrtc_connection = webrtc_connection
-        self.raw_llm_output_queue = raw_llm_output_queue
+        # Removed raw_llm_output_queue - using per-connection processing only
         self.llm_message_queue = llm_message_queue
         self.connection_id = connection_id  # Associated WebSocket connection ID
         # Use the WebRTC pc_id as thread_id if available, otherwise generate a new one
@@ -142,28 +142,8 @@ class VoiceInterfaceAgent:
         logger.info(f"Assistant Spoken Response (for Thesys): {assistant_response}")
         logger.info(f"----------------------------------------------------------")
         
-        try:
-            if self.raw_llm_output_queue is None:
-                logger.warning("raw_llm_output_queue not available, cannot send response for visualization")
-                return
-                
-            # Include metadata for visualization processor (source, thread_id, and connection_id)
-            payload = {
-                "assistant_response": assistant_response.strip(),
-                "history": history,
-                "metadata": {
-                    # Use the canonical label expected by the visualization
-                    # processor so that its early-exit de-duplication logic
-                    # triggers correctly.
-                    "source": "voice-agent",
-                    "thread_id": self.thread_id,
-                    "connection_id": self.connection_id
-                }
-            }
-            await self.raw_llm_output_queue.put(payload)
-            logger.info(f"Enqueued to raw_llm_output_queue: {payload}")
-        except Exception as e:
-            logger.error(f"Error enqueuing to raw_llm_output_queue: {e}")
+        # Removed raw_llm_output_queue usage - visualization now handled by per-connection processing
+        logger.info("Visualization processing now handled through per-connection MCP clients")
 
     async def send_user_transcription_to_frontend(self, transcription_text: str):
         """Send user transcription via broadcast to all relevant connections."""

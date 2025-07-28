@@ -24,7 +24,7 @@ from app.config import config
 # `from app.queues import …` copies the reference at import-time (when the
 # queues are still `None`) and breaks later runtime access.
 import app.queues as queues
-from app.vis_processor import register_voice_agent as legacy_register_voice_agent, unregister_voice_agent as legacy_unregister_voice_agent
+# Removed vis_processor imports - using per-connection processing only
 
 logger = logging.getLogger(__name__)
 
@@ -123,8 +123,7 @@ async def handle_offer(request: WebRTCOffer, background_tasks: BackgroundTasks, 
             # Note: This is a best-effort cleanup. The WeakSet will handle most cleanup automatically
             for agent in list(getattr(webrtc_connection, '_associated_agents', [])):
                 try:
-                    # Use legacy unregistration for backward compatibility
-                    legacy_unregister_voice_agent(agent)
+                    # Legacy vis_processor registration removed - using per-connection only
                     
                     # Also try to unregister from connection manager if connection_id is available
                     if hasattr(agent, 'connection_id') and agent.connection_id:
@@ -145,7 +144,7 @@ async def handle_offer(request: WebRTCOffer, background_tasks: BackgroundTasks, 
         )
         
         # Validate that queues are initialized before creating the agent
-        if queues.raw_llm_output_queue is None or queues.llm_message_queue is None:
+        if queues.llm_message_queue is None:
             logger.error("Queues not initialized - cannot create VoiceInterfaceAgent")
             raise RuntimeError("Voice processing not available - queues not initialized")
         
@@ -155,14 +154,11 @@ async def handle_offer(request: WebRTCOffer, background_tasks: BackgroundTasks, 
         
         agent = VoiceInterfaceAgent(
             pipecat_connection,
-            queues.raw_llm_output_queue,
             queues.llm_message_queue,
             connection_id=backend_connection_id  # Direct backend connection ID - no mapping needed
         )
         
-        # Register the agent for TTS voice-over injection (legacy system)
-        legacy_register_voice_agent(agent)
-        logger.info(f"Registered voice agent for legacy TTS voice-over injection")
+        # Legacy vis_processor registration removed - using per-connection only
         
         # Register with connection manager for proper message routing
         if backend_connection_id:

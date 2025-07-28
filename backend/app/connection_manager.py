@@ -415,7 +415,7 @@ class ConnectionManager:
         context = self.connections[connection_id]
         
         # Import here to avoid circular imports
-        from app.per_connection_processor import PerConnectionProcessor
+        from app.connection_processor import PerConnectionProcessor
         
         processor = PerConnectionProcessor(context)
         context.processor_task = asyncio.create_task(processor.run())

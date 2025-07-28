@@ -104,14 +104,7 @@ async def lifespan(app: FastAPI):
     
     # Cleanup on shutdown
     
-    # Stop the visualization processor
-    if app.state.visualization_processor:
-        try:
-            logger.info("Stopping Visualization Processor...")
-            await app.state.visualization_processor.stop()
-            logger.info("Visualization Processor stopped successfully.")
-        except Exception as e:
-            logger.error(f"Failed to stop Visualization Processor: {e}", exc_info=True)
+    # Visualization processor removed - using per-connection processing only
     
     # Global MCP client removed - per-connection clients are cleaned up automatically
     
