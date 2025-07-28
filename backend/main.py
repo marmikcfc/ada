@@ -43,6 +43,8 @@ def main():
         run()
         
     except ImportError as e:
+        import traceback
+        traceback.print_exc()
         logger.error(f"Failed to import required modules: {e}")
         logger.error("Make sure you have installed all dependencies with: pip install -e .")
         sys.exit(1)

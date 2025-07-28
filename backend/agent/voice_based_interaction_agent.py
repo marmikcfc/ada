@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from pipecat.audio.vad.silero import SileroVADAnalyzer
-from pipecat.frames.frames import Frame, InputImageRawFrame, OutputImageRawFrame, LLMTextFrame, TTSSpeakFrame, TTSTextFrame, LLMFullResponseEndFrame, TranscriptionFrame
+from pipecat.frames.frames import Frame, InputImageRawFrame, OutputImageRawFrame, LLMTextFrame, TTSTextFrame, LLMFullResponseEndFrame, TranscriptionFrame
 from pipecat.pipeline.pipeline import Pipeline
 from pipecat.pipeline.runner import PipelineRunner
 from pipecat.pipeline.task import PipelineParams, PipelineTask
@@ -26,14 +26,27 @@ from pipecat.transports.network.small_webrtc import SmallWebRTCTransport
 from pipecat.observers.loggers.llm_log_observer import LLMLogObserver
 from pipecat.processors.transcript_processor import TranscriptProcessor
 from pipecat.transports.network.webrtc_connection import SmallWebRTCConnection
+from pipecat.audio.filters.noisereduce_filter import NoisereduceFilter
+
 import json
+
+
+# Import chat history manager
+from app.chat_history_manager import chat_history_manager
+# Helpers for immediate UI update
+from app.queues import (
+    create_simple_card_content,
+    create_immediate_voice_response,
+    enqueue_llm_message,
+    broadcast_voice_message,
+)
 
 load_dotenv(override=True)
 
 def load_voice_agent_prompt() -> str:
     """Load the voice agent system prompt from the prompts directory and inject available tools."""
-    prompt_path = os.path.join(os.path.dirname(__file__), "..", "prompts", "voice_agent_system.txt")
-    mcp_config_path = os.path.join(os.path.dirname(__file__), "..", "mcp_servers.json")
+    prompt_path = os.path.join(os.path.dirname(__file__), "..", "..", "prompts", "voice_agent_system.txt")
+    mcp_config_path = os.path.join(os.path.dirname(__file__), "..", "..", "mcp_servers.json")
     
     try:
         # Load the base prompt template
@@ -83,12 +96,45 @@ def load_voice_agent_prompt() -> str:
         return "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."
 
 class VoiceInterfaceAgent:
-    def __init__(self, webrtc_connection: SmallWebRTCConnection, raw_llm_output_queue: asyncio.Queue, llm_message_queue: asyncio.Queue = None):
+    def __init__(self, webrtc_connection: SmallWebRTCConnection, llm_message_queue: asyncio.Queue = None, connection_id: str = None):
+        # Initialize voice agent identifiers and queues
         self.webrtc_connection = webrtc_connection
-        self.raw_llm_output_queue = raw_llm_output_queue
+        # Removed raw_llm_output_queue - using per-connection processing only
         self.llm_message_queue = llm_message_queue
+        self.connection_id = connection_id  # Associated WebSocket connection ID
+        # Use the WebRTC pc_id as thread_id if available, otherwise generate a new one
+        self.thread_id = getattr(webrtc_connection, 'pc_id', None) or str(uuid.uuid4())
+        logger.info(f"Voice agent initialized with thread_id: {self.thread_id}, connection_id: {connection_id}")
         # Store pipeline task reference for TTS injection
         self.pipeline_task = None
+    
+    async def register_with_connection_manager(self):
+        """Register this voice agent with the connection manager if connection_id is available"""
+        if self.connection_id:
+            try:
+                from app.voice_manager import voice_manager
+                success = await voice_manager.register_voice_agent(
+                    connection_id=self.connection_id,
+                    voice_agent=self,
+                    webrtc_connection=self.webrtc_connection,
+                    voice_thread_id=self.thread_id
+                )
+                if success:
+                    logger.info(f"Registered voice agent with connection manager for connection {self.connection_id}")
+                else:
+                    logger.warning(f"Failed to register voice agent with connection manager for connection {self.connection_id}")
+            except Exception as e:
+                logger.error(f"Error registering voice agent with connection manager: {e}")
+    
+    async def unregister_from_connection_manager(self):
+        """Unregister this voice agent from the connection manager"""
+        if self.connection_id:
+            try:
+                from app.voice_manager import voice_manager
+                await voice_manager.unregister_voice_agent(self.connection_id)
+                logger.info(f"Unregistered voice agent from connection manager for connection {self.connection_id}")
+            except Exception as e:
+                logger.error(f"Error unregistering voice agent from connection manager: {e}")
 
     async def process_downstream_display(self, assistant_response: str, history: Any):
         logger.info(f"--- process_downstream_display (payload for Thesys) ---")
@@ -96,44 +142,38 @@ class VoiceInterfaceAgent:
         logger.info(f"Assistant Spoken Response (for Thesys): {assistant_response}")
         logger.info(f"----------------------------------------------------------")
         
-        try:
-            if self.raw_llm_output_queue is None:
-                logger.warning("raw_llm_output_queue not available, cannot send response for visualization")
-                return
-                
-            # This payload structure is expected by the modified visualization_processor in main.py
-            payload = {"assistant_response": assistant_response.strip(), "history": history}
-            await self.raw_llm_output_queue.put(payload)
-            logger.info(f"Enqueued to raw_llm_output_queue: {payload}")
-        except Exception as e:
-            logger.error(f"Error enqueuing to raw_llm_output_queue: {e}")
+        # Removed raw_llm_output_queue usage - visualization now handled by per-connection processing
+        logger.info("Visualization processing now handled through per-connection MCP clients")
 
     async def send_user_transcription_to_frontend(self, transcription_text: str):
-        """Send user transcription directly to the frontend message queue."""
+        """Send user transcription via broadcast to all relevant connections."""
         logger.info(f"--- send_user_transcription_to_frontend ---")
         logger.info(f"User transcription: {transcription_text}")
         logger.info(f"-----------------------------------------------")
         
         try:
-            if self.llm_message_queue is None:
-                logger.warning("llm_message_queue not available, cannot send user transcription to frontend")
-                return
-                
             user_message = {
                 "id": str(uuid.uuid4()),
                 "role": "user", 
                 "type": "user_transcription",
-                "content": transcription_text
+                "content": transcription_text,
+                "connection_id": self.connection_id,
+                "thread_id": self.thread_id
             }
             
-            await self.llm_message_queue.put(user_message)
-            logger.info(f"User transcription sent to frontend: {user_message}")
+            # Add to chat history manager
+            await chat_history_manager.add_user_message(self.thread_id, transcription_text, user_message["id"])
+            logger.info(f"Added user transcription to chat history for thread {self.thread_id}")
+            
+            # Broadcast to all relevant connections instead of using direct queue
+            delivery_count = await broadcast_voice_message(user_message)
+            logger.info(f"User transcription broadcasted to {delivery_count} subscribers: {user_message}")
         except Exception as e:
-            logger.error(f"Error sending user transcription to frontend: {e}")
+            logger.error(f"Error broadcasting user transcription: {e}")
 
     async def inject_tts_voice_over(self, voice_text: str):
         """
-        Inject voice-over text directly into the TTS pipeline using TTSSpeakFrame.
+        Inject voice-over text directly into the TTS pipeline using TTSTextFrame.
         This is called by the visualization processor when MCP generates voice-over text.
         """
         logger.info(f"--- inject_tts_voice_over ---")
@@ -149,8 +189,8 @@ class VoiceInterfaceAgent:
                 logger.warning("Empty voice text provided, skipping TTS injection")
                 return
                 
-            # Create TTSSpeakFrame - this will cause the bot to speak the text without adding to LLM context
-            tts_frame = TTSTextFrame(text=voice_text.strip())
+            # Create TTSTextFrame - this will cause the bot to speak the text without adding to LLM context
+            tts_frame = TTSTextFrame(text=f"{voice_text.strip()} ")
             
             # Queue the frame to the pipeline task
             await self.pipeline_task.queue_frames([tts_frame])
@@ -168,6 +208,7 @@ class VoiceInterfaceAgent:
             audio_out_enabled=True,
             audio_out_10ms_chunks=2,
             vad_analyzer=SileroVADAnalyzer(),
+            audio_in_filter=NoisereduceFilter(), # Enable noise reduction
         )
 
         pipecat_transport = SmallWebRTCTransport(
@@ -222,8 +263,8 @@ class VoiceInterfaceAgent:
                 transcript.user(),
                 context_aggregator.user(),
                 llm,  # LLM service
-                response_aggregator, # New processor
-                tts,  # Text-To-Speech
+                response_aggregator,
+                tts,   # Then TTS to produce audio
                 pipecat_transport.output(),
                 context_aggregator.assistant(),
             ]
@@ -261,9 +302,17 @@ class VoiceInterfaceAgent:
         async def handle_transcript_update(processor, frame):
             # Each message contains role (user/assistant), content, and timestamp
             for message in frame.messages:
-                #print(f"[{message.timestamp}] {message.role}: {message.content}")
                 logger.info(f"Capturing transcriber logs [{message.timestamp}] {message.role}: {message.content}")
-                await self.send_user_transcription_to_frontend(message.content)
+                
+                # Add to chat history based on role
+                if message.role == "user":
+                    # Add user message to chat history
+                    await chat_history_manager.add_user_message(self.thread_id, message.content)
+                    # Send to frontend
+                    await self.send_user_transcription_to_frontend(message.content)
+                elif message.role == "assistant":
+                    # Add assistant message to chat history
+                    await chat_history_manager.add_assistant_message(self.thread_id, message.content)
 
         # Store pipeline task reference for TTS injection
         self.pipeline_task = task
@@ -293,23 +342,47 @@ class ResponseAggregatorProcessor(FrameProcessor):
 
         if isinstance(frame, LLMFullResponseEndFrame):
             if self.current_assistant_response_buffer:
-                last_user_message_content = "User input not found"  # Default
-                # Iterate backwards through the context to find the last user message
-                current_messages = self.context.get_messages()
-                # if current_messages:
-                #     for i in range(len(current_messages) - 1, -1, -1):
-                #         msg = current_messages[i]
-                #         if msg["role"] == "user":
-                #             last_user_message_content = msg["content"]
-                #             break
-
-                assistant_response=self.current_assistant_response_buffer.strip()
-                
-                await self.agent_instance.process_downstream_display(
-                    # user_input=last_user_message_content,
-                    assistant_response=self.current_assistant_response_buffer.strip(),
-                    history=current_messages[1:]
+                # Add the complete assistant response to chat history
+                assistant_response = self.current_assistant_response_buffer.strip()
+                await chat_history_manager.add_assistant_message(
+                    self.agent_instance.thread_id,
+                    assistant_response
                 )
+
+                # ------------------------------------------------------------------
+                # FAST-PATH UI UPDATE: push a simple Card to the frontend **now**
+                # ------------------------------------------------------------------
+                try:
+                    simple_content = create_simple_card_content(assistant_response)
+                    immediate_msg = create_immediate_voice_response(
+                        content=simple_content,
+                        content_type="c1",
+                        framework="c1",
+                        voice_text=None,
+                    )
+                    # Add connection and thread metadata for proper routing
+                    immediate_msg["connection_id"] = self.agent_instance.connection_id
+                    immediate_msg["thread_id"] = self.agent_instance.thread_id
+                    
+                    # Broadcast immediate voice response to all relevant connections
+                    delivery_count = await broadcast_voice_message(immediate_msg)
+                    logger.info(
+                        f"Broadcasted immediate_voice_response to {delivery_count} subscribers (id={immediate_msg['id']})"
+                    )
+                except Exception as e:
+                    logger.error(f"Error sending immediate voice response: {e}")
+
+                logger.info(f"Added assistant response to chat history for thread {self.agent_instance.thread_id}")
+                
+                # Get conversation history from chat history manager instead of context
+                conversation_history = await chat_history_manager.get_recent_history(self.agent_instance.thread_id)
+                
+                # Process downstream display with the real conversation history
+                await self.agent_instance.process_downstream_display(
+                    assistant_response=assistant_response,
+                    history=conversation_history
+                )
+                
                 # Reset buffer after processing the full response
                 self.current_assistant_response_buffer = ""
             
@@ -318,4 +391,4 @@ class ResponseAggregatorProcessor(FrameProcessor):
             return
 
         # For all other frames not specifically handled above, pass them through.
-        await self.push_frame(frame, direction) 
+        await self.push_frame(frame, direction)

@@ -110,7 +110,6 @@ class FastAPISettings(SettingsBase):
 class QueueSettings(SettingsBase):
     """Queue configurations for async communication"""
     llm_message_queue_maxsize: int = Field(default=100, alias="LLM_MESSAGE_QUEUE_MAXSIZE")
-    raw_llm_output_queue_maxsize: int = Field(default=100, alias="RAW_LLM_OUTPUT_QUEUE_MAXSIZE")
     
 class LoggingSettings(SettingsBase):
     """Logging configurations"""
@@ -120,6 +119,24 @@ class LoggingSettings(SettingsBase):
         alias="LOG_FORMAT"
     )
     
+# --------------------------------------------------------------------------- #
+# Streaming-related settings (C1Component chunk streaming)                   #
+# --------------------------------------------------------------------------- #
+
+
+class StreamingSettings(SettingsBase):
+    """Settings for C1Component chunk streaming (always enabled)."""
+    c1_streaming_chunk_size: int = Field(
+        default=512,
+        alias="C1_STREAMING_CHUNK_SIZE",
+        description="Maximum JSON payload size (bytes) for each streamed chunk",
+    )
+    c1_streaming_chunk_delay: float = Field(
+        default=0.01,
+        alias="C1_STREAMING_CHUNK_DELAY",
+        description="Optional async sleep between chunk sends to smooth UI updates",
+    )
+
 # --------------------------------------------------------------------------- #
 @dataclass
 class AppConfig:
@@ -133,6 +150,7 @@ class AppConfig:
     fastapi: FastAPISettings
     queue: QueueSettings
     logging: LoggingSettings
+    streaming: "StreamingSettings"  # quotes for forward reference
 
 
 def load_config() -> AppConfig:
@@ -150,6 +168,7 @@ def load_config() -> AppConfig:
         fastapi_settings = FastAPISettings()
         queue_settings = QueueSettings()
         logging_settings = LoggingSettings()
+        streaming_settings = StreamingSettings()
         
         # Configure logging based on settings
         logging.basicConfig(
@@ -174,7 +193,8 @@ def load_config() -> AppConfig:
             thesys=thesys_settings,
             fastapi=fastapi_settings,
             queue=queue_settings,
-            logging=logging_settings
+            logging=logging_settings,
+            streaming=streaming_settings
         )
         
         logger.info("Configuration loaded successfully")

@@ -31,16 +31,19 @@ from app.config import config
 from app.queues import initialize_queues
 
 # Import route modules
-from app.routes.chat import router as chat_router, ws_router
+# from app.routes.chat import router as chat_router, ws_router
+from app.routes.chat import router as per_connection_router
 from app.webrtc import router as webrtc_router, close_all_connections, get_prebuilt_ui
 
-# Import visualization processor
-from app.vis_processor import create_visualization_processor
-
 # Import MCP client
-from src.mcp.enhanced_mcp_client import EnhancedMCPClient
+from agent.enhanced_mcp_client_agent import EnhancedMCPClient
 
+# Import chat history manager (shared across the whole backend)
+from app.chat_history_manager import chat_history_manager
 logger = logging.getLogger(__name__)
+
+# Removed global MCP client - now using per-connection MCP clients only
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -48,43 +51,22 @@ async def lifespan(app: FastAPI):
     Lifespan context manager for FastAPI application
     
     This handles:
-    1. Initialization of MCP client
-    2. Initialization of Thesys client (if API key available)
-    3. Initialization of queues
-    4. Starting the visualization processor
-    5. Cleanup on shutdown
+    1. Initialization of Thesys client (if API key available)
+    2. Initialization of queues
+    3. Lazy initialization of MCP client and visualization processor
+    4. Cleanup on shutdown
     
     Args:
         app: The FastAPI application
     """
-    # Initialize global state
-    app.state.enhanced_mcp_client = None
+    # Initialize global state (removed enhanced_mcp_client - using per-connection only)
     app.state.thesys_client = None
     app.state.visualization_processor = None
+    # Make chat history manager available everywhere via app.state
+    app.state.chat_history_manager = chat_history_manager
     
     # Initialize queues
     initialize_queues()
-    
-    # Initialize the MCP client
-    try:
-        logger.info("Initializing Enhanced MCP Client...")
-        enhanced_mcp_client = EnhancedMCPClient(config.mcp.mcp_config_path)
-        # Prevent startup from hanging forever if a remote MCP server is slow
-        MCP_INIT_TIMEOUT = int(os.getenv("MCP_INIT_TIMEOUT", "30"))  # seconds
-        try:
-            await asyncio.wait_for(enhanced_mcp_client.initialize(), timeout=MCP_INIT_TIMEOUT)
-        except asyncio.TimeoutError:
-            logger.error(
-                "Timed-out while initialising Enhanced MCP Client "
-                f"(>{MCP_INIT_TIMEOUT}s). Continuing without MCP."
-            )
-            enhanced_mcp_client = None
-        app.state.enhanced_mcp_client = enhanced_mcp_client
-        if enhanced_mcp_client:
-            logger.info("Enhanced MCP Client initialized successfully.")
-    except Exception as e:
-        logger.error(f"Failed to initialize MCP Client during startup: {e}", exc_info=True)
-        app.state.enhanced_mcp_client = None
     
     # Initialize Thesys Client if API key is available
     if config.api.thesys_api_key:
@@ -102,47 +84,42 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("THESYS_API_KEY not found. Visualization features will be disabled.")
     
-    # Start the visualization processor
-    if app.state.enhanced_mcp_client:
-        try:
-            logger.info("Starting Visualization Processor...")
-            visualization_processor = await create_visualization_processor(
-                enhanced_mcp_client=app.state.enhanced_mcp_client,
-                thesys_client=app.state.thesys_client
-            )
-            app.state.visualization_processor = visualization_processor
-            logger.info("Visualization Processor started successfully.")
-        except Exception as e:
-            logger.error(f"Failed to start Visualization Processor: {e}", exc_info=True)
+    # Start the visualization processor without global MCP client
+    try:
+        logger.info("Starting Visualization Processor (per-connection MCP only)...")
+        # visualization_processor = await create_visualization_processor(
+        #     enhanced_mcp_client=None,  # No global MCP client
+        #     thesys_client=app.state.thesys_client,
+        #     app_state=app.state
+        # )
+        app.state.visualization_processor = None #visualization_processor
+        logger.info("Visualization Processor started successfully (per-connection MCP only).")
+    except Exception as e:
+        logger.error(f"Failed to start Visualization Processor: {e}", exc_info=True)
+    
+    logger.info("Server startup complete - using per-connection MCP clients only")
     
     # Application runs here
     yield
     
     # Cleanup on shutdown
     
-    # Stop the visualization processor
-    if app.state.visualization_processor:
-        try:
-            logger.info("Stopping Visualization Processor...")
-            await app.state.visualization_processor.stop()
-            logger.info("Visualization Processor stopped successfully.")
-        except Exception as e:
-            logger.error(f"Failed to stop Visualization Processor: {e}", exc_info=True)
+    # Visualization processor removed - using per-connection processing only
     
-    # Close the MCP client
-    if app.state.enhanced_mcp_client:
-        try:
-            logger.info("Closing Enhanced MCP Client...")
-            await app.state.enhanced_mcp_client.close()
-            logger.info("Enhanced MCP Client closed successfully.")
-        except Exception as e:
-            logger.error(f"Failed to close MCP Client: {e}", exc_info=True)
+    # Global MCP client removed - per-connection clients are cleaned up automatically
     
     # Close all WebRTC connections
     try:
         await close_all_connections()
     except Exception as e:
         logger.error(f"Failed to close WebRTC connections: {e}", exc_info=True)
+
+    # Cleanup inactive chat threads
+    try:
+        removed = await chat_history_manager.cleanup_inactive_threads()
+        logger.info(f"Cleaned up {removed} inactive chat threads on shutdown.")
+    except Exception as e:
+        logger.error(f"Failed cleaning up chat history threads: {e}", exc_info=True)
 
 def create_application() -> FastAPI:
     """
@@ -169,8 +146,9 @@ def create_application() -> FastAPI:
     )
     
     # Include routers
-    app.include_router(chat_router)
-    app.include_router(ws_router)
+    # app.include_router(chat_router)
+    # app.include_router(ws_router)
+    app.include_router(per_connection_router)
     app.include_router(webrtc_router)
     
     # Mount prebuilt UI if available
@@ -190,61 +168,26 @@ def create_application() -> FastAPI:
         """Redirect root to health check"""
         return RedirectResponse(url="/health")
     
-    # Add MCP tools info endpoint
-    @app.get("/api/mcp/tools", tags=["mcp"])
-    async def list_mcp_tools(request: Request):
-        """List all available MCP tools from the enhanced client"""
-        tools_info = {
-            "enhanced_client": []
-        }
-        
-        # Get tools from enhanced client
-        if request.app.state.enhanced_mcp_client:
-            try:
-                enhanced_tools = request.app.state.enhanced_mcp_client.get_available_tools()
-                tools_info["enhanced_client"] = enhanced_tools
-            except Exception as e:
-                logger.error(f"Error getting enhanced tools: {e}")
-        
-        return tools_info
+    # ------------------------------------------------------------------ #
+    # Chat-history debugging / inspection endpoints (internal use only)
+    # ------------------------------------------------------------------ #
+
+    @app.get("/api/chat/threads", tags=["debug"])
+    async def list_threads():
+        """Return all active thread IDs (debug only)."""
+        return await chat_history_manager.get_all_threads()
+
+    @app.get("/api/chat/history/{thread_id}", tags=["debug"])
+    async def get_thread_history(thread_id: str, max_messages: int | None = None):
+        """
+        Return conversation history for a specific thread ID.
+        `max_messages` can limit the number of recent messages returned.
+        """
+        if max_messages:
+            return await chat_history_manager.get_recent_history(thread_id, max_messages=max_messages)
+        return await chat_history_manager.get_history(thread_id)
     
-    # Add MCP enhancement test endpoint
-    @app.post("/api/mcp/test-enhancement", tags=["mcp"])
-    async def test_enhancement_decision(request: Dict[str, Any], fastapi_req: Request):
-        """Test endpoint for the enhanced MCP decision making"""
-        enhanced_client = fastapi_req.app.state.enhanced_mcp_client
-        if not enhanced_client:
-            raise HTTPException(status_code=500, detail="Enhanced MCP Client not initialized.")
-        
-        assistant_response = request.get("assistant_response", "")
-        conversation_history = request.get("conversation_history", [])
-        
-        if not assistant_response:
-            raise HTTPException(status_code=400, detail="assistant_response is required")
-        
-        try:
-            logger.info(f"Testing enhancement decision for: {assistant_response[:100]}...")
-            
-            # Use the enhanced MCP client to make the decision
-            decision = await enhanced_client.make_enhancement_decision(
-                assistant_response=assistant_response,
-                conversation_history=conversation_history
-            )
-            
-            return {
-                "original_response": assistant_response,
-                "decision": {
-                    "displayEnhancement": decision.displayEnhancement,
-                    "displayEnhancedText": decision.displayEnhancedText,
-                    "voiceOverText": decision.voiceOverText
-                },
-                "available_tools": enhanced_client.get_available_tools()
-            }
-            
-        except Exception as e:
-            logger.error(f"Error testing enhancement decision: {e}", exc_info=True)
-            raise HTTPException(status_code=500, detail=f"Error testing enhancement: {str(e)}")
-    
+   
     return app
 
 def run():

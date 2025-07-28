@@ -24,7 +24,7 @@ from app.config import config
 # `from app.queues import …` copies the reference at import-time (when the
 # queues are still `None`) and breaks later runtime access.
 import app.queues as queues
-from app.vis_processor import register_voice_agent, unregister_voice_agent
+# Removed vis_processor imports - using per-connection processing only
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +43,7 @@ class WebRTCOffer(BaseModel):
     type: str
     pc_id: Optional[str] = None
     restart_pc: Optional[bool] = False
+    backend_connection_id: Optional[str] = None  # Backend WebSocket connection ID for message routing
 
 class WebRTCAnswer(BaseModel):
     """WebRTC answer response model"""
@@ -122,7 +123,13 @@ async def handle_offer(request: WebRTCOffer, background_tasks: BackgroundTasks, 
             # Note: This is a best-effort cleanup. The WeakSet will handle most cleanup automatically
             for agent in list(getattr(webrtc_connection, '_associated_agents', [])):
                 try:
-                    unregister_voice_agent(agent)
+                    # Legacy vis_processor registration removed - using per-connection only
+                    
+                    # Also try to unregister from connection manager if connection_id is available
+                    if hasattr(agent, 'connection_id') and agent.connection_id:
+                        from app.voice_manager import voice_manager
+                        await voice_manager.unregister_voice_agent(agent.connection_id)
+                    
                     logger.info(f"Unregistered voice agent on connection close")
                 except Exception as e:
                     logger.error(f"Error unregistering voice agent: {e}")
@@ -137,20 +144,28 @@ async def handle_offer(request: WebRTCOffer, background_tasks: BackgroundTasks, 
         )
         
         # Validate that queues are initialized before creating the agent
-        if queues.raw_llm_output_queue is None or queues.llm_message_queue is None:
+        if queues.llm_message_queue is None:
             logger.error("Queues not initialized - cannot create VoiceInterfaceAgent")
             raise RuntimeError("Voice processing not available - queues not initialized")
         
-        # Create and run the voice interface agent
+        # Create voice interface agent with backend connection ID (passed directly from frontend)
+        backend_connection_id = request.backend_connection_id
+        logger.info(f"Received backend connection ID: {backend_connection_id}")
+        
         agent = VoiceInterfaceAgent(
             pipecat_connection,
-            queues.raw_llm_output_queue,
             queues.llm_message_queue,
+            connection_id=backend_connection_id  # Direct backend connection ID - no mapping needed
         )
         
-        # Register the agent for TTS voice-over injection
-        register_voice_agent(agent)
-        logger.info(f"Registered voice agent for TTS voice-over injection")
+        # Legacy vis_processor registration removed - using per-connection only
+        
+        # Register with connection manager for proper message routing
+        if backend_connection_id:
+            await agent.register_with_connection_manager()
+            logger.info(f"Registered voice agent with connection manager for backend connection {backend_connection_id}")
+        else:
+            logger.warning("No backend connection ID available, voice message routing may not work properly")
         
         # Store reference for cleanup
         if not hasattr(pipecat_connection, '_associated_agents'):
