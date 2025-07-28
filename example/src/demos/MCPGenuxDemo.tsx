@@ -24,7 +24,7 @@ export default function MCPGenuxDemo() {
     llmModel: 'gpt-4o-mini'
   });
   
-  const [websocketUrl] = useState('ws://localhost:8000/ws/messages');
+  const [websocketUrl] = useState('ws://localhost:8000/ws/per-connection-messages');
   const [connectionKey, setConnectionKey] = useState(0); // Force Genux remount
   const [isConnected, setIsConnected] = useState(false);
   

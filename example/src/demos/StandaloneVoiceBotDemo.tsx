@@ -16,11 +16,53 @@ const StandaloneVoiceBotDemo: React.FC = () => {
   // Audio element for voice playback - this is the missing piece!
   const audioRef = useRef<HTMLAudioElement>(null);
   
-  // Initialize real GenUX client with backend connections
+  // Initialize real GeUI client with per-connection backend
   const client = useGeUIClient({
     webrtcURL: '/api/offer',
-    websocketURL: '/ws/messages',
-    autoConnect: true
+    websocketURL: `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.hostname}:8000/ws/per-connection-messages`,
+    autoConnect: true,
+    // Per-connection configuration for voice demo
+    onWebSocketConnect: (ws: WebSocket) => {
+      console.log('[StandaloneVoiceBot] WebSocket connected, sending config');
+      
+      const messageHandler = (event: MessageEvent) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'connection_established') {
+            console.log('[StandaloneVoiceBot] Sending voice-optimized configuration');
+            
+            const configMessage = {
+              type: 'connection_config',
+              config: {
+                client_id: "standalone-voice-demo",
+                mcp_config: {
+                  model: "gpt-4o-mini",
+                  api_key_env: "OPENAI_API_KEY",
+                  servers: []
+                },
+                visualization_provider: {
+                  provider_type: "thesys",
+                  model: "c1-nightly",
+                  api_key_env: "THESYS_API_KEY"
+                },
+                preferences: {
+                  ui_framework: "c1", // Framework-aware voice responses
+                  theme: "default"
+                }
+              }
+            };
+            
+            ws.send(JSON.stringify(configMessage));
+            ws.removeEventListener('message', messageHandler);
+          }
+        } catch (e) {
+          console.error('[StandaloneVoiceBot] Error:', e);
+        }
+      };
+      
+      ws.addEventListener('message', messageHandler);
+      return () => ws.removeEventListener('message', messageHandler);
+    }
   });
 
   // Apply audio stream to audio element when available - same as Genux component
@@ -297,8 +339,28 @@ const MyVoiceApp = () => {
   
   const client = useGeUIClient({
     webrtcURL: '/api/offer',
-    websocketURL: '/ws/messages',
-    autoConnect: true
+    websocketURL: '/ws/per-connection-messages', // Per-connection endpoint
+    autoConnect: true,
+    // Auto-configuration for per-connection setup
+    onWebSocketConnect: (ws: WebSocket) => {
+      const handler = (event: MessageEvent) => {
+        const data = JSON.parse(event.data);
+        if (data.type === 'connection_established') {
+          ws.send(JSON.stringify({
+            type: 'connection_config',
+            config: {
+              client_id: "voice-app",
+              mcp_config: { model: "gpt-4o-mini", api_key_env: "OPENAI_API_KEY", servers: [] },
+              visualization_provider: { provider_type: "thesys", model: "c1-nightly", api_key_env: "THESYS_API_KEY" },
+              preferences: { ui_framework: "c1", theme: "default" }
+            }
+          }));
+          ws.removeEventListener('message', handler);
+        }
+      };
+      ws.addEventListener('message', handler);
+      return () => ws.removeEventListener('message', handler);
+    }
   });
 
   // CRITICAL: Connect audio stream to audio element for playback

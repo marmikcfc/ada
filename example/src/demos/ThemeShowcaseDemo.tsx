@@ -355,7 +355,7 @@ const myTheme = createTheme({
         {/* Full Immersive Experience */}
         <GeUI
           webrtcURL="ws://localhost:8000/api/offer"
-          websocketURL="ws://localhost:8000/ws/messages"
+          websocketURL="ws://localhost:8000/ws/per-connection-messages"
           bubbleEnabled={false}
           allowFullScreen={false}
           disableVoice={false}
@@ -740,7 +740,7 @@ const myTheme = createTheme({
             }}>
               <GeUI
                 webrtcURL="ws://localhost:8000/api/offer"
-                websocketURL="ws://localhost:8000/ws/messages"
+                websocketURL="ws://localhost:8000/ws/per-connection-messages"
                 bubbleEnabled={false}
                 allowFullScreen={false}
                 disableVoice={false}
@@ -792,7 +792,7 @@ const myTheme = createTheme({
             
             <GeUI
               webrtcURL="ws://localhost:8000/api/offer"
-              websocketURL="ws://localhost:8000/ws/messages"
+              websocketURL="ws://localhost:8000/ws/per-connection-messages"
               bubbleEnabled={true}
               allowFullScreen={true}
               disableVoice={false}
@@ -857,7 +857,7 @@ const customCrayonTheme = toCrayonTheme(customTheme);
 
 <GeUI
   webrtcURL="/api/offer"
-  websocketURL="/ws/messages"
+  websocketURL="/ws/per-connection-messages"
   ${useFullscreen ? 'bubbleEnabled={false}' : 'bubbleEnabled={true}'}
   options={{
     theme: customTheme,
@@ -867,7 +867,7 @@ const customCrayonTheme = toCrayonTheme(customTheme);
 />` : selectedTheme.name.includes('Comprehensive') ? `// Use comprehensive theme with full token coverage
 <GeUI
   webrtcURL="/api/offer"
-  websocketURL="/ws/messages"
+  websocketURL="/ws/per-connection-messages"
   ${useFullscreen ? 'bubbleEnabled={false}' : 'bubbleEnabled={true}'}
   options={{
     theme: ${selectedTheme.name.toLowerCase().replace(' ', '')},
@@ -883,7 +883,7 @@ const customCrayonTheme = toCrayonTheme(customTheme);
 />` : `// Use legacy theme (backwards compatibility)
 <GeUI
   webrtcURL="/api/offer"
-  websocketURL="/ws/messages"
+  websocketURL="/ws/per-connection-messages"
   ${useFullscreen ? 'bubbleEnabled={false}' : 'bubbleEnabled={true}'}
   options={{
     theme: ${selectedTheme.name.toLowerCase().replace(' ', '')},

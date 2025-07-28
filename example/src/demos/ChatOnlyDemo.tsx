@@ -1,5 +1,5 @@
 import React from 'react';
-import GeUI from '../../../packages/geui-sdk/src/components/GeUI';
+import { ConfigurableGeUIClient } from '../ConfigurableGeUIClient';
 
 /**
  * Demo 2: Chat-Only Bot Usage
@@ -155,7 +155,7 @@ const ChatOnlyDemo: React.FC = () => {
 {`// True chat-only interface - no voice features
 <GeUI
   webrtcURL="/api/offer"
-  websocketURL="/ws/messages"
+  websocketURL="/ws/per-connection-messages"
   bubbleEnabled={false}  // Embeds directly in your layout
   disableVoice={true}    // Removes all voice UI and functionality
   options={{
@@ -173,15 +173,32 @@ const ChatOnlyDemo: React.FC = () => {
 
             {/* Chat Interface */}
             <div style={{ flex: 1 }}>
-              <GeUI
-                webrtcURL="/api/offer"
-                websocketURL="/ws/messages"
+              <ConfigurableGeUIClient
+                clientId="chat-only-help"
+                connectionConfig={{
+                  client_id: "chat-only-help",
+                  mcp_config: {
+                    model: "gpt-4o-mini",
+                    api_key_env: "OPENAI_API_KEY",
+                    servers: []
+                  },
+                  visualization_provider: {
+                    provider_type: "openai", // Framework-aware: Using OpenAI for HTML generation
+                    model: "gpt-4o-mini",
+                    api_key_env: "OPENAI_API_KEY"
+                  },
+                  preferences: {
+                    ui_framework: "tailwind", // Framework-aware: Clean Tailwind styling for help center
+                    theme: "light"
+                  }
+                }}
                 bubbleEnabled={false}
                 disableVoice={true}
                 options={{
                   agentName: "Help Assistant",
                   agentSubtitle: "I can help you with platform questions, troubleshooting, and more",
                   logoUrl: "/ada-chat-icon.svg",
+                  welcomeMessage: "Hi! I'm your help assistant. I can answer questions about our platform, troubleshoot issues, and help you get started. My responses use clean Tailwind CSS styling for a consistent help center experience.",
                   theme: {
                     colors: {
                       primary: "#3b82f6",

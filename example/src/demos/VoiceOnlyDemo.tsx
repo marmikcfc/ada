@@ -1,5 +1,5 @@
 import React from 'react';
-import GeUI from '../../../packages/geui-sdk/src/components/GeUI';
+import { ConfigurableGeUIClient } from '../ConfigurableGeUIClient';
 import type { VoiceBotUIProps } from '../../../packages/geui-sdk/src/types';
 
 /**
@@ -206,9 +206,25 @@ const VoiceOnlyDemo: React.FC = () => {
       left: 0,
       zIndex: 1000
     }}>
-      <GeUI
-        webrtcURL="/api/offer"
-        websocketURL="/ws/messages"
+      <ConfigurableGeUIClient
+        clientId="voice-only-pro"
+        connectionConfig={{
+          client_id: "voice-only-pro",
+          mcp_config: {
+            model: "gpt-4o-mini",
+            api_key_env: "OPENAI_API_KEY",
+            servers: []
+          },
+          visualization_provider: {
+            provider_type: "thesys",
+            model: "c1-nightly",
+            api_key_env: "THESYS_API_KEY"
+          },
+          preferences: {
+            ui_framework: "c1", // Framework-aware: C1 components for voice responses
+            theme: "default"
+          }
+        }}
         bubbleEnabled={false}  // Show fullscreen directly
         options={{
           agentName: "VoiceBot Pro",

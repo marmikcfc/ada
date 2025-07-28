@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import GeUI from '../../../packages/geui-sdk/src/components/GeUI';
+import { ConfigurableGeUIClient } from '../ConfigurableGeUIClient';
 
 /**
  * Demo: UI Framework Support Testing
@@ -9,7 +9,7 @@ import GeUI from '../../../packages/geui-sdk/src/components/GeUI';
  * automatic interaction handling.
  */
 const UIFrameworkDemo: React.FC = () => {
-  const [selectedFramework, setSelectedFramework] = useState<'inline' | 'tailwind' | 'chakra'>('inline');
+  const [selectedFramework, setSelectedFramework] = useState<'tailwind' | 'shadcn' | 'c1'>('tailwind');
 
   // Custom interaction handlers for testing
   const handleFormSubmit = (formId: string, formData: FormData) => {
@@ -65,7 +65,7 @@ const UIFrameworkDemo: React.FC = () => {
         <div style={{ marginBottom: '24px' }}>
           <h3 style={{ margin: '0 0 16px 0', fontSize: '16px' }}>Framework Selection</h3>
           
-          {(['inline', 'tailwind', 'chakra'] as const).map((framework) => (
+          {(['tailwind', 'shadcn', 'c1'] as const).map((framework) => (
             <label key={framework} style={{
               display: 'block',
               margin: '8px 0',
@@ -158,10 +158,10 @@ onInputChange: ✓ enabled`}
           </div>
           <div style={{
             padding: '8px 16px',
-            backgroundColor: selectedFramework === 'inline' ? '#dbeafe' : 
-                           selectedFramework === 'tailwind' ? '#ecfdf5' : '#fef3c7',
-            color: selectedFramework === 'inline' ? '#1e40af' : 
-                   selectedFramework === 'tailwind' ? '#065f46' : '#92400e',
+            backgroundColor: selectedFramework === 'tailwind' ? '#ecfdf5' : 
+                           selectedFramework === 'shadcn' ? '#fef3c7' : '#dbeafe',
+            color: selectedFramework === 'tailwind' ? '#065f46' : 
+                   selectedFramework === 'shadcn' ? '#92400e' : '#1e40af',
             borderRadius: '20px',
             fontSize: '14px',
             fontWeight: '500'
@@ -189,18 +189,7 @@ onInputChange: ✓ enabled`}
             overflow: 'auto',
             maxHeight: '200px'
           }}>
-{selectedFramework === 'inline' ? `<!-- Inline Styles Example -->
-<div style="max-width: 400px; margin: 20px auto; padding: 24px; background: white; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);">
-  <h2 style="margin: 0 0 16px 0; color: #1f2937;">User Preferences</h2>
-  <form id="user-prefs" style="display: flex; flex-direction: column; gap: 16px;">
-    <div>
-      <label style="display: block; margin-bottom: 4px; font-weight: 500; color: #374151;">Email</label>
-      <input type="email" name="email" style="width: 100%; padding: 8px 12px; border: 1px solid #d1d5db; border-radius: 6px;" placeholder="you@example.com" />
-    </div>
-    <button type="submit" onclick="window.genuxSDK.handleFormSubmit(event, 'user-prefs')" style="background: #3b82f6; color: white; padding: 12px; border: none; border-radius: 6px; cursor: pointer;">Save Preferences</button>
-  </form>
-</div>` :
-selectedFramework === 'tailwind' ? `<!-- Tailwind CSS Example -->
+{selectedFramework === 'tailwind' ? `<!-- Tailwind CSS Example -->
 <div class="max-w-md mx-auto bg-white rounded-xl shadow-md p-6 m-4">
   <h2 class="text-2xl font-bold text-gray-900 mb-4">User Preferences</h2>
   <form id="user-prefs" class="space-y-4">
@@ -210,17 +199,88 @@ selectedFramework === 'tailwind' ? `<!-- Tailwind CSS Example -->
     </div>
     <button type="submit" onclick="window.genuxSDK.handleFormSubmit(event, 'user-prefs')" class="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 transition-colors">Save Preferences</button>
   </form>
-</div>` : `<!-- Chakra UI Example -->
-<div data-chakra-component="Box" style="max-width: 400px; margin: 20px auto; background: white; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); padding: 24px;">
-  <h2 data-chakra-component="Heading" style="font-size: 24px; font-weight: bold; color: #1a202c; margin-bottom: 16px;">User Preferences</h2>
-  <form id="user-prefs" style="display: flex; flex-direction: column; gap: 16px;">
-    <div data-chakra-component="FormControl">
-      <label data-chakra-component="FormLabel" style="font-size: 14px; font-weight: 500; color: #4a5568; margin-bottom: 4px; display: block;">Email Address</label>
-      <input type="email" name="email" data-chakra-component="Input" style="width: 100%; padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px;" placeholder="you@example.com" />
+</div>` :
+selectedFramework === 'shadcn' ? `<!-- ShadCN UI Example -->
+<div class="mx-auto max-w-sm space-y-6 rounded-lg border bg-card p-6 text-card-foreground shadow-sm">
+  <div class="space-y-2">
+    <h2 class="text-2xl font-semibold tracking-tight">User Preferences</h2>
+    <p class="text-sm text-muted-foreground">Update your account settings</p>
+  </div>
+  <form id="user-prefs" class="space-y-4">
+    <div class="space-y-2">
+      <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">Email Address</label>
+      <input type="email" name="email" class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" placeholder="you@example.com" />
     </div>
-    <button type="submit" data-chakra-component="Button" onclick="window.genuxSDK.handleFormSubmit(event, 'user-prefs')" style="width: 100%; background: #3182ce; color: white; padding: 8px 16px; border-radius: 6px; border: none; cursor: pointer;">Save Preferences</button>
+    <button type="submit" onclick="window.genuxSDK.handleFormSubmit(event, 'user-prefs')" class="inline-flex h-10 w-full items-center justify-center rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground ring-offset-background transition-colors hover:bg-primary/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50">Save Preferences</button>
   </form>
-</div>`}
+</div>` : `<!-- C1 Component Example -->
+<content>
+{
+  "component": "Card",
+  "props": {
+    "className": "max-w-md mx-auto",
+    "children": [
+      {
+        "component": "CardHeader",
+        "props": {
+          "children": [
+            {
+              "component": "CardTitle",
+              "props": { "text": "User Preferences" }
+            },
+            {
+              "component": "CardDescription", 
+              "props": { "text": "Update your account settings below" }
+            }
+          ]
+        }
+      },
+      {
+        "component": "CardContent",
+        "props": {
+          "children": [
+            {
+              "component": "Form",
+              "props": {
+                "id": "user-prefs",
+                "onSubmit": "handleFormSubmit",
+                "children": [
+                  {
+                    "component": "FormField",
+                    "props": {
+                      "label": "Email Address",
+                      "children": [
+                        {
+                          "component": "Input",
+                          "props": {
+                            "type": "email",
+                            "name": "email",
+                            "placeholder": "you@example.com",
+                            "required": true
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "component": "Button",
+                    "props": {
+                      "type": "submit",
+                      "text": "Save Preferences",
+                      "variant": "default",
+                      "className": "w-full"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      }
+    ]
+  }
+}
+</content>`}
           </pre>
         </div>
 
@@ -233,15 +293,36 @@ selectedFramework === 'tailwind' ? `<!-- Tailwind CSS Example -->
             height: '100%',
             overflow: 'hidden'
           }}>
-            <GeUI
-              webrtcURL="/api/offer"
-              websocketURL="/ws/messages"
+            <ConfigurableGeUIClient
+              key={selectedFramework} // Force re-render when framework changes
+              clientId={`ui-framework-${selectedFramework}`}
+              connectionConfig={{
+                client_id: `ui-framework-${selectedFramework}`,
+                mcp_config: {
+                  model: "gpt-4o-mini",
+                  api_key_env: "OPENAI_API_KEY",
+                  servers: []
+                },
+                visualization_provider: selectedFramework === 'c1' ? {
+                  provider_type: "thesys", // C1 components for rich interactivity
+                  model: "c1-nightly",
+                  api_key_env: "THESYS_API_KEY"
+                } : {
+                  provider_type: "openai", // HTML generation for framework-specific styling
+                  model: "gpt-4o-mini",
+                  api_key_env: "OPENAI_API_KEY"
+                },
+                preferences: {
+                  ui_framework: selectedFramework, // Framework-aware: Dynamic framework selection
+                  theme: "default"
+                }
+              }}
               bubbleEnabled={false}
               disableVoice={true}
               options={{
                 agentName: "UI Framework Assistant",
-                agentSubtitle: `Testing ${selectedFramework} framework support`,
-                uiFramework: selectedFramework,
+                agentSubtitle: `Testing ${selectedFramework} framework support with your framework detection system`,
+                welcomeMessage: `Hi! I'm configured to generate ${selectedFramework === 'c1' ? 'C1 Components' : selectedFramework + ' HTML'} content. Try asking me to create forms, tables, dashboards, or interactive components to see framework-specific styling and your framework detection in action!`,
                 onFormSubmit: handleFormSubmit,
                 onButtonClick: handleButtonClick,
                 onInputChange: handleInputChange,

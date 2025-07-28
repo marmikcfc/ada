@@ -1,5 +1,5 @@
 import React from 'react';
-import GeUI from '../../../packages/geui-sdk/src/components/GeUI';
+import { ConfigurableGeUIClient } from '../ConfigurableGeUIClient';
 
 /**
  * Demo 1: Simple Widget Import for SaaS Onboarding
@@ -141,12 +141,28 @@ const SaaSOnboardingDemo: React.FC = () => {
             fontSize: '14px',
             color: '#334155'
           }}>
-{`// Complete SaaS onboarding widget with fullscreen support
-import GeUI from 'geui-sdk';
+{`// Complete SaaS onboarding widget with per-connection architecture
+import { ConfigurableGeUIClient } from './ConfigurableGeUIClient';
 
-<GeUI
-  webrtcURL="/api/offer"
-  websocketURL="/ws/messages"
+<ConfigurableGeUIClient
+  clientId="saas-onboarding"
+  connectionConfig={{
+    client_id: "saas-onboarding",
+    mcp_config: {
+      model: "gpt-4o-mini",
+      api_key_env: "OPENAI_API_KEY",
+      servers: [] // Simple setup
+    },
+    visualization_provider: {
+      provider_type: "thesys", // Rich C1 components
+      model: "c1-nightly",
+      api_key_env: "THESYS_API_KEY"
+    },
+    preferences: {
+      ui_framework: "c1", // Framework-aware
+      theme: "default"
+    }
+  }}
   bubbleEnabled={true}
   allowFullScreen={true}  // Enables immersive support mode
   options={{
@@ -201,10 +217,26 @@ import GeUI from 'geui-sdk';
         </div>
       </div>
 
-      {/* The actual Genux widget - minimal configuration */}
-      <GeUI
-        webrtcURL="/api/offer"
-        websocketURL="/ws/messages"
+      {/* The actual GeUI widget - now with per-connection architecture */}
+      <ConfigurableGeUIClient
+        clientId="saas-onboarding"
+        connectionConfig={{
+          client_id: "saas-onboarding",
+          mcp_config: {
+            model: "gpt-4o-mini",
+            api_key_env: "OPENAI_API_KEY",
+            servers: [] // Simple setup with no additional MCP servers
+          },
+          visualization_provider: {
+            provider_type: "thesys",
+            model: "c1-nightly", 
+            api_key_env: "THESYS_API_KEY"
+          },
+          preferences: {
+            ui_framework: "c1", // Framework-aware: using C1 components for rich UI
+            theme: "default"
+          }
+        }}
         bubbleEnabled={true}
         allowFullScreen={true}
         options={{
@@ -219,6 +251,7 @@ import GeUI from 'geui-sdk';
           startCallButtonText: "🎤 Talk to Support",
           endCallButtonText: "🔇 End Call",
           connectingText: "Connecting to support...",
+          welcomeMessage: "Welcome! I'm your support assistant. I can help with onboarding, integrations, analytics, and team management using rich interactive components.",
           theme: {
             colors: {
               primary: "#667eea",

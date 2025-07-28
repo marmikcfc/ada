@@ -22,7 +22,7 @@ const MCPConnectionDemo: React.FC = () => {
   // Use Genux SDK with MCP support
   const genuxClient = useGeUIClient({
     webrtcURL: '/api/offer',
-    websocketURL: '/ws/messages',
+    websocketURL: '/ws/per-connection-messages',
     autoConnect: true // Auto-connect immediately
   });
 
@@ -606,7 +606,7 @@ const handleWebSocketMessage = (message) => {
 
 // 4. Integration with GenUX SDK
 <GeUI
-  websocketURL="/ws/messages"
+  websocketURL="/ws/per-connection-messages"
   bubbleEnabled={false}
   disableVoice={true}
   options={{

@@ -379,7 +379,7 @@ const CustomUIDemo: React.FC = () => {
 {`// Custom component overrides
 <GeUI
   webrtcURL="/api/offer"
-  websocketURL="/ws/messages"
+  websocketURL="/ws/per-connection-messages"
   bubbleEnabled={false}
   options={{
     components: {
@@ -424,7 +424,7 @@ const CustomUIDemo: React.FC = () => {
               <div style={{ height: 'calc(100% - 88px)' }}>
                 <GeUI
                   webrtcURL="/api/offer"
-                  websocketURL="/ws/messages"
+                  websocketURL="/ws/per-connection-messages"
                   bubbleEnabled={false}
                   options={{
                     components: {

@@ -107,7 +107,7 @@ export const FlexibleContentDemo = () => {
 
   // Mock WebSocket URL (won't actually connect in demo)
   const mockWebrtcURL = '/api/offer';
-  const mockWebsocketURL = 'wss://example.com/ws/messages';
+  const mockWebsocketURL = 'wss://example.com/ws/per-connection-messages';
 
   return (
     <div style={{ height: '100vh', background: '#f9fafb' }}>

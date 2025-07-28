@@ -222,7 +222,7 @@ const TailwindCSSDemo: React.FC = () => {
           <div className="h-full bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
             <GeUI
               webrtcURL="/api/offer"
-              websocketURL="/ws/messages"
+              websocketURL="/ws/per-connection-messages"
               bubbleEnabled={false}
               disableVoice={true}
               options={{

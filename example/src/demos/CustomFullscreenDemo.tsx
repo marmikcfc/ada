@@ -319,7 +319,7 @@ const CustomFullscreenDemo: React.FC = () => {
     }}>
       <GeUI
         webrtcURL="/api/offer"
-        websocketURL="/ws/messages"
+        websocketURL="/ws/per-connection-messages"
         bubbleEnabled={false}  // Show fullscreen directly
         options={{
           agentName: "CustomBot Pro",

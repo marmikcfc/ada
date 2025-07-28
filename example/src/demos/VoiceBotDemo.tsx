@@ -1,5 +1,5 @@
 import React from 'react';
-import GeUI from '../../../packages/geui-sdk/src/components/GeUI';
+import { ConfigurableGeUIClient } from '../ConfigurableGeUIClient';
 import { ChatWindow } from '../../../packages/geui-sdk/src/components/composite/ChatWindow';
 
 /**
@@ -118,12 +118,27 @@ const VoiceBotDemo: React.FC = () => {
           overflow: 'auto',
           lineHeight: '1.6'
         }}>
-{`// Voice-focused configuration with fullscreen mode
-<GeUI
-  webrtcURL="/api/offer"
-  websocketURL="/ws/messages"
-  bubbleEnabled={true}
-  allowFullScreen={true}  // Enables immersive voice mode
+{`// Voice-focused configuration with per-connection architecture
+<ConfigurableGeUIClient
+  clientId="voice-assistant"
+  connectionConfig={{
+    client_id: "voice-assistant",
+    mcp_config: {
+      model: "gpt-4o-mini",
+      api_key_env: "OPENAI_API_KEY",
+      servers: []
+    },
+    visualization_provider: {
+      provider_type: "thesys",
+      model: "c1-nightly",
+      api_key_env: "THESYS_API_KEY"
+    },
+    preferences: {
+      ui_framework: "c1", // Framework-aware voice responses
+      theme: "default"
+    }
+  }}
+  bubbleEnabled={false}  // Direct fullscreen experience
   options={{
     agentName: "Voice Assistant",
     agentSubtitle: "Speak naturally, I'm listening",
@@ -192,10 +207,26 @@ const VoiceBotDemo: React.FC = () => {
         </ul>
       </div>
 
-      {/* The actual Genux widget - now shows fullscreen voice experience directly */}
-      <GeUI
-        webrtcURL="/api/offer"
-        websocketURL="/ws/messages"
+      {/* The actual ConfigurableGeUIClient widget - now shows fullscreen voice experience directly */}
+      <ConfigurableGeUIClient
+        clientId="voice-assistant-demo"
+        connectionConfig={{
+          client_id: "voice-assistant-demo",
+          mcp_config: {
+            model: "gpt-4o-mini",
+            api_key_env: "OPENAI_API_KEY",
+            servers: []
+          },
+          visualization_provider: {
+            provider_type: "thesys",
+            model: "c1-nightly",
+            api_key_env: "THESYS_API_KEY"
+          },
+          preferences: {
+            ui_framework: "c1", // Framework-aware: Rich C1 components for voice responses
+            theme: "default"
+          }
+        }}
         bubbleEnabled={false}  // This now defaults to fullscreen voice experience!
         options={{
           agentName: "Voice Assistant",
