@@ -6,7 +6,7 @@ import CustomFullscreenDemo from './demos/CustomFullscreenDemo';
 import VoiceOnlyDemo from './demos/VoiceOnlyDemo';
 import ThemeShowcaseDemo from './demos/ThemeShowcaseDemo';
 import UIFrameworkDemo from './demos/UIFrameworkDemo';
-import PerConnectionDemo from './demos/PerConnectionDemo';
+import ConfigurableDemo from './demos/ConfigurableDemo';
 
 /**
  * Demo Router Component
@@ -15,7 +15,7 @@ import PerConnectionDemo from './demos/PerConnectionDemo';
  * the GenUX SDK's capabilities for different scenarios.
  */
 
-type DemoType = 'saas' | 'chat' | 'standalone' | 'customfullscreen' | 'voiceonly' | 'themes' | 'uiframework' | 'perconnection';
+type DemoType = 'saas' | 'chat' | 'standalone' | 'customfullscreen' | 'voiceonly' | 'themes' | 'uiframework' | 'configurable';
 
 interface Demo {
   id: DemoType;
@@ -84,12 +84,12 @@ const demos: Demo[] = [
     component: UIFrameworkDemo
   },
   {
-    id: 'perconnection',
-    title: 'Per-Connection Multi-Tenant',
+    id: 'configurable',
+    title: 'Configurable Multi-Tenant',
     description: 'Scalable multi-tenant architecture with framework selection, AI models, and MCP tools per connection',
     icon: '🏢',
     status: 'supported',
-    component: PerConnectionDemo
+    component: ConfigurableDemo
   }
 ];
 

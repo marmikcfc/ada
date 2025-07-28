@@ -45,7 +45,7 @@ const DEFAULT_CONFIGS = {
   }
 };
 
-export default function PerConnectionDemo() {
+export default function ConfigurableDemo() {
   const [selectedConfig, setSelectedConfig] = useState<'perplexity' | 'weather'>('perplexity');
   const [isConnected, setIsConnected] = useState(false);
   const [connectionState, setConnectionState] = useState<string>('');
@@ -181,10 +181,10 @@ export default function PerConnectionDemo() {
       <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
         <div style={cardStyle}>
           <h1 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '8px' }}>
-            Per-Connection Configuration Demo
+            Configurable Connection Demo
           </h1>
           <p style={{ color: '#6b7280', marginBottom: '24px' }}>
-            Demonstrates the per-connection WebSocket endpoint (/ws/per-connection-messages) with custom MCP configurations
+            Demonstrates configurable WebSocket connections with custom MCP configurations and visualization providers
           </p>
 
           {!isConnected ? (
