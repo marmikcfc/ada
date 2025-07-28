@@ -262,15 +262,10 @@ class VisualizationProcessor:
 
                 logger.info(f"Visualization processor: Original voice response length: {len(assistant_response)} chars")
 
-                # Ensure MCP client is available (lazy initialization)
-                if not self.enhanced_mcp_client and self.app_state:
-                    logger.info("Visualization processor: MCP client not initialized, attempting lazy initialization...")
-                    # Import here to avoid circular import
-                    from app.server import get_or_create_mcp_client
-                    self.enhanced_mcp_client = await get_or_create_mcp_client(self.app_state)
-                    
+                # Global MCP client removed - using per-connection MCP clients only
+                # This processor now handles responses without global MCP enhancement
                 if not self.enhanced_mcp_client:
-                    logger.error("Visualization processor: MCP client not available - skipping enhancement")
+                    logger.info("Visualization processor: No global MCP client - per-connection processing handles enhancement")
                     # Send simple text response without enhancement
                     source = metadata.get("source", "voice-agent")
                     if source == "text_chat":

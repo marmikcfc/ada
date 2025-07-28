@@ -45,56 +45,7 @@ from agent.enhanced_mcp_client_agent import EnhancedMCPClient
 from app.chat_history_manager import chat_history_manager
 logger = logging.getLogger(__name__)
 
-async def get_or_create_mcp_client(app_state):
-    """
-    Get existing MCP client or create new one if needed (lazy initialization)
-    
-    Args:
-        app_state: The FastAPI app state object
-        
-    Returns:
-        EnhancedMCPClient instance or None if initialization fails
-    """
-    if app_state.enhanced_mcp_client is not None:
-        return app_state.enhanced_mcp_client
-    
-    # Initialize the MCP client lazily
-    try:
-        logger.info("Lazy initializing Enhanced MCP Client...")
-        enhanced_mcp_client = EnhancedMCPClient(config.mcp.mcp_config_path)
-        # Prevent hanging forever if a remote MCP server is slow
-        MCP_INIT_TIMEOUT = int(os.getenv("MCP_INIT_TIMEOUT", "30"))  # seconds
-        try:
-            await asyncio.wait_for(enhanced_mcp_client.initialize(), timeout=MCP_INIT_TIMEOUT)
-        except asyncio.TimeoutError:
-            logger.error(
-                "Timed-out while initialising Enhanced MCP Client "
-                f"(>{MCP_INIT_TIMEOUT}s). Continuing without MCP."
-            )
-            enhanced_mcp_client = None
-        app_state.enhanced_mcp_client = enhanced_mcp_client
-        if enhanced_mcp_client:
-            logger.info("Enhanced MCP Client initialized successfully.")
-            
-            # Start the visualization processor now that MCP client is available
-            if not getattr(app_state, 'visualization_processor', None):
-                try:
-                    logger.info("Starting Visualization Processor...")
-                    visualization_processor = await create_visualization_processor(
-                        enhanced_mcp_client=enhanced_mcp_client,
-                        thesys_client=getattr(app_state, 'thesys_client', None),
-                        app_state=app_state
-                    )
-                    app_state.visualization_processor = visualization_processor
-                    logger.info("Visualization Processor started successfully.")
-                except Exception as e:
-                    logger.error(f"Failed to start Visualization Processor: {e}", exc_info=True)
-                    
-        return enhanced_mcp_client
-    except Exception as e:
-        logger.error(f"Failed to initialize MCP Client: {e}", exc_info=True)
-        app_state.enhanced_mcp_client = None
-        return None
+# Removed global MCP client - now using per-connection MCP clients only
 
 
 @asynccontextmanager
@@ -111,8 +62,7 @@ async def lifespan(app: FastAPI):
     Args:
         app: The FastAPI application
     """
-    # Initialize global state
-    app.state.enhanced_mcp_client = None
+    # Initialize global state (removed enhanced_mcp_client - using per-connection only)
     app.state.thesys_client = None
     app.state.visualization_processor = None
     # Make chat history manager available everywhere via app.state
@@ -137,21 +87,20 @@ async def lifespan(app: FastAPI):
     else:
         logger.warning("THESYS_API_KEY not found. Visualization features will be disabled.")
     
-    # Start the visualization processor immediately with app_state for lazy MCP initialization
+    # Start the visualization processor without global MCP client
     try:
-        logger.info("Starting Visualization Processor with lazy MCP client initialization...")
+        logger.info("Starting Visualization Processor (per-connection MCP only)...")
         visualization_processor = await create_visualization_processor(
-            enhanced_mcp_client=None,  # Will be initialized lazily
+            enhanced_mcp_client=None,  # No global MCP client
             thesys_client=app.state.thesys_client,
             app_state=app.state
         )
         app.state.visualization_processor = visualization_processor
-        logger.info("Visualization Processor started successfully with lazy initialization.")
+        logger.info("Visualization Processor started successfully (per-connection MCP only).")
     except Exception as e:
         logger.error(f"Failed to start Visualization Processor: {e}", exc_info=True)
     
-    # Note: MCP client will be initialized lazily when first needed
-    logger.info("Server startup complete - MCP client will be initialized on first use")
+    logger.info("Server startup complete - using per-connection MCP clients only")
     
     # Application runs here
     yield
@@ -167,14 +116,7 @@ async def lifespan(app: FastAPI):
         except Exception as e:
             logger.error(f"Failed to stop Visualization Processor: {e}", exc_info=True)
     
-    # Close the MCP client
-    if app.state.enhanced_mcp_client:
-        try:
-            logger.info("Closing Enhanced MCP Client...")
-            await app.state.enhanced_mcp_client.close()
-            logger.info("Enhanced MCP Client closed successfully.")
-        except Exception as e:
-            logger.error(f"Failed to close MCP Client: {e}", exc_info=True)
+    # Global MCP client removed - per-connection clients are cleaned up automatically
     
     # Close all WebRTC connections
     try:
@@ -239,21 +181,12 @@ def create_application() -> FastAPI:
     # Add MCP tools info endpoint
     @app.get("/api/mcp/tools", tags=["mcp"])
     async def list_mcp_tools(request: Request):
-        """List all available MCP tools from the enhanced client"""
-        tools_info = {
-            "enhanced_client": []
+        """List MCP tools info - now using per-connection MCP clients only"""
+        return {
+            "message": "MCP tools are now per-connection. Use /connections/{connection_id} to see tools for specific connections.",
+            "global_mcp": "disabled",
+            "per_connection_mcp": "enabled"
         }
-        
-        # Get tools from enhanced client (with lazy initialization)
-        try:
-            enhanced_mcp_client = await get_or_create_mcp_client(request.app.state)
-            if enhanced_mcp_client:
-                enhanced_tools = enhanced_mcp_client.get_available_tools()
-                tools_info["enhanced_client"] = enhanced_tools
-        except Exception as e:
-            logger.error(f"Error getting enhanced tools: {e}")
-        
-        return tools_info
 
     # ------------------------------------------------------------------ #
     # Chat-history debugging / inspection endpoints (internal use only)
