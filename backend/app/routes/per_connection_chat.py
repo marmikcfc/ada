@@ -154,6 +154,7 @@ async def _run_connection_loops(context):
 
 async def _per_connection_sender(context):
     """Send messages from connection's queue to WebSocket"""
+    logger.info(f"Per-connection sender started for {context.connection_id}")
     while context.state in [ConnectionState.ACTIVE, ConnectionState.READY]:
         try:
             # Get message from connection's queue
@@ -162,9 +163,12 @@ async def _per_connection_sender(context):
                 timeout=1.0
             )
             
+            logger.info(f"Per-connection sender {context.connection_id}: got message from queue: {message.get('type', 'unknown')} with ID {message.get('id', 'no-id')}")
+            
             # Send to WebSocket
             serialized = message if isinstance(message, str) else json.dumps(message)
             await context.websocket.send_text(serialized)
+            logger.info(f"Per-connection sender {context.connection_id}: sent message to WebSocket: {message.get('type', 'unknown')}")
             
             # Mark task as done
             context.message_queue.task_done()
@@ -172,10 +176,13 @@ async def _per_connection_sender(context):
             
         except asyncio.TimeoutError:
             # No message available, continue
+            logger.debug(f"Per-connection sender {context.connection_id}: timeout waiting for messages")
             continue
         except Exception as e:
             logger.error(f"Sender error for {context.connection_id}: {e}")
             break
+    
+    logger.info(f"Per-connection sender stopped for {context.connection_id}")
 
 async def _per_connection_receiver(context):
     """Receive messages from WebSocket and process them"""
@@ -215,45 +222,62 @@ async def _per_connection_receiver(context):
             break
 
 async def _per_connection_voice_bridge(context):
-    """Bridge voice messages from global queue to per-connection queue"""
-    from app.queues import get_llm_message, mark_llm_message_done
+    """Bridge voice messages from broadcast manager to per-connection queue"""
+    from app.voice_broadcast_manager import voice_broadcast_manager
     
-    while context.state in [ConnectionState.ACTIVE, ConnectionState.READY]:
+    logger.info(f"Starting voice bridge for connection {context.connection_id}")
+    
+    # Subscribe to voice broadcasts
+    try:
+        voice_queue = await voice_broadcast_manager.subscribe(
+            connection_id=context.connection_id,
+            voice_thread_id=context.voice_thread_id
+        )
+        logger.info(f"Subscribed to voice broadcasts for connection {context.connection_id}")
+    except Exception as e:
+        logger.error(f"Failed to subscribe to voice broadcasts for {context.connection_id}: {e}")
+        return
+    
+    try:
+        while context.state in [ConnectionState.ACTIVE, ConnectionState.READY]:
+            try:
+                # Get message from broadcast subscription queue
+                logger.debug(f"Voice bridge {context.connection_id}: waiting for broadcast message...")
+                message = await asyncio.wait_for(voice_queue.get(), timeout=1.0)
+                logger.info(f"Voice bridge {context.connection_id}: received broadcast message type '{message.get('type')}' with ID {message.get('id')}")
+                
+                try:
+                    # Forward to per-connection queue
+                    await context.message_queue.put(message)
+                    logger.info(f"✅ Successfully queued voice message {message.get('type')} to per-connection queue for {context.connection_id}")
+                    
+                    # Mark task as done in broadcast queue
+                    voice_queue.task_done()
+                    
+                except Exception as e:
+                    logger.error(f"❌ ERROR queuing voice message to per-connection queue for {context.connection_id}: {e}")
+                    # Still mark as done even if forwarding failed
+                    voice_queue.task_done()
+                
+            except asyncio.TimeoutError:
+                # No message available, continue
+                logger.debug(f"Voice bridge {context.connection_id}: timeout waiting for broadcast messages")
+                continue
+            except Exception as e:
+                logger.error(f"Voice bridge error for {context.connection_id}: {e}")
+                break
+    
+    finally:
+        # Unsubscribe from broadcasts when bridge stops
         try:
-            # Get message from global llm_message_queue (used by voice agent)
-            message = await asyncio.wait_for(get_llm_message(), timeout=1.0)
-            
-            # Check if this is a voice-related message that should be forwarded
-            if _should_forward_voice_message(message):
-                logger.info(f"Forwarding voice message to connection {context.connection_id}: {message.get('type')}")
-                # Forward to per-connection queue
-                await context.message_queue.put(message)
-            
-            # Mark the message as done in the global queue
-            mark_llm_message_done()
-            
-        except asyncio.TimeoutError:
-            # No message available, continue
-            continue
+            await voice_broadcast_manager.unsubscribe(context.connection_id)
+            logger.info(f"Unsubscribed from voice broadcasts for connection {context.connection_id}")
         except Exception as e:
-            logger.error(f"Voice bridge error for {context.connection_id}: {e}")
-            break
+            logger.error(f"Error unsubscribing from voice broadcasts for {context.connection_id}: {e}")
+    
+    logger.info(f"Voice bridge stopped for connection {context.connection_id}")
 
-def _should_forward_voice_message(message: dict) -> bool:
-    """Determine if a message from the global queue should be forwarded to per-connection"""
-    if not isinstance(message, dict):
-        return False
-    
-    message_type = message.get('type', '')
-    
-    # Forward voice-related message types
-    voice_message_types = {
-        'user_transcription',      # User voice transcriptions
-        'immediate_voice_response', # Fast-path voice responses
-        'voice_response'           # Complete voice responses
-    }
-    
-    return message_type in voice_message_types
+# Note: _should_forward_voice_message function removed - filtering is now handled by VoiceBroadcastManager
 
 async def _process_user_interaction(context, interaction_message: UserInteractionMessage):
     """Process a user interaction message and display it as a user message"""

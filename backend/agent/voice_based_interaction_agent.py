@@ -38,6 +38,7 @@ from app.queues import (
     create_simple_card_content,
     create_immediate_voice_response,
     enqueue_llm_message,
+    broadcast_voice_message,
 )
 
 load_dotenv(override=True)
@@ -95,16 +96,45 @@ def load_voice_agent_prompt() -> str:
         return "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."
 
 class VoiceInterfaceAgent:
-    def __init__(self, webrtc_connection: SmallWebRTCConnection, raw_llm_output_queue: asyncio.Queue, llm_message_queue: asyncio.Queue = None):
+    def __init__(self, webrtc_connection: SmallWebRTCConnection, raw_llm_output_queue: asyncio.Queue, llm_message_queue: asyncio.Queue = None, connection_id: str = None):
         # Initialize voice agent identifiers and queues
         self.webrtc_connection = webrtc_connection
         self.raw_llm_output_queue = raw_llm_output_queue
         self.llm_message_queue = llm_message_queue
+        self.connection_id = connection_id  # Associated WebSocket connection ID
         # Use the WebRTC pc_id as thread_id if available, otherwise generate a new one
         self.thread_id = getattr(webrtc_connection, 'pc_id', None) or str(uuid.uuid4())
-        logger.info(f"Voice agent initialized with thread_id: {self.thread_id}")
+        logger.info(f"Voice agent initialized with thread_id: {self.thread_id}, connection_id: {connection_id}")
         # Store pipeline task reference for TTS injection
         self.pipeline_task = None
+    
+    async def register_with_connection_manager(self):
+        """Register this voice agent with the connection manager if connection_id is available"""
+        if self.connection_id:
+            try:
+                from app.voice_manager import voice_manager
+                success = await voice_manager.register_voice_agent(
+                    connection_id=self.connection_id,
+                    voice_agent=self,
+                    webrtc_connection=self.webrtc_connection,
+                    voice_thread_id=self.thread_id
+                )
+                if success:
+                    logger.info(f"Registered voice agent with connection manager for connection {self.connection_id}")
+                else:
+                    logger.warning(f"Failed to register voice agent with connection manager for connection {self.connection_id}")
+            except Exception as e:
+                logger.error(f"Error registering voice agent with connection manager: {e}")
+    
+    async def unregister_from_connection_manager(self):
+        """Unregister this voice agent from the connection manager"""
+        if self.connection_id:
+            try:
+                from app.voice_manager import voice_manager
+                await voice_manager.unregister_voice_agent(self.connection_id)
+                logger.info(f"Unregistered voice agent from connection manager for connection {self.connection_id}")
+            except Exception as e:
+                logger.error(f"Error unregistering voice agent from connection manager: {e}")
 
     async def process_downstream_display(self, assistant_response: str, history: Any):
         logger.info(f"--- process_downstream_display (payload for Thesys) ---")
@@ -117,7 +147,7 @@ class VoiceInterfaceAgent:
                 logger.warning("raw_llm_output_queue not available, cannot send response for visualization")
                 return
                 
-            # Include metadata for visualization processor (source and thread_id)
+            # Include metadata for visualization processor (source, thread_id, and connection_id)
             payload = {
                 "assistant_response": assistant_response.strip(),
                 "history": history,
@@ -126,7 +156,8 @@ class VoiceInterfaceAgent:
                     # processor so that its early-exit de-duplication logic
                     # triggers correctly.
                     "source": "voice-agent",
-                    "thread_id": self.thread_id
+                    "thread_id": self.thread_id,
+                    "connection_id": self.connection_id
                 }
             }
             await self.raw_llm_output_queue.put(payload)
@@ -135,31 +166,30 @@ class VoiceInterfaceAgent:
             logger.error(f"Error enqueuing to raw_llm_output_queue: {e}")
 
     async def send_user_transcription_to_frontend(self, transcription_text: str):
-        """Send user transcription directly to the frontend message queue."""
+        """Send user transcription via broadcast to all relevant connections."""
         logger.info(f"--- send_user_transcription_to_frontend ---")
         logger.info(f"User transcription: {transcription_text}")
         logger.info(f"-----------------------------------------------")
         
         try:
-            if self.llm_message_queue is None:
-                logger.warning("llm_message_queue not available, cannot send user transcription to frontend")
-                return
-                
             user_message = {
                 "id": str(uuid.uuid4()),
                 "role": "user", 
                 "type": "user_transcription",
-                "content": transcription_text
+                "content": transcription_text,
+                "connection_id": self.connection_id,
+                "thread_id": self.thread_id
             }
             
             # Add to chat history manager
             await chat_history_manager.add_user_message(self.thread_id, transcription_text, user_message["id"])
             logger.info(f"Added user transcription to chat history for thread {self.thread_id}")
             
-            await self.llm_message_queue.put(user_message)
-            logger.info(f"User transcription sent to frontend: {user_message}")
+            # Broadcast to all relevant connections instead of using direct queue
+            delivery_count = await broadcast_voice_message(user_message)
+            logger.info(f"User transcription broadcasted to {delivery_count} subscribers: {user_message}")
         except Exception as e:
-            logger.error(f"Error sending user transcription to frontend: {e}")
+            logger.error(f"Error broadcasting user transcription: {e}")
 
     async def inject_tts_voice_over(self, voice_text: str):
         """
@@ -350,14 +380,14 @@ class ResponseAggregatorProcessor(FrameProcessor):
                         framework="c1",
                         voice_text=None,
                     )
-                    # Prefer the agent-scoped queue if supplied, otherwise fall back
-                    # to the global enqueue helper.
-                    if self.agent_instance.llm_message_queue is not None:
-                        await self.agent_instance.llm_message_queue.put(immediate_msg)
-                    else:
-                        await enqueue_llm_message(immediate_msg)
+                    # Add connection and thread metadata for proper routing
+                    immediate_msg["connection_id"] = self.agent_instance.connection_id
+                    immediate_msg["thread_id"] = self.agent_instance.thread_id
+                    
+                    # Broadcast immediate voice response to all relevant connections
+                    delivery_count = await broadcast_voice_message(immediate_msg)
                     logger.info(
-                        f"Sent immediate_voice_response to frontend (id={immediate_msg['id']})"
+                        f"Broadcasted immediate_voice_response to {delivery_count} subscribers (id={immediate_msg['id']})"
                     )
                 except Exception as e:
                     logger.error(f"Error sending immediate voice response: {e}")

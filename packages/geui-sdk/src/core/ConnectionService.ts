@@ -105,8 +105,15 @@ export class ConnectionService extends EventEmitter {
   private streamingContent: string = '';
   private streamingContentType: 'c1' | 'html' = 'c1';
   
-  // Unique ID for the WebSocket connection
-  private wsConnectionId: string;
+  // Backend connection ID received from WebSocket connection_established message
+  private backendConnectionId: string | null = null;
+  
+  // Simple connection identifier for logging (generated locally)
+  private connectionLogId: string;
+  
+  // Thread management for voice isolation
+  private activeThreadId: string | null = null;
+  private threadVoiceMapping: Map<string, boolean> = new Map(); // Track which threads have voice enabled
 
   /**
    * Create a new ConnectionService
@@ -121,7 +128,7 @@ export class ConnectionService extends EventEmitter {
     this.autoReconnect = options.autoReconnect ?? false;
     this.reconnectInterval = options.reconnectInterval ?? 5000;
     this.maxReconnectAttempts = options.maxReconnectAttempts ?? 5;
-    this.wsConnectionId = `ws-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    this.connectionLogId = `conn-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
     
     // UI Framework support
     this.uiFramework = options.uiFramework || 'inline';
@@ -140,7 +147,7 @@ export class ConnectionService extends EventEmitter {
    */
   public async connectWebSocket(): Promise<void> {
     if (this.webSocket && this.webSocket.readyState === WebSocket.OPEN) {
-      console.log(`[WS:${this.wsConnectionId}] WebSocket already connected`);
+      console.log(`[WS:${this.connectionLogId}] WebSocket already connected`);
       return;
     }
 
@@ -150,25 +157,91 @@ export class ConnectionService extends EventEmitter {
     this.setConnectionState('connecting');
     
     try {
-      console.log(`[WS:${this.wsConnectionId}] Connecting to WebSocket at: ${this.websocketURL}`);
+      console.log(`[WS:${this.connectionLogId}] Connecting to WebSocket at: ${this.websocketURL}`);
       this.webSocket = new WebSocket(this.websocketURL);
       
       this.webSocket.onopen = this.handleWebSocketOpen.bind(this);
       this.webSocket.onmessage = this.handleWebSocketMessage.bind(this);
       this.webSocket.onerror = this.handleWebSocketError.bind(this);
       this.webSocket.onclose = this.handleWebSocketClose.bind(this);
+
+      // Wait for WebSocket to open before resolving
+      return new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          reject(new Error('WebSocket connection timeout'));
+        }, 10000); // 10 second timeout
+
+        const handleOpen = () => {
+          clearTimeout(timeout);
+          if (this.webSocket) {
+            this.webSocket.removeEventListener('open', handleOpen);
+            this.webSocket.removeEventListener('error', handleError);
+          }
+          resolve();
+        };
+
+        const handleError = (error: Event) => {
+          clearTimeout(timeout);
+          if (this.webSocket) {
+            this.webSocket.removeEventListener('open', handleOpen);
+            this.webSocket.removeEventListener('error', handleError);
+          }
+          reject(error);
+        };
+
+        if (this.webSocket) {
+          this.webSocket.addEventListener('open', handleOpen);
+          this.webSocket.addEventListener('error', handleError);
+        }
+      });
     } catch (error) {
-      console.error(`[WS:${this.wsConnectionId}] Error connecting to WebSocket:`, error);
+      console.error(`[WS:${this.connectionLogId}] Error connecting to WebSocket:`, error);
       this.setConnectionState('error');
       this.emit(ConnectionEvent.ERROR, error);
       this.handleReconnect();
+      throw error;
     }
   }
 
   /**
-   * Initialize WebRTC connection for voice
+   * Wait for backend connection ID from WebSocket connection_established message
    */
-  public async connectVoice(): Promise<void> {
+  private async waitForBackendConnectionId(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Timeout waiting for backend connection ID'));
+      }, 30000); // 30 second timeout
+      
+      const handleMessage = (event: MessageEvent) => {
+        try {
+          const data = JSON.parse(event.data);
+          if (data.type === 'connection_established' && data.connection_id) {
+            this.backendConnectionId = data.connection_id;
+            console.log(`[WS:${this.connectionLogId}] Received backend connection ID: ${data.connection_id}`);
+            clearTimeout(timeout);
+            if (this.webSocket) {
+              this.webSocket.removeEventListener('message', handleMessage);
+            }
+            resolve(data.connection_id);
+          }
+        } catch (error) {
+          // Ignore parsing errors for other messages
+        }
+      };
+      
+      if (this.webSocket) {
+        this.webSocket.addEventListener('message', handleMessage);
+      } else {
+        clearTimeout(timeout);
+        reject(new Error('WebSocket not connected'));
+      }
+    });
+  }
+
+  /**
+   * Initialize WebRTC connection for voice (requires WebSocket to be connected first)
+   */
+  public async connectVoice(threadId?: string): Promise<void> {
     if (!this.webrtcURL) {
       console.log('Voice is disabled (no webrtcURL provided)');
       return;
@@ -179,6 +252,28 @@ export class ConnectionService extends EventEmitter {
       return;
     }
 
+    // Ensure WebSocket is connected first
+    if (!this.webSocket || this.webSocket.readyState !== WebSocket.OPEN) {
+      console.log(`[WS:${this.connectionLogId}] WebSocket not connected, connecting first for voice...`);
+      await this.connectWebSocket();
+    }
+
+    // Ensure we have backend connection ID
+    if (!this.backendConnectionId) {
+      console.log(`[WS:${this.connectionLogId}] Waiting for backend connection ID...`);
+      await this.waitForBackendConnectionId();
+    }
+
+    if (!this.backendConnectionId) {
+      throw new Error('Cannot connect voice: No backend connection ID available');
+    }
+
+    // Set thread context for voice connection
+    if (threadId) {
+      this.enableVoiceForThread(threadId);
+    }
+
+    console.log(`[WS:${this.connectionLogId}] Starting voice connection with backend ID: ${this.backendConnectionId}, thread: ${this.activeThreadId}`);
     this.setVoiceState('connecting');
     
     try {
@@ -224,7 +319,7 @@ export class ConnectionService extends EventEmitter {
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
 
-      // Send offer to backend
+      // Send offer to backend with backend connection ID for proper routing
       const response = await fetch(this.webrtcURL, {
         method: 'POST',
         headers: {
@@ -233,6 +328,7 @@ export class ConnectionService extends EventEmitter {
         body: JSON.stringify({
           sdp: offer.sdp,
           type: offer.type,
+          backend_connection_id: this.backendConnectionId, // Include backend connection ID
         }),
       });
 
@@ -284,24 +380,16 @@ export class ConnectionService extends EventEmitter {
    * Send a chat message via WebSocket
    */
   public async sendChatMessage(message: string, threadId?: string): Promise<string> {
-    // Connect on demand if not connected
+    // Ensure WebSocket is connected first
     if (!this.webSocket || this.webSocket.readyState !== WebSocket.OPEN) {
-      console.log(`[WS:${this.wsConnectionId}] WebSocket not connected, connecting on demand...`);
+      console.log(`[WS:${this.connectionLogId}] WebSocket not connected, connecting for chat message...`);
       await this.connectWebSocket();
-      
-      // Wait for connection to be established
-      await new Promise<void>((resolve, reject) => {
-        const checkConnection = () => {
-          if (this.webSocket && this.webSocket.readyState === WebSocket.OPEN) {
-            resolve();
-          } else if (this.connectionState === 'error') {
-            reject(new Error('Failed to connect WebSocket'));
-          } else {
-            setTimeout(checkConnection, 100);
-          }
-        };
-        checkConnection();
-      });
+    }
+    
+    // Ensure we have backend connection ID
+    if (!this.backendConnectionId) {
+      console.log(`[WS:${this.connectionLogId}] Waiting for backend connection ID for chat...`);
+      await this.waitForBackendConnectionId();
     }
     
     const messageId = crypto.randomUUID();
@@ -324,24 +412,16 @@ export class ConnectionService extends EventEmitter {
    * Send a C1Component action via WebSocket
    */
   public async sendC1Action(action: { llmFriendlyMessage: string }, threadId?: string): Promise<string> {
-    // Connect on demand if not connected
+    // Ensure WebSocket is connected first
     if (!this.webSocket || this.webSocket.readyState !== WebSocket.OPEN) {
-      console.log(`[WS:${this.wsConnectionId}] WebSocket not connected, connecting on demand...`);
+      console.log(`[WS:${this.connectionLogId}] WebSocket not connected, connecting for C1 action...`);
       await this.connectWebSocket();
-      
-      // Wait for connection to be established
-      await new Promise<void>((resolve, reject) => {
-        const checkConnection = () => {
-          if (this.webSocket && this.webSocket.readyState === WebSocket.OPEN) {
-            resolve();
-          } else if (this.connectionState === 'error') {
-            reject(new Error('Failed to connect WebSocket'));
-          } else {
-            setTimeout(checkConnection, 100);
-          }
-        };
-        checkConnection();
-      });
+    }
+    
+    // Ensure we have backend connection ID
+    if (!this.backendConnectionId) {
+      console.log(`[WS:${this.connectionLogId}] Waiting for backend connection ID for C1 action...`);
+      await this.waitForBackendConnectionId();
     }
     
     const messageId = crypto.randomUUID();
@@ -418,19 +498,67 @@ export class ConnectionService extends EventEmitter {
   }
 
   /**
+   * Get the backend connection ID (useful for debugging)
+   */
+  public getBackendConnectionId(): string | null {
+    return this.backendConnectionId;
+  }
+
+  /**
+   * Check if connection is ready for voice
+   */
+  public isReadyForVoice(): boolean {
+    return !!(this.webSocket && 
+              this.webSocket.readyState === WebSocket.OPEN && 
+              this.backendConnectionId && 
+              this.webrtcURL);
+  }
+
+  /**
+   * Set the active thread ID for voice context
+   */
+  public setActiveThreadId(threadId: string | null): void {
+    console.log(`[WS:${this.connectionLogId}] Setting active thread ID: ${threadId}`);
+    this.activeThreadId = threadId;
+  }
+
+  /**
+   * Get the active thread ID
+   */
+  public getActiveThreadId(): string | null {
+    return this.activeThreadId;
+  }
+
+  /**
+   * Mark a thread as voice-enabled
+   */
+  public enableVoiceForThread(threadId: string): void {
+    console.log(`[WS:${this.connectionLogId}] Enabling voice for thread: ${threadId}`);
+    this.threadVoiceMapping.set(threadId, true);
+    this.setActiveThreadId(threadId);
+  }
+
+  /**
+   * Check if a thread has voice enabled
+   */
+  public isVoiceEnabledForThread(threadId: string): boolean {
+    return this.threadVoiceMapping.get(threadId) || false;
+  }
+
+  /**
    * Handle WebSocket open event
    */
   private handleWebSocketOpen(): void {
-    console.log(`[WS:${this.wsConnectionId}] WebSocket connected`);
+    console.log(`[WS:${this.connectionLogId}] WebSocket connected`);
     this.setConnectionState('connected');
     this.reconnectAttempts = 0;
     
     // Call custom WebSocket connection handler if provided
     if (this.onWebSocketConnect && this.webSocket) {
-      console.log(`[WS:${this.wsConnectionId}] Calling custom onWebSocketConnect handler`);
+      console.log(`[WS:${this.connectionLogId}] Calling custom onWebSocketConnect handler`);
       this.wsCleanupCallback = this.onWebSocketConnect(this.webSocket);
     } else {
-      console.log(`[WS:${this.wsConnectionId}] No custom onWebSocketConnect handler provided`);
+      console.log(`[WS:${this.connectionLogId}] No custom onWebSocketConnect handler provided`);
     }
     
     // Send UI framework preference to backend (skip for per-connection endpoints)
@@ -490,7 +618,7 @@ export class ConnectionService extends EventEmitter {
    * Handle WebSocket message event
    */
   private handleWebSocketMessage(event: MessageEvent): void {
-    console.log(`[WS:${this.wsConnectionId}] WebSocket message received:`, event.data);
+    console.log(`[WS:${this.connectionLogId}] WebSocket message received:`, event.data);
     
     try {
       const data = JSON.parse(event.data);
@@ -498,13 +626,13 @@ export class ConnectionService extends EventEmitter {
       // Handle different message types
       switch (data.type) {
         case 'connection_ack':
-          console.log(`[WS:${this.wsConnectionId}] WebSocket connection acknowledged:`, data.message);
+          console.log(`[WS:${this.connectionLogId}] WebSocket connection acknowledged:`, data.message);
           break;
           
         case 'immediate_voice_response':
         case 'voice_response':
         case 'text_chat_response': {
-          console.log(`[WS:${this.wsConnectionId}] Received ${data.type} message:`, data);
+          console.log(`[WS:${this.connectionLogId}] Received ${data.type} message:`, data);
           
           const assistantMessage: AssistantMessage = {
             id: data.id || crypto.randomUUID(),
@@ -519,7 +647,7 @@ export class ConnectionService extends EventEmitter {
         }
           
         case 'user_transcription': {
-          console.log(`[WS:${this.wsConnectionId}] Received user transcription message:`, data);
+          console.log(`[WS:${this.connectionLogId}] Received user transcription message:`, data);
           // Only process final transcriptions into messages
           if (data.final === false) break;
 
@@ -544,11 +672,11 @@ export class ConnectionService extends EventEmitter {
           // Streaming C1Component chunks handler
           const msgId = data.id;
           if (typeof msgId === 'string') {
-            console.log(`[WS:${this.wsConnectionId}] Processing c1_token for message ID: ${msgId}`);
+            console.log(`[WS:${this.connectionLogId}] Processing c1_token for message ID: ${msgId}`);
             
             // Check if this is the first chunk for this message ID
             if (this.streamingMessageId !== msgId) {
-              console.log(`[WS:${this.wsConnectionId}] First c1_token chunk for message ${msgId}`);
+              console.log(`[WS:${this.connectionLogId}] First c1_token chunk for message ${msgId}`);
               
               // Initialize streaming state
               this.streamingMessageId = msgId;
@@ -563,7 +691,7 @@ export class ConnectionService extends EventEmitter {
               });
             } else {
               // Accumulate content for subsequent chunks
-              console.log(`[WS:${this.wsConnectionId}] Accumulating content for streaming message ${msgId}`);
+              console.log(`[WS:${this.connectionLogId}] Accumulating content for streaming message ${msgId}`);
               this.streamingContent += (data.content || '');
               
               // Emit streaming chunk event
@@ -582,11 +710,11 @@ export class ConnectionService extends EventEmitter {
           // Streaming HTML chunks handler (for OpenAI, Anthropic, etc.)
           const msgId = data.id;
           if (typeof msgId === 'string') {
-            console.log(`[WS:${this.wsConnectionId}] Processing html_token for message ID: ${msgId}`);
+            console.log(`[WS:${this.connectionLogId}] Processing html_token for message ID: ${msgId}`);
             
             // Check if this is the first chunk for this message ID
             if (this.streamingMessageId !== msgId) {
-              console.log(`[WS:${this.wsConnectionId}] First html_token chunk for message ${msgId}`);
+              console.log(`[WS:${this.connectionLogId}] First html_token chunk for message ${msgId}`);
               
               // Initialize streaming state
               this.streamingMessageId = msgId;
@@ -601,7 +729,7 @@ export class ConnectionService extends EventEmitter {
               });
             } else {
               // Accumulate content for subsequent chunks
-              console.log(`[WS:${this.wsConnectionId}] Accumulating HTML content for streaming message ${msgId}`);
+              console.log(`[WS:${this.connectionLogId}] Accumulating HTML content for streaming message ${msgId}`);
               this.streamingContent += (data.content || '');
               
               // Emit streaming chunk event
@@ -620,7 +748,7 @@ export class ConnectionService extends EventEmitter {
           // End-of-stream marker
           const doneId = data.id;
           if (typeof doneId === 'string' && this.streamingMessageId === doneId) {
-            console.log(`[WS:${this.wsConnectionId}] Received chat_done for message ${doneId}`);
+            console.log(`[WS:${this.connectionLogId}] Received chat_done for message ${doneId}`);
 
             /* ----------------------------------------------------------------
              * 1. Build **final assistant message** from the accumulated stream
@@ -656,33 +784,38 @@ export class ConnectionService extends EventEmitter {
           
         case 'enhancement_started':
           // Slow path (visualisation) signalled it is working on UI
-          console.log(`[WS:${this.wsConnectionId}] Enhancement in progress`);
+          console.log(`[WS:${this.connectionLogId}] Enhancement in progress`);
           this.emit(ConnectionEvent.ENHANCEMENT_STARTED);
           break;
 
         // Per-connection specific message types
         case 'connection_established':
-          console.log(`[WS:${this.wsConnectionId}] Per-connection established:`, data.connection_id);
+          console.log(`[WS:${this.connectionLogId}] Per-connection established:`, data.connection_id);
+          // Set backend connection ID for voice connections
+          if (data.connection_id && !this.backendConnectionId) {
+            this.backendConnectionId = data.connection_id;
+            console.log(`[WS:${this.connectionLogId}] Backend connection ID set: ${data.connection_id}`);
+          }
           break;
           
         case 'connection_state':
-          console.log(`[WS:${this.wsConnectionId}] Per-connection state:`, data.state, data.message);
+          console.log(`[WS:${this.connectionLogId}] Per-connection state:`, data.state, data.message);
           if (data.state === 'disconnecting') {
             this.setConnectionState('disconnected');
           }
           break;
           
         case 'error':
-          console.error(`[WS:${this.wsConnectionId}] Server error:`, data.message);
+          console.error(`[WS:${this.connectionLogId}] Server error:`, data.message);
           this.emit(ConnectionEvent.ERROR, new Error(data.message || 'Server error'));
           break;
           
         default:
-          console.log(`[WS:${this.wsConnectionId}] Received unknown message type:`, data.type, data);
+          console.log(`[WS:${this.connectionLogId}] Received unknown message type:`, data.type, data);
           break;
       }
     } catch (error) {
-      console.error(`[WS:${this.wsConnectionId}] Error processing WebSocket message:`, error);
+      console.error(`[WS:${this.connectionLogId}] Error processing WebSocket message:`, error);
       this.emit(ConnectionEvent.ERROR, error);
     }
   }
@@ -691,7 +824,7 @@ export class ConnectionService extends EventEmitter {
    * Handle WebSocket error event
    */
   private handleWebSocketError(error: Event): void {
-    console.error(`[WS:${this.wsConnectionId}] WebSocket error:`, error);
+    console.error(`[WS:${this.connectionLogId}] WebSocket error:`, error);
     this.setConnectionState('error');
     this.emit(ConnectionEvent.ERROR, error);
     this.handleReconnect();
@@ -701,11 +834,22 @@ export class ConnectionService extends EventEmitter {
    * Handle WebSocket close event
    */
   private handleWebSocketClose(event: CloseEvent): void {
-    console.log(`[WS:${this.wsConnectionId}] WebSocket disconnected:`, event);
+    console.log(`[WS:${this.connectionLogId}] WebSocket disconnected:`, event);
     this.setConnectionState('disconnected');
     this.webSocket = null;
     
-    if (this.autoReconnect) {
+    // Clear backend connection ID since it's no longer valid
+    const wasConnected = this.backendConnectionId !== null;
+    this.backendConnectionId = null;
+    
+    // If voice was connected, set it to disconnected (will need to reconnect when WebSocket comes back)
+    if (this.voiceState === 'connected') {
+      console.log(`[WS:${this.connectionLogId}] Voice connection lost due to WebSocket disconnect`);
+      this.setVoiceState('disconnected');
+    }
+    
+    if (this.autoReconnect && wasConnected) {
+      console.log(`[WS:${this.connectionLogId}] Starting WebSocket reconnection process...`);
       this.handleReconnect();
     }
   }
@@ -739,20 +883,38 @@ export class ConnectionService extends EventEmitter {
   }
 
   /**
-   * Handle reconnection logic
+   * Handle reconnection logic with WebSocket-first pattern
    */
   private handleReconnect(): void {
     if (!this.autoReconnect || this.reconnectAttempts >= this.maxReconnectAttempts) {
-      console.log(`[WS:${this.wsConnectionId}] Not reconnecting: autoReconnect=${this.autoReconnect}, attempts=${this.reconnectAttempts}, max=${this.maxReconnectAttempts}`);
+      console.log(`[WS:${this.connectionLogId}] Not reconnecting: autoReconnect=${this.autoReconnect}, attempts=${this.reconnectAttempts}, max=${this.maxReconnectAttempts}`);
       return;
     }
     
     this.reconnectAttempts++;
     
-    console.log(`[WS:${this.wsConnectionId}] Reconnecting in ${this.reconnectInterval}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
+    console.log(`[WS:${this.connectionLogId}] Reconnecting in ${this.reconnectInterval}ms (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})`);
     
-    setTimeout(() => {
-      this.connectWebSocket();
+    setTimeout(async () => {
+      try {
+        // Re-establish WebSocket connection first
+        await this.connectWebSocket();
+        
+        // Wait for backend connection ID to be received
+        if (!this.backendConnectionId) {
+          console.log(`[WS:${this.connectionLogId}] Waiting for backend connection ID after reconnect...`);
+          await this.waitForBackendConnectionId();
+        }
+        
+        console.log(`[WS:${this.connectionLogId}] WebSocket reconnection successful, backend ID: ${this.backendConnectionId}`);
+        
+        // Note: Voice connection will need to be manually re-established by user
+        // This is by design - we don't automatically reconnect voice to avoid unexpected behavior
+        
+      } catch (error) {
+        console.error(`[WS:${this.connectionLogId}] Reconnection failed:`, error);
+        // The error handling will trigger another reconnection attempt if needed
+      }
     }, this.reconnectInterval);
   }
 
@@ -764,31 +926,31 @@ export class ConnectionService extends EventEmitter {
     if (!ws) return;
     
     try {
-      console.log(`[WS:${this.wsConnectionId}] Closing WebSocket connection...`);
+      console.log(`[WS:${this.connectionLogId}] Closing WebSocket connection...`);
       
       // Check if it's already closed or closing
       if (ws.readyState === WebSocket.CLOSED || ws.readyState === WebSocket.CLOSING) {
-        console.log(`[WS:${this.wsConnectionId}] WebSocket already closing/closed (state: ${ws.readyState})`);
+        console.log(`[WS:${this.connectionLogId}] WebSocket already closing/closed (state: ${ws.readyState})`);
         return;
       }
       
       // For CONNECTING state, we need to wait for connection to establish before closing
       if (ws.readyState === WebSocket.CONNECTING) {
-        console.log(`[WS:${this.wsConnectionId}] WebSocket is connecting, setting up onopen handler to close immediately`);
+        console.log(`[WS:${this.connectionLogId}] WebSocket is connecting, setting up onopen handler to close immediately`);
         const originalOnOpen = ws.onopen;
         ws.onopen = (event) => {
           // Call original handler if exists
           if (originalOnOpen) {
             originalOnOpen.call(ws, event);
           }
-          console.log(`[WS:${this.wsConnectionId}] WebSocket connected, now closing immediately`);
+          console.log(`[WS:${this.connectionLogId}] WebSocket connected, now closing immediately`);
           ws.close();
         };
         return;
       }
       
       // For OPEN state, just close it
-      console.log(`[WS:${this.wsConnectionId}] Closing open WebSocket connection`);
+      console.log(`[WS:${this.connectionLogId}] Closing open WebSocket connection`);
       ws.close();
     } catch (error) {
       console.error('Error closing WebSocket:', error);

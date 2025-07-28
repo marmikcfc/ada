@@ -261,7 +261,7 @@ class OpenAIProvider(VisualizationProvider):
             return False
     
     async def stream_response(self, messages: List[Dict[str, Any]]) -> AsyncGenerator[str, None]:
-        """Stream OpenAI visualization response using structured output"""
+        """Generate OpenAI visualization response using structured output (single response for reliability)"""
         if not self.client:
             logger.error("OpenAI client not initialized")
             return
@@ -269,127 +269,48 @@ class OpenAIProvider(VisualizationProvider):
         try:
             model = self.config.model or "gpt-4o-mini"
             
-            # Use OpenAI's structured output with Pydantic schema
-            # This is more reliable than function calling
-            logger.info(f"Starting OpenAI structured output stream with model: {model}")
+            # Use OpenAI's structured output with single API call for reliability
+            logger.info(f"Starting OpenAI structured output with model: {model}")
+            logger.info(f"Input messages: {messages}")
             
-            # Streaming JSON parser for htmlContent field
-            json_buffer = ""
-            html_content_buffer = ""
-            html_content_yielded = 0  # Track how much HTML we've already yielded
-            
-            async with self.client.beta.chat.completions.stream(
+            # Single API call using parse() method for Pydantic structured output
+            response = await self.client.beta.chat.completions.parse(
                 model=model,
                 messages=messages,
                 response_format=HTMLResponse,  # Pydantic model for structured output
                 temperature=0.3
-            ) as stream:
+            )
+            
+            # Parse the structured response directly (already a Pydantic object)
+            if response.choices and response.choices[0].message.parsed:
+                html_response = response.choices[0].message.parsed  # Already HTMLResponse Pydantic object
+                logger.info(f"OpenAI HTML response received: {len(html_response.htmlContent)} characters")
+                logger.info(f"HTML content: {html_response.htmlContent[:200]}...")  # Log first 200 chars
                 
-                async for event in stream:
-                    # Handle different event types from structured output streaming
-                    if hasattr(event, 'chunk') and event.chunk.choices:
-                        delta = event.chunk.choices[0].delta
-                        if hasattr(delta, 'content') and delta.content:
-                            chunk_content = delta.content
-                            json_buffer += chunk_content
-                            
-                            # Try to extract htmlContent from the streaming JSON
-                            html_chunk = self._extract_html_content_chunk(json_buffer, html_content_yielded)
-                            if html_chunk:
-                                html_content_buffer += html_chunk
-                                html_content_yielded += len(html_chunk)
-                                
-                                # Yield the HTML content chunk for real-time streaming
-                                yield html_chunk
-                                logger.debug(f"Streamed HTML chunk: {html_chunk[:50]}...")
+                # Yield the complete HTML content
+                yield html_response.htmlContent
                 
-                # After streaming completes, validate the complete response
-                if json_buffer.strip():
-                    try:
-                        # Parse the complete structured response for validation
-                        response_data = json.loads(json_buffer)
-                        html_response = HTMLResponse(**response_data)
-                        
-                        logger.info(f"OpenAI structured output completed successfully. HTML length: {len(html_response.htmlContent)}")
-                        
-                        # Check if we missed any content at the end
-                        if len(html_response.htmlContent) > html_content_yielded:
-                            remaining_content = html_response.htmlContent[html_content_yielded:]
-                            logger.info(f"Yielding remaining HTML content: {len(remaining_content)} chars")
-                            yield remaining_content
-                        
-                    except (json.JSONDecodeError, ValueError) as e:
-                        logger.error(f"Failed to validate OpenAI structured output: {e}")
-                        logger.error(f"Raw JSON buffer: {json_buffer[:200]}...")
-                        
-                        # If we couldn't parse, but have HTML content, yield fallback
-                        if not html_content_buffer.strip():
-                            error_html = """
-                            <div style="padding: 16px; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; color: #991b1b;">
-                                <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold;">Validation Error</h3>
-                                <p style="margin: 0; font-size: 14px;">Failed to validate structured HTML response.</p>
-                            </div>
-                            """
-                            yield error_html
-                else:
-                    logger.warning("OpenAI structured output stream completed with empty content")
-                    fallback_html = """
-                    <div style="padding: 16px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; color: #92400e;">
-                        <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold;">Empty Response</h3>
-                        <p style="margin: 0; font-size: 14px;">OpenAI returned an empty structured response.</p>
-                    </div>
-                    """
-                    yield fallback_html
+            else:
+                logger.warning("OpenAI returned empty structured response")
+                fallback_html = """
+                <div style="padding: 16px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; color: #92400e;">
+                    <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold;">Empty Response</h3>
+                    <p style="margin: 0; font-size: 14px;">OpenAI returned an empty structured response.</p>
+                </div>
+                """
+                yield fallback_html
                     
         except Exception as e:
-            logger.error(f"OpenAI structured output streaming error: {e}")
+            logger.error(f"OpenAI structured output error: {e}")
             # Fallback error HTML
             error_html = f"""
             <div style="padding: 16px; background: #fee2e2; border: 1px solid #fca5a5; border-radius: 8px; color: #991b1b;">
-                <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold;">Streaming Error</h3>
-                <p style="margin: 0; font-size: 14px;">Error during structured output streaming: {str(e)}</p>
+                <h3 style="margin: 0 0 8px 0; font-size: 16px; font-weight: bold;">OpenAI Error</h3>
+                <p style="margin: 0; font-size: 14px;">Error during structured output generation: {str(e)}</p>
             </div>
             """
             yield error_html
             return
-    
-    def _extract_html_content_chunk(self, json_buffer: str, already_yielded: int) -> Optional[str]:
-        """
-        Extract new HTML content from the streaming JSON buffer.
-        
-        Args:
-            json_buffer: The accumulated JSON string so far
-            already_yielded: Number of characters already yielded
-            
-        Returns:
-            New HTML content chunk or None
-        """
-        
-        # Pattern to match: "htmlContent": "content..."
-        # This handles escaped quotes and partial content
-        pattern = r'"htmlContent"\s*:\s*"([^"]*(?:\\.[^"]*)*)"?'
-        
-        match = re.search(pattern, json_buffer)
-        if match:
-            # Get the current content (with JSON escapes)
-            raw_content = match.group(1)
-            
-            # Unescape the JSON content
-            try:
-                # Parse as JSON string to handle escapes
-                unescaped_content = json.loads(f'"{raw_content}"')
-                
-                # Return only the new content
-                if len(unescaped_content) > already_yielded:
-                    new_content = unescaped_content[already_yielded:]
-                    return new_content
-                    
-            except json.JSONDecodeError:
-                # If JSON parsing fails, return raw content difference
-                if len(raw_content) > already_yielded:
-                    return raw_content[already_yielded:]
-        
-        return None
     
     def get_system_prompt(self, framework: str = "inline") -> str:
         """

@@ -46,6 +46,10 @@ class ConnectionContext:
     last_activity: float = field(default_factory=time.time)
     metrics: ConnectionMetrics = field(init=False)
     conversation_histories: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)
+    # Voice-related fields
+    voice_agent: Optional[Any] = None  # Will be VoiceInterfaceAgent when connected
+    webrtc_connection: Optional[Any] = None  # Will be SmallWebRTCConnection when active
+    voice_thread_id: Optional[str] = None  # Thread ID for voice conversations
     
     def __post_init__(self):
         """Initialize metrics after dataclass creation"""
@@ -443,6 +447,21 @@ class ConnectionManager:
             except (asyncio.CancelledError, asyncio.TimeoutError):
                 pass
         
+        # Cleanup voice agent and broadcast subscriptions
+        if context.voice_agent:
+            try:
+                logger.info(f"Cleaning up voice agent for connection {connection_id}")
+                # Cleanup broadcast subscription
+                from app.voice_broadcast_manager import voice_broadcast_manager
+                await voice_broadcast_manager.unsubscribe(connection_id)
+                
+                # The voice agent cleanup will be handled by WebRTC connection closure
+                context.voice_agent = None
+                context.webrtc_connection = None
+                context.voice_thread_id = None
+            except Exception as e:
+                logger.error(f"Error cleaning up voice agent for {connection_id}: {e}")
+        
         # Close MCP client
         if context.mcp_client:
             try:
@@ -478,6 +497,72 @@ class ConnectionManager:
         del self.connections[connection_id]
         logger.info(f"Connection {connection_id} cleaned up successfully")
     
+    async def register_voice_agent(self, connection_id: str, voice_agent: Any, webrtc_connection: Any, voice_thread_id: str) -> bool:
+        """Register a voice agent for a specific connection"""
+        if connection_id not in self.connections:
+            logger.warning(f"Attempted to register voice agent for unknown connection: {connection_id}")
+            return False
+        
+        context = self.connections[connection_id]
+        context.voice_agent = voice_agent
+        context.webrtc_connection = webrtc_connection
+        context.voice_thread_id = voice_thread_id
+        
+        # Update broadcast manager thread mapping for existing subscriptions
+        from app.voice_broadcast_manager import voice_broadcast_manager
+        await voice_broadcast_manager.update_thread_id(connection_id, voice_thread_id)
+        
+        logger.info(f"Registered voice agent for connection {connection_id} with thread_id {voice_thread_id}")
+        return True
+    
+    async def unregister_voice_agent(self, connection_id: str) -> bool:
+        """Unregister voice agent for a specific connection"""
+        if connection_id not in self.connections:
+            return False
+        
+        context = self.connections[connection_id]
+        if context.voice_agent:
+            logger.info(f"Unregistered voice agent for connection {connection_id}")
+            context.voice_agent = None
+            context.webrtc_connection = None
+            context.voice_thread_id = None
+            return True
+        
+        return False
+    
+    async def get_voice_agent_by_connection(self, connection_id: str) -> Optional[Any]:
+        """Get voice agent for a specific connection"""
+        if connection_id not in self.connections:
+            return None
+        return self.connections[connection_id].voice_agent
+    
+    async def get_voice_agent_by_thread_id(self, thread_id: str) -> tuple[Optional[Any], Optional[str]]:
+        """Get voice agent and connection_id by thread_id"""
+        for connection_id, context in self.connections.items():
+            if context.voice_thread_id == thread_id:
+                return context.voice_agent, connection_id
+        return None, None
+    
+    async def inject_tts_to_connection(self, connection_id: str, voice_text: str) -> bool:
+        """Inject TTS voice-over to a specific connection's voice agent"""
+        if connection_id not in self.connections:
+            logger.warning(f"Attempted TTS injection for unknown connection: {connection_id}")
+            return False
+        
+        context = self.connections[connection_id]
+        if not context.voice_agent:
+            logger.warning(f"No voice agent found for connection {connection_id}")
+            return False
+        
+        try:
+            await context.voice_agent.inject_tts_voice_over(voice_text)
+            logger.info(f"Successfully injected TTS to connection {connection_id}: '{voice_text[:50]}...'")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to inject TTS to connection {connection_id}: {e}")
+            return False
+    
+
     async def get_connection_metrics(self) -> Dict[str, Any]:
         """Get metrics for all connections"""
         metrics = {
@@ -496,7 +581,9 @@ class ConnectionManager:
                 "created_at": context.created_at,
                 "last_activity": context.last_activity,
                 "mcp_servers": len(context.mcp_client.sessions) if context.mcp_client else 0,
-                "viz_provider": context.config.visualization_provider.provider_type if context.config else None
+                "viz_provider": context.config.visualization_provider.provider_type if context.config else None,
+                "has_voice_agent": context.voice_agent is not None,
+                "voice_thread_id": context.voice_thread_id
             })
         
         return metrics

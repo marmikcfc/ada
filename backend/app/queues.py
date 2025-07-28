@@ -108,6 +108,9 @@ class EnhancementStarted(TypedDict):
     type: str            # "enhancement_started"
     content: str         # Friendly note, e.g. "Generating enhanced display…"
 
+# Import voice broadcast manager
+from app.voice_broadcast_manager import voice_broadcast_manager
+
 # Queue instances
 llm_message_queue: Optional[asyncio.Queue] = None
 raw_llm_output_queue: Optional[asyncio.Queue] = None
@@ -120,6 +123,7 @@ def initialize_queues():
     llm_message_queue = asyncio.Queue(maxsize=config.queue.llm_message_queue_maxsize)
     raw_llm_output_queue = asyncio.Queue(maxsize=config.queue.raw_llm_output_queue_maxsize)
     logger.info("Communication queues initialized successfully")
+    logger.info("Voice broadcast manager ready for subscriptions")
 
 async def enqueue_llm_message(message: Union[
     UserTranscription,
@@ -150,6 +154,34 @@ async def enqueue_llm_message(message: Union[
         logger.debug(f"Enqueued message to llm_message_queue: {message.get('type')} with ID {message.get('id')}")
     except Exception as e:
         logger.error(f"Error enqueuing message to llm_message_queue: {e}")
+        raise
+
+async def broadcast_voice_message(message: Union[
+    UserTranscription,
+    ImmediateVoiceResponse,
+    VoiceResponse
+]) -> int:
+    """
+    Broadcast a voice message to all relevant subscribers via the voice broadcast manager.
+    
+    This function should be used instead of enqueue_llm_message for messages that are
+    specifically intended for voice connections to ensure proper distribution to all tabs.
+    
+    Args:
+        message: Voice message to broadcast
+        
+    Returns:
+        Number of subscribers that received the message
+        
+    Raises:
+        RuntimeError: If the broadcast manager is not available
+    """
+    try:
+        delivery_count = await voice_broadcast_manager.broadcast(message)
+        logger.debug(f"Broadcasted voice message {message.get('type')} to {delivery_count} subscribers")
+        return delivery_count
+    except Exception as e:
+        logger.error(f"Error broadcasting voice message: {e}")
         raise
 
 async def enqueue_raw_llm_output(assistant_response: str, history: List[Dict[str, Any]], metadata: Optional[Dict[str, Any]] = None):

@@ -28,6 +28,7 @@ from app.queues import (
     get_raw_llm_output,
     mark_raw_llm_output_done,
     enqueue_llm_message,
+    broadcast_voice_message,
     create_enhancement_started,   # NEW – interim loading indicator
     create_voice_response,
     create_text_chat_response,
@@ -41,6 +42,20 @@ logger = logging.getLogger(__name__)
 
 # Global registry for active voice agents - using WeakSet for automatic cleanup
 _active_voice_agents: WeakSet = WeakSet()
+
+async def send_message_to_frontend(message: dict, source: str = "text_chat"):
+    """
+    Send message to frontend using appropriate method based on message type.
+    Voice messages are broadcasted, other messages use regular queue.
+    """
+    if message.get('type') in ['voice_response', 'immediate_voice_response', 'user_transcription']:
+        # Broadcast voice messages to all relevant connections
+        delivery_count = await broadcast_voice_message(message)
+        logger.info(f"Broadcasted {message.get('type')} to {delivery_count} subscribers (source: {source})")
+    else:
+        # Use regular queue for non-voice messages
+        await enqueue_llm_message(message)
+        logger.info(f"Enqueued {message.get('type')} to regular queue (source: {source})")
 
 
 def register_voice_agent(agent):
@@ -273,7 +288,10 @@ class VisualizationProcessor:
                             framework="c1",
                             voice_text=""
                         )
-                    await enqueue_llm_message(message_for_frontend)
+                        # Add connection and thread metadata for proper routing
+                        message_for_frontend["connection_id"] = metadata.get("connection_id")
+                        message_for_frontend["thread_id"] = metadata.get("thread_id")
+                    await send_message_to_frontend(message_for_frontend, source)
                     continue
 
                 # Step 1: Process through MCP agent to determine if enhancement is needed
@@ -332,6 +350,9 @@ class VisualizationProcessor:
                 # display…" indicator until the final <voice_response> arrives.
                 if(display_enhancement):
                     enhancement_started_msg = create_enhancement_started()
+                    # Add connection and thread metadata for proper routing
+                    enhancement_started_msg["connection_id"] = metadata.get("connection_id")
+                    enhancement_started_msg["thread_id"] = metadata.get("thread_id")
                     await enqueue_llm_message(enhancement_started_msg)
                     logger.info(
                         "Visualization processor: Sent enhancement_started "
@@ -478,8 +499,11 @@ class VisualizationProcessor:
                                 framework="c1",
                                 voice_text=""
                             )
+                            # Add connection and thread metadata for proper routing
+                            message_for_frontend["connection_id"] = metadata.get("connection_id")
+                            message_for_frontend["thread_id"] = metadata.get("thread_id")
                         
-                        await enqueue_llm_message(message_for_frontend)
+                        await send_message_to_frontend(message_for_frontend, source)
                         logger.info(f"Visualization processor: Sent error message due to streaming failure")
                 elif not skip_sending:
                     logger.info("Visualization processor: No enhancement needed or Thesys unavailable, creating simple text card...")
@@ -522,8 +546,11 @@ class VisualizationProcessor:
                             framework="c1",
                             voice_text=""
                         )
+                        # Add connection and thread metadata for proper routing
+                        message_for_frontend["connection_id"] = metadata.get("connection_id")
+                        message_for_frontend["thread_id"] = metadata.get("thread_id")
                     
-                    await enqueue_llm_message(message_for_frontend)
+                    await send_message_to_frontend(message_for_frontend, source)
                     logger.info(f"Visualization processor: Sent simple card message")
 
             except asyncio.CancelledError:
@@ -558,9 +585,13 @@ class VisualizationProcessor:
                         content_type="c1",  # Default to C1 for vis_processor
                         framework="c1"
                     )
+                    # Add connection and thread metadata for proper routing
+                    metadata_from_item = item.get("metadata", {}) if item else {}
+                    error_message["connection_id"] = metadata_from_item.get("connection_id")
+                    error_message["thread_id"] = metadata_from_item.get("thread_id")
 
                 try:
-                    await enqueue_llm_message(error_message)
+                    await send_message_to_frontend(error_message, metadata_from_item.get("source", "text_chat"))
                 except Exception as enqueue_error:
                     logger.error(f"Failed to enqueue error message: {enqueue_error}", exc_info=True)
             finally:

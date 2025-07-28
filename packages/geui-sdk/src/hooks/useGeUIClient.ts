@@ -39,6 +39,8 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
   audioStream: MediaStream | null;
   sendC1Action: (action: { llmFriendlyMessage: string, humanFriendlyMessage: string }) => void;
   clearMessages: () => void;
+  getBackendConnectionId: () => string | null;
+  isReadyForVoice: () => boolean;
 } {
   // Connection service instance stored in a ref to persist across renders
   const connectionServiceRef = useRef<ConnectionService | null>(null);
@@ -188,10 +190,11 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
     newService.on(ConnectionEvent.AUDIO_STREAM, handleAudioStream);
     newService.on(ConnectionEvent.ERROR, handleError);
     
-    // Auto-connect if enabled
+    // Auto-connect if enabled (WebSocket-first pattern)
     if (autoConnect) {
       newService.connectWebSocket().catch(error => {
         console.error('Error auto-connecting WebSocket:', error);
+        // Don't throw - let user retry manually
       });
     }
     
@@ -274,11 +277,11 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
       return;
     }
     try {
-      await connectionServiceRef.current.connectVoice();
+      await connectionServiceRef.current.connectVoice(threadId);
     } catch (error) {
       console.error('Error starting voice:', error);
     }
-  }, []);
+  }, [threadId]);
 
   // Stop voice connection
   const stopVoice = useCallback(() => {
@@ -290,6 +293,16 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
   // Clear message history
   const clearMessages = useCallback(() => {
     setMessages([]);
+  }, []);
+
+  // Get backend connection ID (useful for debugging)
+  const getBackendConnectionId = useCallback(() => {
+    return connectionServiceRef.current?.getBackendConnectionId() || null;
+  }, []);
+
+  // Check if connection is ready for voice
+  const isReadyForVoice = useCallback(() => {
+    return connectionServiceRef.current?.isReadyForVoice() || false;
   }, []);
 
   return {
@@ -316,5 +329,7 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
     // Additional methods
     sendC1Action,
     clearMessages,
+    getBackendConnectionId,
+    isReadyForVoice,
   };
 }

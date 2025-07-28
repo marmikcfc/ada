@@ -14,13 +14,28 @@ from typing import Dict, List, Any, Optional
 from app.models import ConnectionState
 from app.queues import (
     create_text_chat_response, create_c1_token, create_html_token, create_chat_done,
-    create_enhancement_started, get_content_type_for_provider
+    create_enhancement_started, get_content_type_for_provider, create_voice_response,
+    broadcast_voice_message
 )
 from utils.html_templates import create_simple_message_html, create_error_message_html, escape_html, ensure_html_wrapped
 from schemas import EnhancementDecision
 from app.viz_provider_factory import create_enhanced_system_prompt
 
 logger = logging.getLogger(__name__)
+
+async def send_message_to_frontend(message: dict, connection_context, source: str = "text_chat"):
+    """
+    Send message to frontend using appropriate method based on message type.
+    Voice messages are broadcasted, other messages use per-connection queue.
+    """
+    if message.get('type') in ['voice_response', 'immediate_voice_response', 'user_transcription']:
+        # Broadcast voice messages to all relevant connections
+        delivery_count = await broadcast_voice_message(message)
+        logger.info(f"Broadcasted {message.get('type')} to {delivery_count} subscribers (source: {source})")
+    else:
+        # Use per-connection queue for non-voice messages
+        await connection_context.message_queue.put(message)
+        logger.info(f"Enqueued {message.get('type')} to per-connection queue (source: {source})")
 
 class PerConnectionProcessor:
     """
@@ -134,11 +149,16 @@ class PerConnectionProcessor:
             # Update metrics
             self.context.metrics.mcp_calls += 1
             
+            # For voice-agent sources, use voice injection callback for TTS
+            voice_injection_callback = None
+            if metadata and metadata.get("source") == "voice-agent":
+                voice_injection_callback = self._inject_voice_over_callback
+            
             # Use streaming enhancement decision for better performance
             decision = await self.context.mcp_client.make_enhancement_decision_streaming(
                 assistant_response=assistant_response,
                 conversation_history=conversation_history,
-                voice_injection_callback=None  # No voice injection for text chat
+                voice_injection_callback=voice_injection_callback
             )
             
             return decision
@@ -150,6 +170,27 @@ class PerConnectionProcessor:
                 displayEnhancedText=assistant_response,
                 voiceOverText=""
             )
+    
+    async def _inject_voice_over_callback(self, voice_text: str):
+        """Callback for injecting voice-over text to this connection's voice agent"""
+        try:
+            # Get voice manager to inject TTS to this specific connection
+            from app.voice_manager import voice_manager
+            
+            # Try to inject by connection ID first, then by voice thread if available
+            success = await voice_manager.inject_tts_voice_over(
+                voice_text=voice_text,
+                target_connection_id=self.connection_id,
+                target_thread_id=self.context.voice_thread_id
+            )
+            
+            if success:
+                logger.info(f"Injected voice-over to connection {self.connection_id}: '{voice_text[:50]}...'")
+            else:
+                logger.warning(f"Failed to inject voice-over to connection {self.connection_id}")
+                
+        except Exception as e:
+            logger.error(f"Error in voice-over injection callback for {self.connection_id}: {e}")
     
     async def _process_with_enhancement(
         self, 
@@ -170,7 +211,8 @@ class PerConnectionProcessor:
             # Check if we have a visualization provider
             if not self.context.visualization_provider:
                 logger.warning(f"No visualization provider for connection {self.connection_id}")
-                await self._send_simple_response(decision.displayEnhancedText, thread_id)
+                source = metadata.get("source", "text_chat")
+                await self._send_simple_response(decision.displayEnhancedText, thread_id, source)
                 return
             
             # Update metrics
@@ -197,7 +239,8 @@ class PerConnectionProcessor:
     ):
         """Process message without enhancement"""
         thread_id = metadata.get("thread_id")
-        await self._send_simple_response(assistant_response, thread_id)
+        source = metadata.get("source", "text_chat")
+        await self._send_simple_response(assistant_response, thread_id, source)
     
     async def _prepare_visualization_messages(
         self, 
@@ -284,10 +327,10 @@ class PerConnectionProcessor:
             logger.error(f"Visualization streaming failed for {self.connection_id}: {e}")
             # Send fallback simple response
             await self._send_simple_response(
-                "Failed to generate enhanced visualization", thread_id
+                "Failed to generate enhanced visualization", thread_id, "text_chat"
             )
     
-    async def _send_simple_response(self, content: str, thread_id: Optional[str]):
+    async def _send_simple_response(self, content: str, thread_id: Optional[str], source: str = "text_chat"):
         """Send a simple text response without enhancement"""
         try:
             # Get provider type and framework preference
@@ -338,12 +381,21 @@ class PerConnectionProcessor:
             else:
                 framework = "c1"  # C1 framework for C1Component content
             
-            response_msg = create_text_chat_response(
-                content=response_content,
-                content_type=content_type,
-                framework=framework,
-                thread_id=thread_id
-            )
+            # Create appropriate response type based on source
+            if source == "voice-agent":
+                response_msg = create_voice_response(
+                    content=response_content,
+                    content_type=content_type,
+                    framework=framework,
+                    voice_text=""  # No voice text for simple responses
+                )
+            else:
+                response_msg = create_text_chat_response(
+                    content=response_content,
+                    content_type=content_type,
+                    framework=framework,
+                    thread_id=thread_id
+                )
             
             await self._send_to_frontend(response_msg)
             
@@ -399,12 +451,22 @@ class PerConnectionProcessor:
             else:
                 framework = "c1"  # C1 framework for C1Component content
             
-            error_msg = create_text_chat_response(
-                content=error_content,
-                content_type=content_type,
-                framework=framework,
-                thread_id=thread_id
-            )
+            # Create appropriate response type based on source
+            source = metadata.get("source", "text_chat")
+            if source == "voice-agent":
+                error_msg = create_voice_response(
+                    content=error_content,
+                    content_type=content_type,
+                    framework=framework,
+                    voice_text=""  # No voice text for error responses
+                )
+            else:
+                error_msg = create_text_chat_response(
+                    content=error_content,
+                    content_type=content_type,
+                    framework=framework,
+                    thread_id=thread_id
+                )
             
             await self._send_to_frontend(error_msg)
             
@@ -412,13 +474,13 @@ class PerConnectionProcessor:
             logger.error(f"Failed to send error response for {self.connection_id}: {e}")
     
     async def _send_to_frontend(self, message: Dict[str, Any]):
-        """Send message to frontend via connection's queue"""
+        """Send message to frontend via appropriate method based on message type"""
         try:
-            await self.context.message_queue.put(message)
+            await send_message_to_frontend(message, self.context, "per_connection_processor")
             self.context.metrics.messages_sent += 1
             
         except Exception as e:
-            logger.error(f"Failed to enqueue message for {self.connection_id}: {e}")
+            logger.error(f"Failed to send message for {self.connection_id}: {e}")
     
     def stop(self):
         """Stop the processor"""
