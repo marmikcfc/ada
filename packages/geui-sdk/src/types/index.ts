@@ -521,7 +521,7 @@ export interface AssistantMessage extends BaseMessage {
   /** Primary content field - contains C1Component JSON, HTML, or plain text */
   content: string;
   /** Content type - determines how content should be rendered */
-  contentType: 'c1' | 'html' | 'react' | 'text';
+  contentType: 'c1' | 'html' | 'jsx' | 'react' | 'text';
   /** Framework used for HTML content - helps with styling and interactions */
   framework?: 'tailwind' | 'shadcn' | 'chakra' | 'mui' | 'bootstrap' | 'c1' | 'inline';
   /** React component/node for custom rendering (only used when contentType is 'react') */

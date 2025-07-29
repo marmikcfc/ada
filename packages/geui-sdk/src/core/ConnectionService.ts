@@ -104,6 +104,7 @@ export class ConnectionService extends EventEmitter {
   private streamingMessageId: string | null = null;
   private streamingContent: string = '';
   private streamingContentType: 'c1' | 'html' = 'c1';
+  private streamingFramework: string | undefined = undefined;
   
   // Backend connection ID received from WebSocket connection_established message
   private backendConnectionId: string | null = null;
@@ -639,6 +640,7 @@ export class ConnectionService extends EventEmitter {
             role: 'assistant',
             content: data.content || '',
             contentType: data.contentType || 'c1', // Default to C1 for backward compatibility
+            framework: data.framework, // Extract framework field from backend response
             hasVoiceOver: data.isVoiceOverOnly || false,
             timestamp: new Date()
           };
@@ -682,6 +684,7 @@ export class ConnectionService extends EventEmitter {
               this.streamingMessageId = msgId;
               this.streamingContent = data.content || '';
               this.streamingContentType = 'c1'; // Track content type
+              this.streamingFramework = data.framework; // Track framework from first chunk
               
               // Emit streaming started event
               this.emit(ConnectionEvent.STREAMING_STARTED, {
@@ -720,6 +723,7 @@ export class ConnectionService extends EventEmitter {
               this.streamingMessageId = msgId;
               this.streamingContent = data.content || '';
               this.streamingContentType = 'html'; // Track content type
+              this.streamingFramework = data.framework; // Track framework from first chunk
               
               // Emit streaming started event
               this.emit(ConnectionEvent.STREAMING_STARTED, {
@@ -759,6 +763,7 @@ export class ConnectionService extends EventEmitter {
                 role: 'assistant',
                 content: this.streamingContent,
                 contentType: this.streamingContentType, // Use the streaming content type directly
+                framework: this.streamingFramework, // Use framework tracked from first streaming chunk
                 timestamp: new Date(),
               };
 
@@ -778,6 +783,7 @@ export class ConnectionService extends EventEmitter {
             this.streamingMessageId = null;
             this.streamingContent = '';
             this.streamingContentType = 'c1';
+            this.streamingFramework = undefined;
           }
           break;
         }

@@ -8,6 +8,7 @@ You must return a JSON object with this exact structure:
 {
   "htmlContent": "<your HTML fragment here>",
   "contentType": "html",
+  "framework": "inline",
   "title": "Optional title"
 }
 

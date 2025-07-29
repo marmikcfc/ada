@@ -299,6 +299,9 @@ class PerConnectionProcessor:
         try:
             chunk_count = 0
             
+            # Get framework preference for streaming tokens
+            framework = self._get_framework_preference()
+            
             # Stream chunks from visualization provider
             async for chunk in self.context.visualization_provider.stream_response(messages):
                 chunk_count += 1
@@ -307,10 +310,10 @@ class PerConnectionProcessor:
                 provider_type = self.context.visualization_provider.provider_type.lower()
                 if provider_type in ['openai', 'anthropic', 'google']:
                     # HTML-based providers
-                    chunk_msg = create_html_token(id=message_id, content=chunk)
+                    chunk_msg = create_html_token(id=message_id, content=chunk, framework=framework)
                 else:
                     # C1-based providers (TheSys, Tomorrow, etc.)
-                    chunk_msg = create_c1_token(id=message_id, content=chunk)
+                    chunk_msg = create_c1_token(id=message_id, content=chunk, framework="c1")
                 
                 await self._send_to_frontend(chunk_msg)
                 
@@ -482,6 +485,24 @@ class PerConnectionProcessor:
         except Exception as e:
             logger.error(f"Failed to send message for {self.connection_id}: {e}")
     
+    def _get_framework_preference(self) -> str:
+        """Get the framework preference for this connection"""
+        # Default framework based on provider type
+        provider_type = getattr(self.context.visualization_provider, 'provider_type', 'thesys')
+        if provider_type.lower() in ['openai', 'anthropic', 'google']:
+            default_framework = "tailwind"
+        else:
+            default_framework = "c1"
+        
+        # Check for user preference
+        if (hasattr(self.context, 'config') and 
+            self.context.config and 
+            hasattr(self.context.config, 'preferences') and 
+            self.context.config.preferences):
+            return self.context.config.preferences.get('ui_framework', default_framework)
+        
+        return default_framework
+
     def stop(self):
         """Stop the processor"""
         self.running = False

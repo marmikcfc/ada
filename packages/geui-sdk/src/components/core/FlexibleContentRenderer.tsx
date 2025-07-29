@@ -2,12 +2,13 @@ import React from 'react';
 import DOMPurify from 'dompurify';
 import { C1Component } from '@thesysai/genui-sdk';
 import { ThemeProvider } from '@crayonai/react-ui';
+import { JSXRenderer } from './JSXRenderer';
 
 export interface FlexibleContentRendererProps {
   /** Primary content - contains C1Component JSON, HTML, or plain text */
   content: string;
   /** Content type - determines how content should be rendered */
-  contentType: 'c1' | 'html' | 'react' | 'text';
+  contentType: 'c1' | 'html' | 'jsx' | 'react' | 'text';
   /** Framework used for HTML content - helps with styling and interactions */
   framework?: 'tailwind' | 'shadcn' | 'chakra' | 'mui' | 'bootstrap' | 'c1' | 'inline';
   /** React component/node for custom rendering (only used when contentType is 'react') */
@@ -138,10 +139,30 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
     return result;
   };
 
+  // Debug logging to understand content type routing
+  console.log('🔍 FlexibleContentRenderer: detectedType =', detectedType);
+  console.log('🔍 FlexibleContentRenderer: contentType =', contentType);
+  console.log('🔍 FlexibleContentRenderer: content preview =', (content || '').substring(0, 100));
+
   // Render based on detected or specified type
   switch (detectedType) {
     case 'react':
       return <>{reactContent}</>;
+      
+    case 'jsx':
+      console.log('🎯 FlexibleContentRenderer: Entering JSX case, about to render JSXRenderer');
+      return (
+        <JSXRenderer 
+          jsx={content || ''} 
+          debug={false}
+          onError={(error) => {
+            console.error('🔥 JSXRenderer compilation error:', error);
+          }}
+          onSuccess={(element) => {
+            console.log('✅ JSXRenderer compilation successful');
+          }}
+        />
+      );
       
     case 'c1':
       const c1Xml = extractC1Content(content || '');

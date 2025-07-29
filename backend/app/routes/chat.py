@@ -535,6 +535,115 @@ async def _process_per_connection_chat(context, chat_message: ChatMessage):
         
         logger.info(f"Processing {chat_message.type} for {context.connection_id}: {message[:100]}...")
         
+        # DEBUG: Check for test commands
+        if message.lower().strip() == "test html":
+            logger.info(f"🎯 DEBUG: Returning basic HTML test for {context.connection_id}")
+            
+            html_content = '''<div style="padding: 20px; border: 2px solid red; background: yellow;">
+                <h2 style="color: blue;">HTML Test</h2>
+                <p>This is a basic HTML test to verify rendering works.</p>
+                <button style="padding: 10px; background: green; color: white;">Test Button</button>
+            </div>'''
+            
+            from app.queues import create_text_chat_response
+            debug_response = create_text_chat_response(
+                content=html_content,
+                content_type="html",
+                framework="basic",
+                thread_id=thread_id
+            )
+            
+            await context.message_queue.put(debug_response)
+            logger.info(f"✅ DEBUG: Sent HTML test response for {context.connection_id}")
+            return
+        
+        elif message.lower().strip() == "test jsx":
+            logger.info(f"🎯 DEBUG: Returning basic JSX test for {context.connection_id}")
+            
+            jsx_content = '''<div style={{padding: "20px", border: "2px solid blue", background: "lightblue"}}>
+                <h2 style={{color: "darkblue"}}>JSX Test</h2>
+                <p>This is a basic JSX test with inline styles.</p>
+                <button style={{padding: "10px", background: "purple", color: "white"}}>JSX Button</button>
+            </div>'''
+            
+            from app.queues import create_text_chat_response
+            debug_response = create_text_chat_response(
+                content=jsx_content,
+                content_type="jsx",
+                framework="basic",
+                thread_id=thread_id
+            )
+            
+            await context.message_queue.put(debug_response)
+            logger.info(f"✅ DEBUG: Sent JSX test response for {context.connection_id}")
+            return
+        
+        elif message.lower().strip() == "shadcn accordion":
+            logger.info(f"🎯 DEBUG: Returning shadcn accordion JSX for {context.connection_id}")
+            
+            jsx_content = '''<Accordion
+  type="single"
+  collapsible
+  className="w-full"
+  defaultValue="item-1"
+>
+  <AccordionItem value="item-1">
+    <AccordionTrigger>Product Information</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <p>
+        Our flagship product combines cutting-edge technology with sleek
+        design. Built with premium materials, it offers unparalleled
+        performance and reliability.
+      </p>
+      <p>
+        Key features include advanced processing capabilities, and an
+        intuitive user interface designed for both beginners and experts.
+      </p>
+    </AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="item-2">
+    <AccordionTrigger>Shipping Details</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <p>
+        We offer worldwide shipping through trusted courier partners.
+        Standard delivery takes 3-5 business days, while express shipping
+        ensures delivery within 1-2 business days.
+      </p>
+      <p>
+        All orders are carefully packaged and fully insured. Track your
+        shipment in real-time through our dedicated tracking portal.
+      </p>
+    </AccordionContent>
+  </AccordionItem>
+  <AccordionItem value="item-3">
+    <AccordionTrigger>Return Policy</AccordionTrigger>
+    <AccordionContent className="flex flex-col gap-4 text-balance">
+      <p>
+        We stand behind our products with a comprehensive 30-day return
+        policy. If you&apos;re not completely satisfied, simply return the
+        item in its original condition.
+      </p>
+      <p>
+        Our hassle-free return process includes free return shipping and
+        full refunds processed within 48 hours of receiving the returned
+        item.
+      </p>
+    </AccordionContent>
+  </AccordionItem>
+</Accordion>'''
+            
+            from app.queues import create_text_chat_response
+            debug_response = create_text_chat_response(
+                content=jsx_content,
+                content_type="jsx",
+                framework="shadcn",
+                thread_id=thread_id
+            )
+            
+            await context.message_queue.put(debug_response)
+            logger.info(f"✅ DEBUG: Sent JSX accordion response for {context.connection_id}")
+            return
+        
         # Get conversation history from connection's storage
         history = await _get_connection_history(context.connection_id, thread_id)
         
