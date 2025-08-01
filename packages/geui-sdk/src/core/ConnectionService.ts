@@ -3,8 +3,7 @@ import {
   ConnectionState, 
   VoiceConnectionState, 
   MCPEndpoint,
-  UserMessage,
-  AssistantMessage
+  UserMessage
 } from '../types';
 
 /**

@@ -296,8 +296,6 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
         };
         
         const handleClick = (e: Event) => {
-          const target = e.target as HTMLElement;
-          
           // Handle button clicks
           if (e.target instanceof HTMLButtonElement) {
             const button = e.target;
