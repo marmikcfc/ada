@@ -22,6 +22,7 @@ export enum ConnectionEvent {
   AUDIO_STREAM = 'audio_stream',
   INTERACTION_PROCESSING = 'interaction_processing',
   INTERACTION_COMPLETE = 'interaction_complete',
+  INTERACTION_LOADING = 'interaction_loading',
   ERROR = 'error'
 }
 
@@ -53,6 +54,7 @@ export interface ConnectionServiceOptions {
   onFormSubmit?: (formId: string, formData: FormData) => void;
   onButtonClick?: (actionType: string, context: any) => void;
   onInputChange?: (fieldName: string, value: any) => void;
+  onLinkClick?: (href: string, context: any) => void;
   /** Custom WebSocket connection handler (for per-connection setup) */
   onWebSocketConnect?: (ws: WebSocket) => () => void;
 }
@@ -86,10 +88,10 @@ export class ConnectionService extends EventEmitter {
   
   // UI Framework support
   private uiFramework: string = 'inline';
-  private _visualizationProvider?: VisualizationProvider; // Reserved for future use
   private onFormSubmit?: (formId: string, formData: FormData) => void;
   private onButtonClick?: (actionType: string, context: any) => void;
   private onInputChange?: (fieldName: string, value: any) => void;
+  private onLinkClick?: (href: string, context: any) => void;
   private onWebSocketConnect?: (ws: WebSocket) => () => void;
   private wsCleanupCallback?: () => void;
 
@@ -138,10 +140,10 @@ export class ConnectionService extends EventEmitter {
     
     // UI Framework support
     this.uiFramework = options.uiFramework || 'inline';
-    this._visualizationProvider = options.visualizationProvider;
     this.onFormSubmit = options.onFormSubmit;
     this.onButtonClick = options.onButtonClick;
     this.onInputChange = options.onInputChange;
+    this.onLinkClick = options.onLinkClick;
     this.onWebSocketConnect = options.onWebSocketConnect;
     
     // Setup global interaction handlers
@@ -462,7 +464,7 @@ export class ConnectionService extends EventEmitter {
     
     // Clear all interaction processing states and debounce timers
     this.processingInteractions.clear();
-    for (const [key, timeout] of this.interactionDebounceMap.entries()) {
+    for (const [_key, timeout] of this.interactionDebounceMap.entries()) {
       clearTimeout(timeout);
     }
     this.interactionDebounceMap.clear();
@@ -584,48 +586,6 @@ export class ConnectionService extends EventEmitter {
     }
   }
 
-  /**
-   * Parses assistant message content, extracting C1Component JSON if present.
-   */
-  private _parseAssistantContent(rawContent: string): { c1Content?: string, textContent?: string } {
-    // Ensure we have a string
-    if (typeof rawContent !== 'string') {
-      return { textContent: JSON.stringify(rawContent) };
-    }
-
-    /* --------------------------------------------------------------
-     * 1. Decode HTML entities (&lt;, &gt;, &quot;, etc.)
-     * ------------------------------------------------------------ */
-    const decoded = (() => {
-      // Small, DOM-based decoder works in all browsers / Electron / Tauri
-      try {
-        const txt = document.createElement('textarea');
-        txt.innerHTML = rawContent;
-        return txt.value;
-      } catch {
-        // Fallback – very small subset we actually see
-        return rawContent
-          .replace(/&lt;/g, '<')
-          .replace(/&gt;/g, '>')
-          .replace(/&quot;/g, '"')
-          .replace(/&#39;/g, "'")
-          .replace(/&amp;/g, '&');
-      }
-    })();
-
-    /* --------------------------------------------------------------
-     * 2. Extract inner JSON wrapped by <content> … </content>
-     * ------------------------------------------------------------ */
-    // Use a single back-slash in the character class and closing tag; the
-    // double-escaped version broke esbuild parsing.
-    const match = decoded.match(/<content>([\s\S]*?)<\/content>/);
-    if (match && match[1]) {
-      return { c1Content: match[1] };
-    }
-
-    // No <content> wrapper → treat as plain text
-    return { textContent: decoded };
-  }
 
   /**
    * Handle WebSocket message event
@@ -647,15 +607,37 @@ export class ConnectionService extends EventEmitter {
         case 'text_chat_response': {
           console.log(`[WS:${this.connectionLogId}] Received ${data.type} message:`, data);
           
-          const assistantMessage: AssistantMessage = {
+          // Preserve the role from the backend if provided, otherwise default to 'assistant'
+          const messageRole = data.role || 'assistant';
+          console.log(`[WS:${this.connectionLogId}] Message role: ${messageRole} (from backend: ${data.role})`);
+          
+          const message = {
             id: data.id || crypto.randomUUID(),
-            role: 'assistant',
+            role: messageRole as 'user' | 'assistant',
             content: data.content || '',
             contentType: data.contentType || 'c1', // Default to C1 for backward compatibility
             hasVoiceOver: data.isVoiceOverOnly || false,
             timestamp: new Date()
           };
-          this.emit(ConnectionEvent.MESSAGE_RECEIVED, assistantMessage);
+          
+          // Filter out duplicate messages that come from backend
+          if (messageRole === 'user' && typeof data.content === 'string') {
+            const content = data.content.trim();
+            
+            // Skip "Updated [field]" messages - these are input changes
+            if (content.startsWith('Updated ') && content.includes(':')) {
+              console.log(`[WS:${this.connectionLogId}] Filtering out input update message:`, content);
+              break;
+            }
+            
+            // Skip backend's form submission messages since we already show our own
+            if (content.startsWith('Submitted ') && content.includes('with:')) {
+              console.log(`[WS:${this.connectionLogId}] Filtering out duplicate form submission message:`, content);
+              break;
+            }
+          }
+          
+          this.emit(ConnectionEvent.MESSAGE_RECEIVED, message);
           break;
         }
           
@@ -764,19 +746,23 @@ export class ConnectionService extends EventEmitter {
             console.log(`[WS:${this.connectionLogId}] Received chat_done for message ${doneId}`);
 
             /* ----------------------------------------------------------------
-             * 1. Build **final assistant message** from the accumulated stream
+             * 1. Build **final message** from the accumulated stream
              * ---------------------------------------------------------------- */
             if (this.streamingContent.trim().length > 0) {
-              const finalAssistant: AssistantMessage = {
+              // Preserve the role from the backend if provided, otherwise default to 'assistant'
+              const messageRole = data.role || 'assistant';
+              console.log(`[WS:${this.connectionLogId}] Final streaming message role: ${messageRole} (from backend: ${data.role})`);
+              
+              const finalMessage = {
                 id: doneId,
-                role: 'assistant',
+                role: messageRole as 'user' | 'assistant',
                 content: this.streamingContent,
                 contentType: this.streamingContentType, // Use the streaming content type directly
                 timestamp: new Date(),
               };
 
               // Surface to consumers before we clear the buffer
-              this.emit(ConnectionEvent.MESSAGE_RECEIVED, finalAssistant);
+              this.emit(ConnectionEvent.MESSAGE_RECEIVED, finalMessage);
             }
 
             /* ----------------------------------------------------------------
@@ -1078,6 +1064,7 @@ export class ConnectionService extends EventEmitter {
       handleFormSubmit: this.handleFormSubmit.bind(this),
       handleButtonClick: this.handleButtonClick.bind(this),
       handleInputChange: this.handleInputChange.bind(this),
+      handleLinkClick: this.handleLinkClick.bind(this),
       sendInteraction: this.sendInteraction.bind(this)
     };
     
@@ -1099,6 +1086,10 @@ export class ConnectionService extends EventEmitter {
     
     // Mark as processing immediately to prevent duplicates
     this.markInteractionProcessing('form_submit', formId);
+    
+    // Emit loading event to trigger "thinking" message
+    console.log('🚀 ConnectionService: Emitting INTERACTION_LOADING event for form submit');
+    this.emit(ConnectionEvent.INTERACTION_LOADING);
     
     const form = event.target as HTMLFormElement;
     const formData = new FormData(form);
@@ -1160,6 +1151,10 @@ export class ConnectionService extends EventEmitter {
     // Mark as processing immediately to prevent duplicates
     this.markInteractionProcessing('button_click', buttonId);
     
+    // Emit loading event to trigger "thinking" message
+    console.log('🚀 ConnectionService: Emitting INTERACTION_LOADING event for button click');
+    this.emit(ConnectionEvent.INTERACTION_LOADING);
+    
     // Create a user-friendly message describing the button click
     let userMessage = `🔘 Clicked "${actionType}"`;
     
@@ -1210,17 +1205,8 @@ export class ConnectionService extends EventEmitter {
     // Use debouncing for input changes to avoid excessive backend calls
     const debounceKey = `input_change:${fieldName}`;
     this.debounceInteraction(debounceKey, () => {
-      // Only show user message for significant input changes (not every keystroke)
-      // Check if input has data-action attribute for real-time actions
-      const hasAction = input.hasAttribute('data-action');
-      if (hasAction) {
-        const actionType = input.getAttribute('data-action') || 'input-change';
-        const userMessage = input.type === 'checkbox' 
-          ? `☑️ ${value ? 'Checked' : 'Unchecked'} "${fieldName}"`
-          : `⌨️ Updated "${fieldName}": ${value}`;
-        
-        this.addUserMessage(userMessage);
-      }
+      // Don't show user messages for input changes - too noisy
+      // Only send the interaction to backend for processing
       
       this.sendInteraction('input_change', {
         fieldName,
@@ -1233,6 +1219,80 @@ export class ConnectionService extends EventEmitter {
         this.onInputChange(fieldName, value);
       }
     }, 500); // Longer debounce for input changes to reduce noise
+  }
+  
+  /**
+   * Handle link click from framework-generated content
+   */
+  private handleLinkClick(event: Event, href: string, context: any = {}): void {
+    console.log('ConnectionService: handleLinkClick called', { href, context, event });
+    event.preventDefault();
+    
+    const linkId = `${href}-${JSON.stringify(context)}`;
+    
+    // Check if this link click is already being processed
+    if (this.isInteractionProcessing('link_click', linkId)) {
+      console.log('⏭️ Link click already in progress, ignoring duplicate');
+      return;
+    }
+    
+    // Mark as processing immediately to prevent duplicates
+    this.markInteractionProcessing('link_click', linkId);
+    
+    // Emit loading event to trigger "thinking" message
+    console.log('🚀 ConnectionService: Emitting INTERACTION_LOADING event for link click');
+    this.emit(ConnectionEvent.INTERACTION_LOADING);
+    
+    // Create a user-friendly message describing the link click
+    let userMessage = `🔗 Clicked link`;
+    
+    // Add context in a more readable format
+    if (context && context.text) {
+      userMessage = `🔗 Clicked "${context.text}"`;
+    } else if (href) {
+      // Extract meaningful text from href
+      const urlParts = href.split('/');
+      const lastPart = urlParts[urlParts.length - 1] || urlParts[urlParts.length - 2];
+      if (lastPart && !lastPart.includes('://')) {
+        userMessage = `🔗 Clicked "${decodeURIComponent(lastPart).replace(/[-_]/g, ' ')}"`;
+      } else {
+        userMessage = `🔗 Clicked link to ${new URL(href, window.location.href).hostname}`;
+      }
+    }
+    
+    // Add additional context if provided
+    if (context && Object.keys(context).length > 0 && !context.text) {
+      const contextStr = Object.entries(context)
+        .filter(([key]) => key !== 'text')
+        .map(([key, value]) => `${key}: ${value}`)
+        .join(', ');
+      if (contextStr) {
+        userMessage += ` (${contextStr})`;
+      }
+    }
+    
+    // Add user message to chat
+    this.addUserMessage(userMessage);
+    
+    // Send the interaction with debouncing
+    const debounceKey = `link_click:${linkId}`;
+    this.debounceInteraction(debounceKey, () => {
+      this.sendInteraction('link_click', {
+        href,
+        context,
+        timestamp: new Date().toISOString()
+      });
+    }, 200); // Same debounce as button clicks
+    
+    // Call custom handler if provided
+    if (this.onLinkClick) {
+      this.onLinkClick(href, context);
+    }
+    
+    // Mark as complete after a short delay
+    setTimeout(() => {
+      this.markInteractionComplete('link_click', linkId);
+    }, 1000);
   }
   
   /**

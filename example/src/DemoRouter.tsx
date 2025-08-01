@@ -7,6 +7,7 @@ import VoiceOnlyDemo from './demos/VoiceOnlyDemo';
 import ThemeShowcaseDemo from './demos/ThemeShowcaseDemo';
 import UIFrameworkDemo from './demos/UIFrameworkDemo';
 import ConfigurableDemo from './demos/ConfigurableDemo';
+import ThreadManagementDemo from './demos/ThreadManagementDemo';
 
 /**
  * Demo Router Component
@@ -15,7 +16,7 @@ import ConfigurableDemo from './demos/ConfigurableDemo';
  * the GenUX SDK's capabilities for different scenarios.
  */
 
-type DemoType = 'saas' | 'chat' | 'standalone' | 'customfullscreen' | 'voiceonly' | 'themes' | 'uiframework' | 'configurable';
+type DemoType = 'saas' | 'chat' | 'standalone' | 'customfullscreen' | 'voiceonly' | 'themes' | 'uiframework' | 'configurable' | 'threadmanagement' | 'package';
 
 interface Demo {
   id: DemoType;
@@ -90,6 +91,14 @@ const demos: Demo[] = [
     icon: '🏢',
     status: 'supported',
     component: ConfigurableDemo
+  },
+  {
+    id: 'threadmanagement',
+    title: 'Thread Management & Settings',
+    description: 'Clean 2-column layout with thread management, comprehensive settings, and no voice features',
+    icon: '💬',
+    status: 'supported',
+    component: ThreadManagementDemo
   }
 ];
 

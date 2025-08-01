@@ -3,6 +3,18 @@ import DOMPurify from 'dompurify';
 import { C1Component } from '@thesysai/genui-sdk';
 import { ThemeProvider } from '@crayonai/react-ui';
 
+declare global {
+  interface Window {
+    geuiSDK?: {
+      handleFormSubmit: (event: Event, formId: string) => void;
+      handleButtonClick: (event: Event, actionType: string, context: any) => void;
+      handleInputChange: (event: Event, fieldName: string) => void;
+      handleLinkClick: (event: Event, href: string, context: any) => void;
+      sendInteraction: (type: string, context: any) => void;
+    };
+  }
+}
+
 export interface FlexibleContentRendererProps {
   /** Primary content - contains C1Component JSON, HTML, or plain text */
   content: string;
@@ -75,7 +87,7 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
                                'input', 'label', 'select', 'option', 'textarea'];
     
     const defaultAllowedAttributes = {
-      'a': ['href', 'title', 'target', 'rel'],
+      'a': ['href', 'title', 'target', 'rel', 'onclick', 'data-action', 'data-context'],
       'img': ['src', 'alt', 'width', 'height'],
       'button': ['type', 'onclick', 'onmouseover', 'onmouseout', 'class', 'id', 'data-action', 'data-context', 'data-trigger'],
       'input': ['type', 'name', 'value', 'placeholder', 'class', 'id', 'onchange', 'oninput', 'onfocus', 'onblur', 'data-action', 'data-trigger', 'data-debounce', 'required'],
@@ -210,7 +222,7 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
         
         // Test if the JavaScript would execute
         try {
-          const testResult = eval(`typeof window.geuiSDK !== 'undefined' && typeof window.geuiSDK.handleFormSubmit === 'function'`);
+          const testResult = typeof window !== 'undefined' && window.geuiSDK && typeof window.geuiSDK.handleFormSubmit === 'function';
           console.log('🔍 Can execute window.geuiSDK.handleFormSubmit?', testResult);
         } catch (e) {
           console.error('❌ Error testing onsubmit execution:', e);
@@ -284,6 +296,9 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
         };
         
         const handleClick = (e: Event) => {
+          const target = e.target as HTMLElement;
+          
+          // Handle button clicks
           if (e.target instanceof HTMLButtonElement) {
             const button = e.target;
             
@@ -317,6 +332,9 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
               }
             }
           }
+          
+          // Handle link clicks (use handleLinkClick function we defined)
+          handleLinkClick(e);
         };
         
         const handleChange = (e: Event) => {
@@ -338,6 +356,50 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
               if (geuiSDK && typeof geuiSDK.handleInputChange === 'function') {
                 const fieldName = element.dataset.geuiField || element.name || element.id || 'unknown-field';
                 geuiSDK.handleInputChange(e, fieldName);
+              }
+            }
+          }
+        };
+        
+        const handleLinkClick = (e: Event) => {
+          // Find the closest anchor element (in case click was on child element)
+          const target = e.target as HTMLElement;
+          const link = target.closest('a');
+          
+          if (link && link instanceof HTMLAnchorElement) {
+            const href = link.getAttribute('href');
+            const onclickAttr = link.getAttribute('onclick');
+            
+            // Skip delegation if link has native onclick handler to prevent double processing
+            if (onclickAttr && onclickAttr.includes('window.geuiSDK')) {
+              console.log('⏭️ Skipping delegation for link with native onclick handler');
+              return;
+            }
+            
+            // Handle links with data attributes or all links without native handlers
+            if (href) {
+              e.preventDefault();
+              
+              console.log('🚀 Link click delegated:', { href, text: link.textContent });
+              
+              const geuiSDK = (window as any).geuiSDK;
+              if (geuiSDK && typeof geuiSDK.handleLinkClick === 'function') {
+                // Extract context from data attributes
+                const context: any = {
+                  text: link.textContent || link.innerText || ''
+                };
+                
+                // Add any data-* attributes to context
+                if (link.dataset.action) context.action = link.dataset.action;
+                if (link.dataset.context) {
+                  try {
+                    context.data = JSON.parse(link.dataset.context);
+                  } catch {
+                    context.data = link.dataset.context;
+                  }
+                }
+                
+                geuiSDK.handleLinkClick(e, href, context);
               }
             }
           }
@@ -377,9 +439,7 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
             console.log('🔍 Testing form submission event handling...');
             
             const originalPreventDefault = testSubmitEvent.preventDefault;
-            let preventDefaultCalled = false;
             testSubmitEvent.preventDefault = function() {
-              preventDefaultCalled = true;
               console.log('✅ preventDefault() was called!');
               return originalPreventDefault.call(this);
             };
@@ -390,7 +450,7 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
               console.log('🔍 Would execute:', onsubmitAttr);
               try {
                 // Create a test environment
-                const testFn = new Function('event', onsubmitAttr);
+                new Function('event', onsubmitAttr);
                 console.log('✅ onsubmit compiles as valid JavaScript');
               } catch (e) {
                 console.error('❌ onsubmit is invalid JavaScript:', e);

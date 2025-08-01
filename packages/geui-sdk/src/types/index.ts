@@ -150,6 +150,7 @@ export interface GeUIOptions {
   onFormSubmit?: (formId: string, formData: FormData) => void;
   onButtonClick?: (actionType: string, context: any) => void;
   onInputChange?: (fieldName: string, value: any) => void;
+  onLinkClick?: (href: string, context: any) => void;
   
   /** Custom WebSocket connection handler (for per-connection setup) */
   onWebSocketConnect?: (ws: WebSocket) => () => void;
@@ -526,6 +527,8 @@ export interface AssistantMessage extends BaseMessage {
   framework?: 'tailwind' | 'shadcn' | 'chakra' | 'mui' | 'bootstrap' | 'c1' | 'inline';
   /** React component/node for custom rendering (only used when contentType is 'react') */
   reactContent?: React.ReactNode;
+  /** Whether this message is in a loading state */
+  isLoading?: boolean;
   /** Whether this message has voice-over audio */
   hasVoiceOver?: boolean;
   /** Whether to allow dangerous HTML (bypasses sanitization) */
@@ -577,7 +580,7 @@ export interface InteractionProcessingState {
 /**
  * Interaction types for user interactions
  */
-export type InteractionType = 'form_submit' | 'button_click' | 'input_change';
+export type InteractionType = 'form_submit' | 'button_click' | 'input_change' | 'link_click';
 
 /**
  * Interaction processing event data
