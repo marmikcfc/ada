@@ -4,7 +4,9 @@ import {
   Message, 
   ConnectionState, 
   VoiceConnectionState,
-  GeUIClient
+  GeUIClient,
+  InteractionType,
+  InteractionProcessingState
 } from '../types';
 
 /**
@@ -313,6 +315,15 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
     messages,
     connectionState,
     voiceState,
+    
+    // Interaction processing methods
+    isInteractionProcessing: useCallback((type: InteractionType, identifier: string) => {
+      return connectionServiceRef.current?.checkInteractionProcessing?.(type, identifier) || false;
+    }, []),
+    
+    getProcessingInteractions: useCallback((): InteractionProcessingState[] => {
+      return connectionServiceRef.current?.getProcessingInteractions?.() || [];
+    }, []),
     
     // Additional properties
     threadId,

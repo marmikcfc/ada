@@ -241,10 +241,28 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
         const container = containerRef.current;
         if (!container) return;
         
+        // Check if forms have native onsubmit handlers
+        const forms = container.querySelectorAll('form');
+        const formsWithNativeHandlers = new Set<HTMLFormElement>();
+        
+        forms.forEach(form => {
+          const onsubmitAttr = form.getAttribute('onsubmit');
+          if (onsubmitAttr && onsubmitAttr.includes('window.geuiSDK')) {
+            formsWithNativeHandlers.add(form as HTMLFormElement);
+            console.log('🔍 Found form with native onsubmit handler, skipping delegation for:', form);
+          }
+        });
+        
         const handleSubmit = (e: Event) => {
           console.log('🚀 Event delegation: Form submit intercepted', e.target);
           
           if (e.target instanceof HTMLFormElement) {
+            // Skip delegation if form has native handler to prevent double processing
+            if (formsWithNativeHandlers.has(e.target)) {
+              console.log('⏭️ Skipping delegation for form with native handler');
+              return;
+            }
+            
             e.preventDefault(); // Always prevent default first
             
             const form = e.target;
@@ -252,15 +270,6 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
             
             // Extract form ID from onsubmit attribute or data attributes
             let formId = form.dataset.geuiForm || form.id || 'unknown-form';
-            
-            // If no data attribute, try to extract from onsubmit
-            const onsubmitAttr = form.getAttribute('onsubmit');
-            if (onsubmitAttr && !form.dataset.geuiForm) {
-              const match = onsubmitAttr.match(/handleFormSubmit\([^,]+,\s*['"]([^'"]+)['"]\)/);
-              if (match) {
-                formId = match[1];
-              }
-            }
             
             console.log('🚀 Form submission delegated:', { formId, formData });
             
@@ -281,32 +290,30 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
             // Check if this is a form submit button
             if (button.type === 'submit') {
               console.log('🚀 Event delegation: Submit button clicked', button);
-              // Let the form submit handler deal with it
+              // Let the form submit handler deal with it - no need for delegation here
               return;
             }
             
-            // Handle other button clicks
+            // Handle other button clicks only if they don't have native onclick handlers
             const onclickAttr = button.getAttribute('onclick');
             if (onclickAttr && onclickAttr.includes('window.geuiSDK')) {
+              // Skip delegation for buttons with native handlers to prevent double processing
+              console.log('⏭️ Skipping delegation for button with native onclick handler');
+              return;
+            }
+            
+            // Only delegate for buttons without native handlers
+            if (button.dataset.geuiAction) {
               e.preventDefault();
               
-              console.log('🚀 Button click delegated:', onclickAttr);
+              console.log('🚀 Button click delegated via data attribute');
               
-              // Extract action and context from onclick
               const geuiSDK = (window as any).geuiSDK;
               if (geuiSDK && typeof geuiSDK.handleButtonClick === 'function') {
-                // Try to extract parameters from onclick attribute
-                const match = onclickAttr.match(/handleButtonClick\([^,]+,\s*['"]([^'"]+)['"],\s*({[^}]*}|\S+)\)/);
-                if (match) {
-                  const actionType = match[1];
-                  let context;
-                  try {
-                    context = JSON.parse(match[2]);
-                  } catch {
-                    context = { raw: match[2] };
-                  }
-                  geuiSDK.handleButtonClick(e, actionType, context);
-                }
+                const actionType = button.dataset.geuiAction || 'button-click';
+                const context = button.dataset.geuiContext ? 
+                  JSON.parse(button.dataset.geuiContext) : {};
+                geuiSDK.handleButtonClick(e, actionType, context);
               }
             }
           }
@@ -317,14 +324,19 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
             const element = e.target;
             const onchangeAttr = element.getAttribute('onchange');
             
+            // Skip delegation if element has native onchange handler to prevent double processing
             if (onchangeAttr && onchangeAttr.includes('window.geuiSDK')) {
-              console.log('🚀 Input change delegated:', { name: element.name, value: element.value });
+              console.log('⏭️ Skipping delegation for input with native onchange handler');
+              return;
+            }
+            
+            // Only delegate for elements with data attributes (no native handlers)
+            if (element.dataset.geuiField) {
+              console.log('🚀 Input change delegated via data attribute:', { name: element.name, value: element.value });
               
               const geuiSDK = (window as any).geuiSDK;
               if (geuiSDK && typeof geuiSDK.handleInputChange === 'function') {
-                // Extract field name from onchange attribute
-                const match = onchangeAttr.match(/handleInputChange\([^,]+,\s*['"]([^'"]+)['"]\)/);
-                const fieldName = match ? match[1] : (element.name || element.id || 'unknown-field');
+                const fieldName = element.dataset.geuiField || element.name || element.id || 'unknown-field';
                 geuiSDK.handleInputChange(e, fieldName);
               }
             }

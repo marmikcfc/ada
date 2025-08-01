@@ -565,6 +565,40 @@ export type ConnectionState = 'connected' | 'connecting' | 'disconnected' | 'err
 export type VoiceConnectionState = 'connected' | 'connecting' | 'disconnected';
 
 /**
+ * Interaction processing states
+ */
+export interface InteractionProcessingState {
+  type: string;
+  identifier: string;
+  processing: boolean;
+  timestamp?: number;
+}
+
+/**
+ * Interaction types for user interactions
+ */
+export type InteractionType = 'form_submit' | 'button_click' | 'input_change';
+
+/**
+ * Interaction processing event data
+ */
+export interface InteractionProcessingEvent {
+  type: InteractionType;
+  identifier: string;
+  processing: boolean;
+}
+
+/**
+ * Debounce configuration for interactions
+ */
+export interface InteractionDebounceConfig {
+  [key: string]: {
+    delay: number;
+    callback: () => void;
+  };
+}
+
+/**
  * Genux client interface (for headless use)
  */
 export interface GeUIClient {
@@ -574,6 +608,12 @@ export interface GeUIClient {
   messages: Message[];
   connectionState: ConnectionState;
   voiceState: VoiceConnectionState;
+  
+  /** Check if a specific interaction is currently being processed */
+  isInteractionProcessing: (type: InteractionType, identifier: string) => boolean;
+  
+  /** Get all currently processing interactions */
+  getProcessingInteractions: () => InteractionProcessingState[];
 }
 
 /**

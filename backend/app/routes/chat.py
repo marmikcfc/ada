@@ -23,8 +23,61 @@ from app.chat_history_manager import chat_history_manager
 
 logger = logging.getLogger(__name__)
 
+# Global interaction deduplication tracking
+# Format: {connection_id: {interaction_hash: timestamp}}
+interaction_dedup_cache: Dict[str, Dict[str, float]] = {}
+DEDUP_WINDOW_SECONDS = 5.0  # Time window to consider interactions as duplicates
+
 # Router for per-connection chat endpoints
 router = APIRouter(tags=["per-connection-chat"])
+
+def _generate_interaction_hash(interaction_type: str, interaction_context: Dict[str, Any]) -> str:
+    """Generate a unique hash for an interaction to detect duplicates"""
+    import hashlib
+    import time
+    
+    # Create a deterministic string from the interaction
+    interaction_str = f"{interaction_type}:{json.dumps(interaction_context, sort_keys=True)}"
+    return hashlib.md5(interaction_str.encode()).hexdigest()
+
+def _is_duplicate_interaction(connection_id: str, interaction_hash: str) -> bool:
+    """Check if this interaction is a duplicate within the deduplication window"""
+    import time
+    current_time = time.time()
+    
+    # Clean up old entries first
+    _cleanup_old_interactions(connection_id, current_time)
+    
+    # Check if this interaction exists in the cache
+    if connection_id in interaction_dedup_cache:
+        if interaction_hash in interaction_dedup_cache[connection_id]:
+            last_time = interaction_dedup_cache[connection_id][interaction_hash]
+            if current_time - last_time < DEDUP_WINDOW_SECONDS:
+                return True
+    
+    # Mark this interaction as processed
+    if connection_id not in interaction_dedup_cache:
+        interaction_dedup_cache[connection_id] = {}
+    
+    interaction_dedup_cache[connection_id][interaction_hash] = current_time
+    return False
+
+def _cleanup_old_interactions(connection_id: str, current_time: float):
+    """Remove old interaction entries outside the deduplication window"""
+    if connection_id not in interaction_dedup_cache:
+        return
+    
+    expired_hashes = []
+    for interaction_hash, timestamp in interaction_dedup_cache[connection_id].items():
+        if current_time - timestamp > DEDUP_WINDOW_SECONDS:
+            expired_hashes.append(interaction_hash)
+    
+    for hash_to_remove in expired_hashes:
+        del interaction_dedup_cache[connection_id][hash_to_remove]
+    
+    # Remove connection entry if empty
+    if not interaction_dedup_cache[connection_id]:
+        del interaction_dedup_cache[connection_id]
 
 @router.websocket("/ws/per-connection-messages")
 async def websocket_per_connection_messages(websocket: WebSocket):
@@ -287,6 +340,16 @@ async def _process_user_interaction(context, interaction_message: UserInteractio
         interaction_context = interaction_message.context
         
         logger.info(f"Processing {interaction_type} for {context.connection_id}: {interaction_context}")
+        
+        # Generate interaction hash for deduplication
+        interaction_hash = _generate_interaction_hash(interaction_type, interaction_context)
+        
+        # Check if this is a duplicate interaction
+        if _is_duplicate_interaction(context.connection_id, interaction_hash):
+            logger.info(f"Duplicate {interaction_type} interaction detected for {context.connection_id}, skipping processing")
+            return
+        
+        logger.info(f"Processing new {interaction_type} interaction for {context.connection_id} (hash: {interaction_hash[:8]})")
         
         # Detect framework from interaction context
         detected_framework = _detect_framework_from_interaction(interaction_context)

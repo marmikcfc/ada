@@ -20,6 +20,8 @@ export enum ConnectionEvent {
   TRANSCRIPTION = 'transcription',
   ENHANCEMENT_STARTED = 'enhancement_started',
   AUDIO_STREAM = 'audio_stream',
+  INTERACTION_PROCESSING = 'interaction_processing',
+  INTERACTION_COMPLETE = 'interaction_complete',
   ERROR = 'error'
 }
 
@@ -114,6 +116,10 @@ export class ConnectionService extends EventEmitter {
   // Thread management for voice isolation
   private activeThreadId: string | null = null;
   private threadVoiceMapping: Map<string, boolean> = new Map(); // Track which threads have voice enabled
+  
+  // Interaction processing state management
+  private processingInteractions: Map<string, { type: string, timestamp: number }> = new Map();
+  private interactionDebounceMap: Map<string, NodeJS.Timeout> = new Map();
 
   /**
    * Create a new ConnectionService
@@ -453,6 +459,13 @@ export class ConnectionService extends EventEmitter {
       this.wsCleanupCallback();
       this.wsCleanupCallback = undefined;
     }
+    
+    // Clear all interaction processing states and debounce timers
+    this.processingInteractions.clear();
+    for (const [key, timeout] of this.interactionDebounceMap.entries()) {
+      clearTimeout(timeout);
+    }
+    this.interactionDebounceMap.clear();
   }
 
   /**
@@ -978,6 +991,80 @@ export class ConnectionService extends EventEmitter {
   }
   
   /**
+   * Helper methods for interaction processing state management
+   */
+  private generateInteractionKey(type: string, identifier: string): string {
+    return `${type}:${identifier}`;
+  }
+  
+  private isInteractionProcessing(type: string, identifier: string): boolean {
+    const key = this.generateInteractionKey(type, identifier);
+    const processing = this.processingInteractions.get(key);
+    if (processing) {
+      // Check if the interaction is still recent (within 5 seconds)
+      const now = Date.now();
+      if (now - processing.timestamp > 5000) {
+        this.processingInteractions.delete(key);
+        return false;
+      }
+      return true;
+    }
+    return false;
+  }
+  
+  private markInteractionProcessing(type: string, identifier: string): void {
+    const key = this.generateInteractionKey(type, identifier);
+    this.processingInteractions.set(key, { type, timestamp: Date.now() });
+    this.emit(ConnectionEvent.INTERACTION_PROCESSING, { type, identifier, processing: true });
+  }
+  
+  private markInteractionComplete(type: string, identifier: string): void {
+    const key = this.generateInteractionKey(type, identifier);
+    this.processingInteractions.delete(key);
+    this.emit(ConnectionEvent.INTERACTION_COMPLETE, { type, identifier, processing: false });
+  }
+  
+  /**
+   * Public method to check if an interaction is currently processing
+   */
+  public checkInteractionProcessing(type: string, identifier: string): boolean {
+    return this.isInteractionProcessing(type, identifier);
+  }
+  
+  /**
+   * Public method to get all currently processing interactions
+   */
+  public getProcessingInteractions(): Array<{ type: string; identifier: string; processing: boolean; timestamp: number }> {
+    const result: Array<{ type: string; identifier: string; processing: boolean; timestamp: number }> = [];
+    for (const [key, data] of this.processingInteractions.entries()) {
+      const [type, identifier] = key.split(':', 2);
+      result.push({
+        type,
+        identifier,
+        processing: true,
+        timestamp: data.timestamp
+      });
+    }
+    return result;
+  }
+  
+  private debounceInteraction(key: string, callback: () => void, delay: number = 300): void {
+    // Clear existing timeout for this key
+    const existingTimeout = this.interactionDebounceMap.get(key);
+    if (existingTimeout) {
+      clearTimeout(existingTimeout);
+    }
+    
+    // Set new timeout
+    const timeoutId = setTimeout(() => {
+      callback();
+      this.interactionDebounceMap.delete(key);
+    }, delay);
+    
+    this.interactionDebounceMap.set(key, timeoutId);
+  }
+  
+  /**
    * Setup global interaction handlers for framework-generated content
    */
   private setupGlobalHandlers(): void {
@@ -1003,6 +1090,16 @@ export class ConnectionService extends EventEmitter {
   private handleFormSubmit(event: Event, formId: string): void {
     console.log('ConnectionService: handleFormSubmit called', { formId, event });
     event.preventDefault();
+    
+    // Check if this form is already being processed
+    if (this.isInteractionProcessing('form_submit', formId)) {
+      console.log('⏭️ Form submission already in progress, ignoring duplicate');
+      return;
+    }
+    
+    // Mark as processing immediately to prevent duplicates
+    this.markInteractionProcessing('form_submit', formId);
+    
     const form = event.target as HTMLFormElement;
     const formData = new FormData(form);
     
@@ -1024,16 +1121,25 @@ export class ConnectionService extends EventEmitter {
     // Add user message to chat
     this.addUserMessage(userMessage);
     
-    this.sendInteraction('form_submit', {
-      formId,
-      formData: data,
-      timestamp: new Date().toISOString()
-    });
+    // Send the interaction with debouncing
+    const debounceKey = `form_submit:${formId}`;
+    this.debounceInteraction(debounceKey, () => {
+      this.sendInteraction('form_submit', {
+        formId,
+        formData: data,
+        timestamp: new Date().toISOString()
+      });
+    }, 100); // Short debounce for form submissions
     
     // Call custom handler if provided
     if (this.onFormSubmit) {
       this.onFormSubmit(formId, formData);
     }
+    
+    // Mark as complete after a short delay to allow for processing
+    setTimeout(() => {
+      this.markInteractionComplete('form_submit', formId);
+    }, 1000);
   }
   
   /**
@@ -1042,6 +1148,17 @@ export class ConnectionService extends EventEmitter {
   private handleButtonClick(event: Event, actionType: string, context: any = {}): void {
     console.log('ConnectionService: handleButtonClick called', { actionType, context, event });
     event.preventDefault();
+    
+    const buttonId = `${actionType}-${JSON.stringify(context)}`;
+    
+    // Check if this button click is already being processed
+    if (this.isInteractionProcessing('button_click', buttonId)) {
+      console.log('⏭️ Button click already in progress, ignoring duplicate');
+      return;
+    }
+    
+    // Mark as processing immediately to prevent duplicates
+    this.markInteractionProcessing('button_click', buttonId);
     
     // Create a user-friendly message describing the button click
     let userMessage = `🔘 Clicked "${actionType}"`;
@@ -1061,16 +1178,25 @@ export class ConnectionService extends EventEmitter {
     // Add user message to chat
     this.addUserMessage(userMessage);
     
-    this.sendInteraction('button_click', {
-      actionType,
-      context,
-      timestamp: new Date().toISOString()
-    });
+    // Send the interaction with debouncing
+    const debounceKey = `button_click:${buttonId}`;
+    this.debounceInteraction(debounceKey, () => {
+      this.sendInteraction('button_click', {
+        actionType,
+        context,
+        timestamp: new Date().toISOString()
+      });
+    }, 200); // Slightly longer debounce for button clicks
     
     // Call custom handler if provided
     if (this.onButtonClick) {
       this.onButtonClick(actionType, context);
     }
+    
+    // Mark as complete after a short delay
+    setTimeout(() => {
+      this.markInteractionComplete('button_click', buttonId);
+    }, 1000);
   }
   
   /**
@@ -1081,28 +1207,32 @@ export class ConnectionService extends EventEmitter {
     const input = event.target as HTMLInputElement;
     const value = input.type === 'checkbox' ? input.checked : input.value;
     
-    // Only show user message for significant input changes (not every keystroke)
-    // Check if input has data-action attribute for real-time actions
-    const hasAction = input.hasAttribute('data-action');
-    if (hasAction) {
-      const actionType = input.getAttribute('data-action') || 'input-change';
-      const userMessage = input.type === 'checkbox' 
-        ? `☑️ ${value ? 'Checked' : 'Unchecked'} "${fieldName}"`
-        : `⌨️ Updated "${fieldName}": ${value}`;
+    // Use debouncing for input changes to avoid excessive backend calls
+    const debounceKey = `input_change:${fieldName}`;
+    this.debounceInteraction(debounceKey, () => {
+      // Only show user message for significant input changes (not every keystroke)
+      // Check if input has data-action attribute for real-time actions
+      const hasAction = input.hasAttribute('data-action');
+      if (hasAction) {
+        const actionType = input.getAttribute('data-action') || 'input-change';
+        const userMessage = input.type === 'checkbox' 
+          ? `☑️ ${value ? 'Checked' : 'Unchecked'} "${fieldName}"`
+          : `⌨️ Updated "${fieldName}": ${value}`;
+        
+        this.addUserMessage(userMessage);
+      }
       
-      this.addUserMessage(userMessage);
-    }
-    
-    this.sendInteraction('input_change', {
-      fieldName,
-      value,
-      timestamp: new Date().toISOString()
-    });
-    
-    // Call custom handler if provided
-    if (this.onInputChange) {
-      this.onInputChange(fieldName, value);
-    }
+      this.sendInteraction('input_change', {
+        fieldName,
+        value,
+        timestamp: new Date().toISOString()
+      });
+      
+      // Call custom handler if provided
+      if (this.onInputChange) {
+        this.onInputChange(fieldName, value);
+      }
+    }, 500); // Longer debounce for input changes to reduce noise
   }
   
   /**
