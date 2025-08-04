@@ -54,6 +54,7 @@ class MCPClientConfig(BaseModel):
     servers: List[MCPServerConfig] = Field(default=[], description="List of MCP servers to connect to")
     timeout: int = Field(default=30, description="Default timeout for MCP operations")
     max_servers: int = Field(default=10, description="Maximum number of MCP servers allowed")
+    max_tool_calls: int = Field(default=10, description="Maximum number of tool calls per enhancement decision")
     
     @validator('servers')
     def validate_servers(cls, v, values):

@@ -43,7 +43,7 @@ class MCPClientConfig:
 class EnhancedMCPClient:
     """Enhanced MCP client that supports HTTP servers and external configuration."""
     
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: str, max_tool_calls: int = 10):
         self.config_path = config_path
         self.config: Optional[MCPClientConfig] = None
         self.openai_client: Optional[AsyncOpenAI] = None
@@ -51,6 +51,8 @@ class EnhancedMCPClient:
         self.available_tools: Dict[str, Any] = {}
         # Store connection resources for proper cleanup
         self._connection_resources: Dict[str, Tuple[Any, Any, Any]] = {}
+        # Maximum number of tool calls allowed per enhancement decision
+        self.max_tool_calls = max_tool_calls
         
         # Add built-in tools to available tools
         self._add_builtin_tools()
@@ -662,6 +664,7 @@ Instructions:
             tools_used = []
             max_iterations = 5  # Prevent infinite loops
             iteration = 0
+            total_tool_calls = 0  # Track total number of tool calls
             
             while iteration < max_iterations:
                 iteration += 1
@@ -699,9 +702,7 @@ Instructions:
                         
                         if delta.content:
                             content_buffer += delta.content
-                            # Stream content for voice-over if this is a direct response
-                            if voice_injection_callback and not is_function_call:
-                                await voice_injection_callback(delta.content)
+                            # DO NOT inject regular content - only inject final voiceOverText from enhancement decision
                     
                     # -- End of Streaming, now process the result --
                     
@@ -731,12 +732,23 @@ Instructions:
                         
                         # Handle regular MCP tool calls
                         else:
+                            # Check if we've reached the tool call limit
+                            if total_tool_calls >= self.max_tool_calls:
+                                logger.warning(f"Reached maximum tool call limit ({self.max_tool_calls}). Forcing final decision.")
+                                return EnhancementDecision(
+                                    displayEnhancement=True,
+                                    displayEnhancedText=f"[Tool call limit reached after {self.max_tool_calls} calls]",
+                                    voiceOverText=f"I've gathered information using {self.max_tool_calls} tools."
+                                )
+                            
                             # Inject voice-over for tool usage
                             if voice_injection_callback:
                                 await voice_injection_callback(f"I'm using the {func_name.split('_')[-1]} tool. ")
                             
                             tool_result = await self._call_tool(func_name, args)
                             tools_used.append(func_name)
+                            total_tool_calls += 1
+                            logger.info(f"Tool call {total_tool_calls}/{self.max_tool_calls}: {func_name}")
                             
                             # Append the assistant's function call message
                             messages.append({

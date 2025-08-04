@@ -58,6 +58,7 @@ class VoiceResponse(TypedDict):
     framework: Optional[str]  # Framework used for HTML content (e.g., "tailwind", "shadcn", "c1")
     voiceText: Optional[str]  # TTS text if different from display
     isVoiceOverOnly: bool  # Flag indicating if voiceText should not be displayed in UI
+    immediateMessageId: Optional[str]  # ID of the immediate_voice_response this replaces
 
 class TextChatResponse(TypedDict):
     """Complete text chat response with UI payload"""
@@ -278,7 +279,8 @@ def create_voice_response(
     content_type: str = "c1",
     framework: Optional[str] = None,
     voice_text: Optional[str] = None,
-    is_voice_over_only: bool = True
+    is_voice_over_only: bool = True,
+    immediate_message_id: Optional[str] = None
 ) -> VoiceResponse:
     """
     Create a voice response message
@@ -290,6 +292,7 @@ def create_voice_response(
         voice_text: Optional text for TTS that differs from display text
         is_voice_over_only: Flag indicating if voice_text should not be displayed in UI
                            (defaults to True since voice-over is typically for audio only)
+        immediate_message_id: ID of the immediate_voice_response this replaces
     
     Returns:
         A VoiceResponse object
@@ -302,7 +305,8 @@ def create_voice_response(
         "contentType": content_type,
         "framework": framework,
         "voiceText": voice_text,
-        "isVoiceOverOnly": is_voice_over_only if voice_text else False
+        "isVoiceOverOnly": is_voice_over_only if voice_text else False,
+        "immediateMessageId": immediate_message_id
     }
 
 def create_text_chat_response(

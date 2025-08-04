@@ -304,6 +304,37 @@ async def _per_connection_voice_bridge(context):
                     await context.message_queue.put(message)
                     logger.info(f"✅ Successfully queued voice message {message.get('type')} to per-connection queue for {context.connection_id}")
                     
+                    # If this is an immediate_voice_response, also queue for enhancement processing
+                    if message.get('type') == 'immediate_voice_response':
+                        try:
+                            # Extract the raw text from the C1 content
+                            content = message.get('content', '')
+                            assistant_response = _extract_text_from_voice_content(content)
+                            
+                            # Get thread ID from message
+                            thread_id = message.get('thread_id') or message.get('threadId')
+                            
+                            # Get conversation history for this thread
+                            conversation_history = []
+                            if thread_id:
+                                conversation_history = await chat_history_manager.get_recent_history(thread_id)
+                            
+                            # Queue for enhancement processing
+                            await context.raw_output_queue.put({
+                                "assistant_response": assistant_response,
+                                "history": conversation_history,
+                                "metadata": {
+                                    "connection_id": context.connection_id,
+                                    "thread_id": thread_id,
+                                    "message_id": message.get('id'),  # This is the immediate_voice_response ID
+                                    "source": "voice-agent"
+                                }
+                            })
+                            logger.info(f"✅ Queued voice response for enhancement processing: {assistant_response[:50]}...")
+                            
+                        except Exception as e:
+                            logger.error(f"Error queuing voice response for enhancement: {e}")
+                    
                     # Mark task as done in broadcast queue
                     voice_queue.task_done()
                     
@@ -580,6 +611,37 @@ def _convert_interaction_to_chat(interaction_type: str, context: Dict[str, Any])
     """Convert user interaction data into a human-readable chat message (legacy function)"""
     # Keep this for backward compatibility, but redirect to user message version
     return _convert_interaction_to_user_message(interaction_type, context)
+
+def _extract_text_from_voice_content(content: str) -> str:
+    """Extract the raw text from a voice response C1 content payload"""
+    try:
+        # Voice responses use create_simple_card_content which wraps text in <content>{json}</content>
+        if content.startswith("<content>") and content.endswith("</content>"):
+            # Extract JSON between tags
+            json_str = content[9:-10]  # Remove <content> and </content>
+            data = json.loads(json_str)
+            
+            # Navigate the C1 structure to get textMarkdown
+            if (isinstance(data, dict) and 
+                "component" in data and 
+                isinstance(data["component"], dict) and
+                "props" in data["component"] and
+                "children" in data["component"]["props"] and
+                isinstance(data["component"]["props"]["children"], list) and
+                len(data["component"]["props"]["children"]) > 0):
+                
+                first_child = data["component"]["props"]["children"][0]
+                if (isinstance(first_child, dict) and 
+                    "props" in first_child and
+                    "textMarkdown" in first_child["props"]):
+                    return first_child["props"]["textMarkdown"]
+        
+        # If not in expected format, return the raw content
+        return content
+        
+    except Exception as e:
+        logger.error(f"Error extracting text from voice content: {e}")
+        return content  # Return raw content as fallback
 
 async def _process_per_connection_chat(context, chat_message: ChatMessage):
     """Process a chat message using connection's resources"""

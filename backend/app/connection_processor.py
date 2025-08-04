@@ -223,9 +223,9 @@ class PerConnectionProcessor:
                 decision.displayEnhancedText, conversation_history
             )
             
-            # Stream visualization response
+            # Stream visualization response with metadata for proper voice response creation
             await self._stream_visualization_response(
-                messages_for_viz, message_id, thread_id
+                messages_for_viz, message_id, thread_id, metadata
             )
             
         except Exception as e:
@@ -238,9 +238,17 @@ class PerConnectionProcessor:
         metadata: Dict[str, Any]
     ):
         """Process message without enhancement"""
-        thread_id = metadata.get("thread_id")
         source = metadata.get("source", "text_chat")
-        await self._send_simple_response(assistant_response, thread_id, source)
+        
+        # For voice sources, the immediate response was already sent by the voice agent
+        # We should not send another response when enhancement is false
+        if source == "voice-agent":
+            logger.info(f"Skipping duplicate response for voice source without enhancement: {self.connection_id}")
+            return
+            
+        # For text chat sources, we need to send the response
+        thread_id = metadata.get("thread_id")
+        await self._send_simple_response(assistant_response, thread_id, source, metadata)
     
     async def _prepare_visualization_messages(
         self, 
@@ -293,33 +301,75 @@ class PerConnectionProcessor:
         self, 
         messages: List[Dict[str, Any]], 
         message_id: str, 
-        thread_id: Optional[str]
+        thread_id: Optional[str],
+        metadata: Optional[Dict[str, Any]] = None
     ):
         """Stream visualization response to frontend"""
         try:
-            chunk_count = 0
+            # For voice-agent sources, generate a new message ID for the enhanced response
+            source = metadata.get("source", "text_chat") if metadata else "text_chat"
+            immediate_message_id = message_id if source == "voice-agent" else None
             
-            # Stream chunks from visualization provider
+            # Create new ID for enhanced response to avoid duplicate keys
+            enhanced_message_id = str(uuid.uuid4()) if source == "voice-agent" else message_id
+            
+            chunk_count = 0
+            full_content = []
+            
+            # Determine provider type for content handling
+            provider_type = self.context.visualization_provider.provider_type.lower()
+            content_type = get_content_type_for_provider(provider_type)
+            
+            # Collect all chunks first
             async for chunk in self.context.visualization_provider.stream_response(messages):
                 chunk_count += 1
-                
-                # Send chunk to frontend using appropriate token type based on provider
-                provider_type = self.context.visualization_provider.provider_type.lower()
-                if provider_type in ['openai', 'anthropic', 'google']:
-                    # HTML-based providers
-                    chunk_msg = create_html_token(id=message_id, content=chunk)
-                else:
-                    # C1-based providers (TheSys, Tomorrow, etc.)
-                    chunk_msg = create_c1_token(id=message_id, content=chunk)
-                
-                await self._send_to_frontend(chunk_msg)
-                
-                # Small delay for smooth streaming
-                await asyncio.sleep(0.01)
+                full_content.append(chunk)
             
-            # Send completion signal
-            done_msg = create_chat_done(id=message_id)
-            await self._send_to_frontend(done_msg)
+            # Handle based on content type
+            if content_type == "html":
+                # For HTML providers, send complete content in one message (no streaming)
+                if full_content:
+                    # Determine framework
+                    framework = "tailwind"  # Default framework
+                    if (hasattr(self.context, 'config') and 
+                        self.context.config and 
+                        hasattr(self.context.config, 'preferences') and 
+                        self.context.config.preferences):
+                        framework = self.context.config.preferences.get('ui_framework', 'tailwind')
+                    
+                    # Create appropriate response based on source
+                    if source == "voice-agent":
+                        # For voice sources, create a voice_response with the complete HTML
+                        response_msg = create_voice_response(
+                            content=''.join(full_content),
+                            content_type=content_type,
+                            framework=framework,
+                            voice_text="",  # Already handled by TTS injection
+                            immediate_message_id=immediate_message_id
+                        )
+                        response_msg["id"] = enhanced_message_id
+                    else:
+                        # For text sources, create a text_chat_response
+                        response_msg = create_text_chat_response(
+                            content=''.join(full_content),
+                            content_type=content_type,
+                            framework=framework,
+                            thread_id=thread_id
+                        )
+                        response_msg["id"] = enhanced_message_id
+                    
+                    await self._send_to_frontend(response_msg)
+            else:
+                # For C1 providers, continue streaming as before
+                for chunk in full_content:
+                    chunk_msg = create_c1_token(id=enhanced_message_id, content=chunk)
+                    await self._send_to_frontend(chunk_msg)
+                    # Small delay for smooth streaming
+                    await asyncio.sleep(0.01)
+                
+                # Send completion signal for C1 streaming
+                done_msg = create_chat_done(id=enhanced_message_id)
+                await self._send_to_frontend(done_msg)
             
             logger.info(f"Streamed {chunk_count} chunks for connection {self.connection_id}")
             
@@ -330,7 +380,7 @@ class PerConnectionProcessor:
                 "Failed to generate enhanced visualization", thread_id, "text_chat"
             )
     
-    async def _send_simple_response(self, content: str, thread_id: Optional[str], source: str = "text_chat"):
+    async def _send_simple_response(self, content: str, thread_id: Optional[str], source: str = "text_chat", metadata: Optional[Dict[str, Any]] = None):
         """Send a simple text response without enhancement"""
         try:
             # Get provider type and framework preference
@@ -387,7 +437,8 @@ class PerConnectionProcessor:
                     content=response_content,
                     content_type=content_type,
                     framework=framework,
-                    voice_text=""  # No voice text for simple responses
+                    voice_text="",  # No voice text for simple responses
+                    immediate_message_id=metadata.get("message_id") if metadata else None
                 )
             else:
                 response_msg = create_text_chat_response(
@@ -458,7 +509,8 @@ class PerConnectionProcessor:
                     content=error_content,
                     content_type=content_type,
                     framework=framework,
-                    voice_text=""  # No voice text for error responses
+                    voice_text="",  # No voice text for error responses
+                    immediate_message_id=metadata.get("message_id") if metadata else None
                 )
             else:
                 error_msg = create_text_chat_response(
