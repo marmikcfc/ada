@@ -1,6 +1,6 @@
 import React, { CSSProperties } from 'react';
-import { Message } from '../../types';
-import { Thread, ThreadList } from '../core/ThreadList';
+import { Message, Thread } from '../../types';
+import { ThreadList } from '../core/ThreadList';
 import { ChatWindow } from './ChatWindow';
 import { createTheme, themeToCssVars } from '../../theming/defaultTheme';
 

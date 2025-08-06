@@ -27,7 +27,13 @@ export {
 
 // Hooks for headless usage
 export { useGeUIClient } from './hooks/useGeUIClient';
+export { useThreadListManager } from './hooks/useThreadListManager';
 export { useThreadManager } from './hooks/useThreadManager';
+export { useThreadedClient } from './hooks/useThreadedClient';
+export { useThreadInterface } from './hooks/useThreadInterface';
+
+// Contexts for thread management
+export { ThreadProvider, useThreadContext, useOptionalThreadContext } from './contexts/ThreadContext';
 
 // Core components for customization
 export { default as ChatButton } from './components/ChatButton';
@@ -43,6 +49,9 @@ export * from './components/composite';
 
 // Core services
 export { ConnectionService, ConnectionEvent } from './core/ConnectionService';
+
+// Utilities
+export { MessageStorage } from './utils/messageStorage';
 
 // Theming utilities
 export { 
@@ -93,6 +102,9 @@ export type {
   ThreadSummary,
   ThreadManagerOptions,
   ThreadManagerProps,
+  ThreadMessageStorage,
+  ThreadListAPI,
+  ThreadAPI,
   
   // Theming
   ThemeTokens,
@@ -119,10 +131,26 @@ export type {
 
 // Note: FullscreenModalProps has been replaced by FullscreenLayoutProps
 
+// Export thread list manager hook types
+export type {
+  UseThreadListManagerOptions,
+  UseThreadListManagerResult,
+} from './hooks/useThreadListManager';
+
 // Export thread manager hook types
 export type {
   UseThreadManagerOptions,
-  ThreadManagerState,
-  ThreadManagerActions,
   UseThreadManagerResult,
 } from './hooks/useThreadManager';
+
+// Export threaded client hook types
+export type {
+  UseThreadedClientOptions,
+} from './hooks/useThreadedClient';
+
+// Export thread interface hook types
+export type {
+  ThreadInterfaceOptions,
+  ThreadInterface,
+  StorageInfo as ThreadInterfaceStorageInfo,
+} from './hooks/useThreadInterface';

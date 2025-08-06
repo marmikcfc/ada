@@ -7,6 +7,18 @@ import {
 } from '../types';
 
 /**
+ * Thread-specific connection information
+ */
+interface ThreadConnectionInfo {
+  threadId: string;
+  websocketConnectionId?: string;
+  webrtcConnectionId?: string;
+  websocketState: ConnectionState;
+  webrtcState: VoiceConnectionState;
+  lastActivity: Date;
+}
+
+/**
  * Events emitted by the ConnectionService
  */
 export enum ConnectionEvent {
@@ -22,7 +34,10 @@ export enum ConnectionEvent {
   INTERACTION_PROCESSING = 'interaction_processing',
   INTERACTION_COMPLETE = 'interaction_complete',
   INTERACTION_LOADING = 'interaction_loading',
-  ERROR = 'error'
+  ERROR = 'error',
+  THREAD_SWITCH_START = 'thread_switch_start',
+  THREAD_SWITCH_COMPLETE = 'thread_switch_complete',
+  THREAD_SWITCH_ERROR = 'thread_switch_error'
 }
 
 /**
@@ -111,12 +126,18 @@ export class ConnectionService extends EventEmitter {
   // Backend connection ID received from WebSocket connection_established message
   private backendConnectionId: string | null = null;
   
+  // Configuration state tracking
+  private configurationState: 'none' | 'pending' | 'sent' | 'accepted' = 'none';
+  private configurationPromise: Promise<void> | null = null;
+  private configurationResolve: (() => void) | null = null;
+  
   // Simple connection identifier for logging (generated locally)
   private connectionLogId: string;
   
   // Thread management for voice isolation
   private activeThreadId: string | null = null;
   private threadVoiceMapping: Map<string, boolean> = new Map(); // Track which threads have voice enabled
+  private threadConnections: Map<string, ThreadConnectionInfo> = new Map(); // Track connection info per thread
   
   // Interaction processing state management
   private processingInteractions: Map<string, { type: string, timestamp: number }> = new Map();
@@ -152,10 +173,20 @@ export class ConnectionService extends EventEmitter {
   /**
    * Initialize WebSocket connection
    */
-  public async connectWebSocket(): Promise<void> {
+  public async connectWebSocket(threadId?: string): Promise<void> {
     if (this.webSocket && this.webSocket.readyState === WebSocket.OPEN) {
       console.log(`[WS:${this.connectionLogId}] WebSocket already connected`);
+      
+      // If a thread ID is provided and different from current, switch to it
+      if (threadId && threadId !== this.activeThreadId) {
+        await this.switchToThread(threadId);
+      }
       return;
+    }
+
+    // Set thread context if provided
+    if (threadId) {
+      this.setActiveThreadId(threadId);
     }
 
     // Reset reconnect attempts
@@ -246,6 +277,46 @@ export class ConnectionService extends EventEmitter {
   }
 
   /**
+   * Wait for configuration to be accepted by the backend
+   */
+  private async waitForConfiguration(): Promise<void> {
+    // If configuration is already accepted, return immediately
+    if (this.configurationState === 'accepted') {
+      return;
+    }
+    
+    // If there's already a promise waiting, return it
+    if (this.configurationPromise) {
+      return this.configurationPromise;
+    }
+    
+    // Create a new promise for configuration
+    this.configurationPromise = new Promise((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        this.configurationPromise = null;
+        this.configurationResolve = null;
+        this.configurationState = 'none';
+        reject(new Error('Timeout waiting for configuration acceptance'));
+      }, 30000); // 30 second timeout
+      
+      // Store resolve function to call when configuration is accepted
+      this.configurationResolve = () => {
+        clearTimeout(timeout);
+        this.configurationPromise = null;
+        this.configurationResolve = null;
+        resolve();
+      };
+      
+      // If configuration is already accepted by the time we set up the promise, resolve immediately
+      if (this.configurationState === 'accepted') {
+        this.configurationResolve();
+      }
+    });
+    
+    return this.configurationPromise;
+  }
+
+  /**
    * Initialize WebRTC connection for voice (requires WebSocket to be connected first)
    */
   public async connectVoice(threadId?: string): Promise<void> {
@@ -326,7 +397,7 @@ export class ConnectionService extends EventEmitter {
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
 
-      // Send offer to backend with backend connection ID for proper routing
+      // Send offer to backend with backend connection ID and thread context for proper routing
       const response = await fetch(this.webrtcURL, {
         method: 'POST',
         headers: {
@@ -336,6 +407,7 @@ export class ConnectionService extends EventEmitter {
           sdp: offer.sdp,
           type: offer.type,
           backend_connection_id: this.backendConnectionId, // Include backend connection ID
+          thread_id: this.activeThreadId, // Include thread context
         }),
       });
 
@@ -353,9 +425,25 @@ export class ConnectionService extends EventEmitter {
 
       this.setVoiceState('connected');
       
+      // Update thread connection info with WebRTC details
+      if (this.activeThreadId) {
+        this.setThreadConnectionInfo(this.activeThreadId, {
+          webrtcConnectionId: this.backendConnectionId, // Using same connection ID for now
+          webrtcState: 'connected'
+        });
+      }
+      
     } catch (error) {
       console.error('Error connecting voice:', error);
       this.setVoiceState('disconnected');
+      
+      // Update thread connection info on error
+      if (this.activeThreadId) {
+        this.setThreadConnectionInfo(this.activeThreadId, {
+          webrtcState: 'disconnected'
+        });
+      }
+      
       this.emit(ConnectionEvent.ERROR, error);
     }
   }
@@ -387,6 +475,9 @@ export class ConnectionService extends EventEmitter {
    * Send a chat message via WebSocket
    */
   public async sendChatMessage(message: string, threadId?: string): Promise<string> {
+    // Use provided threadId or active thread
+    const targetThreadId = threadId || this.activeThreadId;
+    
     // Ensure WebSocket is connected first
     if (!this.webSocket || this.webSocket.readyState !== WebSocket.OPEN) {
       console.log(`[WS:${this.connectionLogId}] WebSocket not connected, connecting for chat message...`);
@@ -399,18 +490,34 @@ export class ConnectionService extends EventEmitter {
       await this.waitForBackendConnectionId();
     }
     
+    // Ensure configuration has been accepted
+    if (this.configurationState !== 'accepted') {
+      console.log(`[WS:${this.connectionLogId}] Waiting for configuration acceptance...`);
+      await this.waitForConfiguration();
+    }
+    
     const messageId = crypto.randomUUID();
     
     if (!this.webSocket) {
       throw new Error('WebSocket is not connected');
     }
     
+    // Update thread connection info if we have a thread
+    if (targetThreadId) {
+      this.setThreadConnectionInfo(targetThreadId, {
+        websocketConnectionId: this.backendConnectionId || undefined,
+        websocketState: this.connectionState
+      });
+    }
+    
     this.webSocket.send(JSON.stringify({
       type: 'chat',
       message: message,
-      thread_id: threadId,
+      thread_id: targetThreadId,
       id: messageId
     }));
+    
+    console.log(`[WS:${this.connectionLogId}] Sent message for thread: ${targetThreadId}`);
     
     return messageId;
   }
@@ -419,6 +526,9 @@ export class ConnectionService extends EventEmitter {
    * Send a C1Component action via WebSocket
    */
   public async sendC1Action(action: { llmFriendlyMessage: string }, threadId?: string): Promise<string> {
+    // Use provided threadId or active thread
+    const targetThreadId = threadId || this.activeThreadId;
+    
     // Ensure WebSocket is connected first
     if (!this.webSocket || this.webSocket.readyState !== WebSocket.OPEN) {
       console.log(`[WS:${this.connectionLogId}] WebSocket not connected, connecting for C1 action...`);
@@ -437,12 +547,22 @@ export class ConnectionService extends EventEmitter {
       throw new Error('WebSocket is not connected');
     }
     
+    // Update thread connection info if we have a thread
+    if (targetThreadId) {
+      this.setThreadConnectionInfo(targetThreadId, {
+        websocketConnectionId: this.backendConnectionId || undefined,
+        websocketState: this.connectionState
+      });
+    }
+    
     this.webSocket.send(JSON.stringify({
       type: 'thesys_bridge',
       prompt: { content: action.llmFriendlyMessage },
-      threadId: threadId,
+      thread_id: targetThreadId,
       responseId: messageId,
     }));
+    
+    console.log(`[WS:${this.connectionLogId}] Sent C1 action for thread: ${targetThreadId}`);
     
     return messageId;
   }
@@ -467,6 +587,9 @@ export class ConnectionService extends EventEmitter {
       clearTimeout(timeout);
     }
     this.interactionDebounceMap.clear();
+    
+    // Clean up all thread connections
+    this.cleanupAllThreadConnections();
   }
 
   /**
@@ -560,12 +683,225 @@ export class ConnectionService extends EventEmitter {
   }
 
   /**
+   * Get thread-specific connection information
+   */
+  public getThreadConnectionInfo(threadId: string): ThreadConnectionInfo | undefined {
+    return this.threadConnections.get(threadId);
+  }
+
+  /**
+   * Set thread-specific connection information
+   */
+  public setThreadConnectionInfo(threadId: string, info: Partial<ThreadConnectionInfo>): void {
+    const existing = this.threadConnections.get(threadId) || {
+      threadId,
+      websocketState: 'disconnected' as ConnectionState,
+      webrtcState: 'disconnected' as VoiceConnectionState,
+      lastActivity: new Date()
+    };
+    
+    const updated: ThreadConnectionInfo = {
+      ...existing,
+      ...info,
+      lastActivity: new Date()
+    };
+    
+    this.threadConnections.set(threadId, updated);
+    console.log(`[WS:${this.connectionLogId}] Updated thread connection info for ${threadId}:`, updated);
+  }
+
+  /**
+   * Disconnect a specific thread's connections
+   */
+  public async disconnectThread(threadId: string): Promise<void> {
+    console.log(`[WS:${this.connectionLogId}] Disconnecting thread: ${threadId}`);
+    
+    const threadInfo = this.threadConnections.get(threadId);
+    if (!threadInfo) {
+      console.log(`[WS:${this.connectionLogId}] No connection info found for thread: ${threadId}`);
+      return;
+    }
+    
+    // If this is the active thread, disconnect everything
+    if (this.activeThreadId === threadId) {
+      // Disconnect voice if active
+      if (this.voiceState === 'connected') {
+        this.disconnectVoice();
+      }
+      
+      // Clear active thread
+      this.activeThreadId = null;
+      
+      // Update thread connection info
+      this.setThreadConnectionInfo(threadId, {
+        websocketState: 'disconnected',
+        webrtcState: 'disconnected'
+      });
+    }
+    
+    // Remove thread from connections map after a delay (to allow for reconnection)
+    setTimeout(() => {
+      if (this.activeThreadId !== threadId) {
+        this.threadConnections.delete(threadId);
+        console.log(`[WS:${this.connectionLogId}] Removed connection info for thread: ${threadId}`);
+      }
+    }, 30000); // Keep for 30 seconds in case of quick switch back
+  }
+
+  /**
+   * Clean up all thread connections
+   */
+  public cleanupAllThreadConnections(): void {
+    console.log(`[WS:${this.connectionLogId}] Cleaning up all thread connections`);
+    
+    // Disconnect all threads
+    for (const [threadId, _info] of this.threadConnections) {
+      this.disconnectThread(threadId).catch(error => {
+        console.error(`Error disconnecting thread ${threadId}:`, error);
+      });
+    }
+    
+    // Clear the map
+    this.threadConnections.clear();
+    
+    // Clear active thread
+    this.activeThreadId = null;
+  }
+
+  /**
+   * Get all active thread connections
+   */
+  public getActiveThreadConnections(): Map<string, ThreadConnectionInfo> {
+    return new Map(this.threadConnections);
+  }
+
+  /**
+   * Disconnect the current thread cleanly
+   */
+  public async disconnectCurrentThread(): Promise<void> {
+    if (!this.activeThreadId) {
+      console.log(`[WS:${this.connectionLogId}] No active thread to disconnect`);
+      return;
+    }
+
+    const threadId = this.activeThreadId;
+    console.log(`[WS:${this.connectionLogId}] Disconnecting current thread: ${threadId}`);
+
+    // 1. Close voice if active
+    if (this.voiceState === 'connected') {
+      console.log(`[WS:${this.connectionLogId}] Disconnecting voice for thread: ${threadId}`);
+      this.disconnectVoice();
+    }
+
+    // 2. Backend will handle thread context via the next connection
+    // No need to send explicit disconnect message as backend doesn't support it
+    if (this.webSocket && this.webSocket.readyState === WebSocket.OPEN) {
+      console.log(`[WS:${this.connectionLogId}] Thread ${threadId} will be disconnected with WebSocket close`);
+      // Give backend a moment to finish any pending operations
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+
+    // 3. Update thread connection info before closing
+    this.setThreadConnectionInfo(threadId, {
+      websocketState: 'disconnected',
+      webrtcState: 'disconnected',
+      websocketConnectionId: undefined,
+      webrtcConnectionId: undefined
+    });
+
+    // 4. Close WebSocket connection
+    this.closeWebSocket();
+
+    // 5. Clear connection state
+    this.setConnectionState('disconnected');
+    this.backendConnectionId = null;
+    this.activeThreadId = null;
+
+    console.log(`[WS:${this.connectionLogId}] Thread ${threadId} disconnected successfully`);
+  }
+
+  /**
+   * Switch to a different thread (disconnect current, connect new)
+   */
+  public async switchToThread(threadId: string): Promise<void> {
+    console.log(`[WS:${this.connectionLogId}] Switching to thread: ${threadId}`);
+    
+    // If switching to the same thread, do nothing
+    if (this.activeThreadId === threadId) {
+      console.log(`[WS:${this.connectionLogId}] Already on thread: ${threadId}`);
+      return;
+    }
+
+    // Emit thread switch start event
+    this.emit(ConnectionEvent.THREAD_SWITCH_START, {
+      fromThread: this.activeThreadId,
+      toThread: threadId
+    });
+
+    try {
+      // 1. Disconnect current thread completely
+      await this.disconnectCurrentThread();
+
+      // 2. Set new active thread
+      this.setActiveThreadId(threadId);
+
+      // 3. Re-establish WebSocket connection with new thread context
+      console.log(`[WS:${this.connectionLogId}] Establishing connection for thread: ${threadId}`);
+      await this.connectWebSocket(threadId);
+
+      // 4. Wait for connection to be established and get backend ID
+      await this.waitForBackendConnectionId();
+
+      // 5. Update thread connection info
+      this.setThreadConnectionInfo(threadId, {
+        websocketState: this.connectionState,
+        websocketConnectionId: this.backendConnectionId || undefined
+      });
+
+      // 6. Thread context is now included in regular chat messages
+      // No need to send a separate thread_context message as backend doesn't support it
+      if (this.webSocket && this.webSocket.readyState === WebSocket.OPEN && this.backendConnectionId) {
+        console.log(`[WS:${this.connectionLogId}] Thread context established for: ${threadId}, ready for messages`);
+      }
+
+      // 7. Restore voice if it was enabled for this thread
+      if (this.isVoiceEnabledForThread(threadId) && this.webrtcURL) {
+        console.log(`[WS:${this.connectionLogId}] Restoring voice for thread: ${threadId}`);
+        await this.connectVoice(threadId);
+      }
+
+      // Emit thread switch complete event
+      this.emit(ConnectionEvent.THREAD_SWITCH_COMPLETE, {
+        threadId,
+        connectionId: this.backendConnectionId
+      });
+
+      console.log(`[WS:${this.connectionLogId}] Thread switch to ${threadId} completed successfully`);
+    } catch (error) {
+      console.error(`[WS:${this.connectionLogId}] Error switching to thread ${threadId}:`, error);
+      
+      // Emit thread switch error event
+      this.emit(ConnectionEvent.THREAD_SWITCH_ERROR, {
+        threadId,
+        error: error instanceof Error ? error.message : String(error)
+      });
+
+      throw error;
+    }
+  }
+
+  /**
    * Handle WebSocket open event
    */
   private handleWebSocketOpen(): void {
     console.log(`[WS:${this.connectionLogId}] WebSocket connected`);
     this.setConnectionState('connected');
     this.reconnectAttempts = 0;
+    
+    // Reset configuration state for new connection
+    this.configurationState = 'pending';
+    this.configurationPromise = null;
+    this.configurationResolve = null;
     
     // Call custom WebSocket connection handler if provided
     if (this.onWebSocketConnect && this.webSocket) {
@@ -583,6 +919,9 @@ export class ConnectionService extends EventEmitter {
         uiFramework: this.uiFramework
       });
     }
+    
+    // Thread context is now included in regular chat messages
+    // No need to send a separate thread_context message
   }
 
 
@@ -798,8 +1137,23 @@ export class ConnectionService extends EventEmitter {
           
         case 'connection_state':
           console.log(`[WS:${this.connectionLogId}] Per-connection state:`, data.state, data.message);
-          if (data.state === 'disconnecting') {
+          
+          // Track configuration state
+          if (data.state === 'config_received') {
+            this.configurationState = 'sent';
+            console.log(`[WS:${this.connectionLogId}] Configuration sent, waiting for processing...`);
+          } else if (data.state === 'ready' || data.state === 'active') {
+            // Configuration has been accepted and connection is ready
+            this.configurationState = 'accepted';
+            console.log(`[WS:${this.connectionLogId}] Configuration accepted, connection ready`);
+            
+            // Resolve any pending configuration promise
+            if (this.configurationResolve) {
+              this.configurationResolve();
+            }
+          } else if (data.state === 'disconnecting') {
             this.setConnectionState('disconnected');
+            this.configurationState = 'none';
           }
           break;
           
@@ -839,6 +1193,11 @@ export class ConnectionService extends EventEmitter {
     // Clear backend connection ID since it's no longer valid
     const wasConnected = this.backendConnectionId !== null;
     this.backendConnectionId = null;
+    
+    // Reset configuration state
+    this.configurationState = 'none';
+    this.configurationPromise = null;
+    this.configurationResolve = null;
     
     // If voice was connected, set it to disconnected (will need to reconnect when WebSocket comes back)
     if (this.voiceState === 'connected') {
@@ -1314,7 +1673,13 @@ export class ConnectionService extends EventEmitter {
       return;
     }
     
-    this.webSocket.send(JSON.stringify(message));
+    // Include thread_id if we have an active thread
+    const messageWithThread = {
+      ...message,
+      thread_id: this.activeThreadId
+    };
+    
+    this.webSocket.send(JSON.stringify(messageWithThread));
   }
   
   /**

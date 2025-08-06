@@ -1,14 +1,6 @@
 import React, { useState, useRef, CSSProperties } from 'react';
 import { createTheme, themeToCssVars } from '../../theming/defaultTheme';
-
-export interface Thread {
-  id: string;
-  title: string;
-  lastMessage?: string;
-  messageCount: number;
-  updatedAt: Date;
-  isActive?: boolean;
-}
+import type { Thread } from '../../types';
 
 export interface ThreadListProps {
   threads: Thread[];

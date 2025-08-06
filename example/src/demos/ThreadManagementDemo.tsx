@@ -1,8 +1,8 @@
-import React, { useState, useEffect, createContext, useContext, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, createContext, useContext, useCallback, useMemo, useRef } from 'react';
 import { ConfigurableGeUIClient } from '../ConfigurableGeUIClient';
 import { ThreadedChatWindow } from '../../../packages/geui-sdk/src/components/composite/ThreadedChatWindow';
-import type { ThreadListProps, ChatWindowProps } from '../../../packages/geui-sdk/src/types';
-import type { Thread } from '../../../packages/geui-sdk/src/components/core/ThreadList';
+import { useThreadContext } from '../../../packages/geui-sdk/src/contexts/ThreadContext';
+import type { ThreadListProps, ChatWindowProps, Thread, Message } from '../../../packages/geui-sdk/src/types';
 import { 
   lightTheme, 
   darkTheme, 
@@ -1311,61 +1311,162 @@ const CustomThreadListWithSettings: React.FC<ThreadListProps & {
 const CustomThreadedChatWindowWithSettings: React.FC<any> = (props) => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isThreadListCollapsed, setIsThreadListCollapsed] = useState(false);
-  const [threads, setThreads] = useState<Thread[]>([]);
-  const [activeThreadId, setActiveThreadId] = useState<string>('');
-  const [isCreatingThread, setIsCreatingThread] = useState(false);
+  
+  // Debug: Log all props to see what's being passed
+  useEffect(() => {
+    console.log('[CustomThreadedChatWindowWithSettings] Full props inspection:', {
+      hasOnSendMessage: !!props.onSendMessage,
+      onSendMessageType: typeof props.onSendMessage,
+      hasMessages: !!props.messages,
+      messageCount: props.messages?.length || 0,
+      allPropKeys: Object.keys(props),
+      onSendMessage: props.onSendMessage
+    });
+  }, [props.onSendMessage]);
+  
+  // Since enableThreadManagement=true on GeUI, it's already using ThreadInterface
+  // and passing all the thread data through props. We don't need to create our own.
+  
+  // Get thread context from GeUI (when enableThreadManagement=true)
+  const threadContext = useThreadContext();
+  
+  // Extract what we need from context or props
+  const threads = threadContext?.threads || props.threads || [];
+  const activeThreadId = threadContext?.activeThreadId || props.activeThreadId;
+  const messages = threadContext?.messages || props.messages || [];
+  const isLoading = threadContext?.isLoading || props.isLoading || false;
+  const isSwitchingThread = threadContext?.isSwitchingThread || false;
+  const isLoadingThreads = threadContext?.isLoadingThreads || false;
 
-  const handleThreadSelect = (threadId: string) => {
-    setActiveThreadId(threadId);
-    setThreads(prev => prev.map(t => ({ ...t, isActive: t.id === threadId })));
-  };
-
-  const handleCreateThread = () => {
-    setIsCreatingThread(true);
-    setTimeout(() => {
-      const newThread: Thread = {
-        id: `thread-${Date.now()}`,
-        title: `New Chat ${threads.length + 1}`,
-        messageCount: 0,
-        updatedAt: new Date(),
-        isActive: true
-      };
-      setThreads(prev => [newThread, ...prev.map(t => ({ ...t, isActive: false }))]);
-      setActiveThreadId(newThread.id);
-      setIsCreatingThread(false);
-    }, 500);
-  };
-
-  const handleDeleteThread = (threadId: string) => {
-    setThreads(prev => prev.filter(t => t.id !== threadId));
-    if (activeThreadId === threadId) {
-      const remaining = threads.filter(t => t.id !== threadId);
-      setActiveThreadId(remaining[0]?.id || '');
+  // Create thread handler
+  const handleCreateThread = async () => {
+    try {
+      if (threadContext?.createThread) {
+        const thread = await threadContext.createThread('New conversation started');
+        console.log('Created thread with ID:', thread.id);
+      } else {
+        console.error('No createThread method available');
+      }
+    } catch (error) {
+      console.error('Failed to create thread:', error);
     }
   };
 
-  const handleRenameThread = (threadId: string, newTitle: string) => {
-    setThreads(prev => prev.map(t => 
-      t.id === threadId ? { ...t, title: newTitle } : t
-    ));
+  // Thread selection handler
+  const handleThreadSelect = async (threadId: string) => {
+    try {
+      if (threadContext?.switchThread) {
+        await threadContext.switchThread(threadId);
+        console.log('Switched to thread:', threadId);
+      } else {
+        console.error('No switchThread method available');
+      }
+    } catch (error) {
+      console.error('Failed to switch thread:', error);
+    }
   };
 
+  // Delete thread handler
+  const handleDeleteThread = async (threadId: string) => {
+    try {
+      if (threadContext?.deleteThread) {
+        await threadContext.deleteThread(threadId);
+        console.log('Deleted thread:', threadId);
+      } else {
+        console.error('No deleteThread method available');
+      }
+    } catch (error) {
+      console.error('Failed to delete thread:', error);
+    }
+  };
+
+  // Rename thread handler
+  const handleRenameThread = async (threadId: string, newTitle: string) => {
+    try {
+      if (threadContext?.renameThread) {
+        await threadContext.renameThread(threadId, newTitle);
+        console.log('Renamed thread:', threadId, 'to:', newTitle);
+      } else {
+        console.error('No renameThread method available');
+      }
+    } catch (error) {
+      console.error('Failed to rename thread:', error);
+    }
+  };
+
+  // Debug: Check if onSendMessage is in props
+  console.log('[CustomThreadedChatWindowWithSettings] onSendMessage exists:', !!props.onSendMessage);
+  console.log('[CustomThreadedChatWindowWithSettings] All props:', Object.keys(props));
+  console.log('[CustomThreadedChatWindowWithSettings] Props details:', {
+    propKeys: Object.keys(props),
+    hasMessages: !!props.messages,
+    messageCount: props.messages?.length || 0,
+    onSendMessage: props.onSendMessage,
+    onSendMessageType: typeof props.onSendMessage
+  });
+  
+  // Use messages from context or props
+  const displayMessages = messages;
+  
+  // Create a wrapper for onSendMessage that uses ThreadContext
+  const handleSendMessage = useCallback((message: string) => {
+    console.log('[CustomThreadedChatWindowWithSettings] handleSendMessage called with:', message);
+    
+    if (threadContext?.sendText) {
+      // Use ThreadContext's sendText which handles everything
+      threadContext.sendText(message);
+    } else if (props.onSendMessage) {
+      // Fallback to props if no thread context
+      props.onSendMessage(message);
+    } else {
+      console.error('[CustomThreadedChatWindowWithSettings] No sendText in context and no onSendMessage prop!');
+    }
+  }, [threadContext, props.onSendMessage]);
+  
+  // Don't render until we have the essential props
+  if (!props.onSendMessage) {
+    console.warn('[CustomThreadedChatWindowWithSettings] Waiting for onSendMessage prop...');
+    return (
+      <div style={{ 
+        height: '100%', 
+        display: 'flex', 
+        alignItems: 'center', 
+        justifyContent: 'center',
+        color: '#666'
+      }}>
+        Initializing chat interface...
+      </div>
+    );
+  }
+  
   return (
     <>
       <ThreadedChatWindow
+        // First spread props to get all the base functionality
         {...props}
+        // Then override with our thread management specific props
         threads={threads}
-        activeThreadId={activeThreadId}
+        activeThreadId={activeThreadId || undefined}
         onSelectThread={handleThreadSelect}
         onCreateThread={handleCreateThread}
         onDeleteThread={handleDeleteThread}
         onRenameThread={handleRenameThread}
-        isCreatingThread={isCreatingThread}
+        isCreatingThread={false}
         showThreadList={true}
         threadListPosition="left"
         threadListWidth="320px"
-        // Override the ThreadList component
+        // Use messages from context
+        messages={displayMessages}
         style={{ height: '100%' }}
+        // Use our wrapped handler
+        onSendMessage={handleSendMessage}
+        // Pass loading states
+        isLoading={isLoading || isSwitchingThread}
+        // Pass streaming states from context
+        streamingContent={threadContext?.streamingContent || props.streamingContent}
+        streamingContentType={threadContext?.streamingContentType || props.streamingContentType}
+        streamingMessageId={threadContext?.streamingMessageId || props.streamingMessageId}
+        isStreamingActive={threadContext?.isStreamingActive || props.isStreamingActive}
       />
       
       {/* Custom ThreadList - we'll need to implement this properly */}
@@ -1380,13 +1481,13 @@ const CustomThreadedChatWindowWithSettings: React.FC<any> = (props) => {
       }}>
         <CustomThreadListWithSettings
           threads={threads}
-          activeThreadId={activeThreadId}
+          activeThreadId={activeThreadId || undefined}
           onSelectThread={handleThreadSelect}
           onCreateThread={handleCreateThread}
           onDeleteThread={handleDeleteThread}
           onRenameThread={handleRenameThread}
-          isCreatingThread={isCreatingThread}
-          isLoading={false}
+          isCreatingThread={false}
+          isLoading={isLoadingThreads}
           onSettingsClick={() => setIsSettingsOpen(true)}
           onCollapseChange={setIsThreadListCollapsed}
         />
@@ -1547,7 +1648,17 @@ const ThreadManagementDemo: React.FC = () => {
         connectionConfig={connectionConfig}
         bubbleEnabled={false}
         disableVoice={!config.voice.enabled}  // Voice controlled by settings
-        options={geuiOptions}
+        enableThreadManagement={true}  // Enable thread management functionality
+        options={{
+          ...geuiOptions,
+          threadManager: {
+            enablePersistence: true,
+            maxThreads: 20,
+            autoGenerateTitles: true,
+            showCreateButton: true,
+            allowThreadDeletion: true
+          }
+        }}
       />
     </div>
   );

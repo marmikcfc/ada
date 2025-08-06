@@ -43,6 +43,8 @@ export interface GeUIProps {
   allowFullScreen?: boolean;
   /** Whether to disable all voice features for chat-only mode */
   disableVoice?: boolean;
+  /** Whether to enable thread management functionality */
+  enableThreadManagement?: boolean;
   /** Additional configuration options */
   options?: GeUIOptions;
 }
@@ -630,6 +632,12 @@ export interface Thread {
   messageCount: number;
   lastMessage?: string;
   isActive?: boolean;
+  // Connection tracking
+  websocketConnectionId?: string;
+  webrtcConnectionId?: string;
+  voiceEnabled?: boolean;
+  // Storage reference
+  messagesStorageKey?: string;
 }
 
 /**
@@ -642,6 +650,9 @@ export interface ThreadSummary {
   updatedAt: Date;
   messageCount: number;
   isActive: boolean;
+  // Connection status
+  hasActiveConnection?: boolean;
+  connectionType?: 'websocket' | 'webrtc' | 'both';
 }
 
 /**
@@ -688,4 +699,48 @@ export interface ThreadManagerProps {
   className?: string;
   /** Whether to hide the header (useful when embedded with custom header) */
   hideHeader?: boolean;
+}
+
+/**
+ * Thread message storage interface for localStorage persistence
+ */
+export interface ThreadMessageStorage {
+  threadId: string;
+  messages: Message[];
+  lastSyncedAt: Date;
+  version: number;
+}
+
+/**
+ * Thread list API interface for backend integration
+ */
+export interface ThreadListAPI {
+  /** List all threads */
+  list: () => Promise<Thread[]>;
+  
+  /** Create a new thread */
+  create: (title?: string) => Promise<Thread>;
+  
+  /** Update thread metadata */
+  update: (id: string, updates: Partial<Thread>) => Promise<Thread>;
+  
+  /** Delete a thread */
+  delete: (id: string) => Promise<void>;
+}
+
+/**
+ * Thread API interface for backend integration
+ */
+export interface ThreadAPI {
+  /** Get messages for a thread */
+  getMessages: (threadId: string) => Promise<Message[]>;
+  
+  /** Add a message to a thread */
+  addMessage: (threadId: string, message: Message) => Promise<void>;
+  
+  /** Update thread metadata */
+  updateThread: (threadId: string, updates: Partial<Thread>) => Promise<void>;
+  
+  /** Clear all messages in a thread */
+  clearMessages: (threadId: string) => Promise<void>;
 }

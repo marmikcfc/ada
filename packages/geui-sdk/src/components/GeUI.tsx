@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { GeUIProps, ChatButtonProps } from '../types';
 import { useGeUIClient } from '../hooks/useGeUIClient';
+import { useThreadInterfaceWrapper } from '../hooks/useThreadInterfaceWrapper';
+import { ThreadProvider } from '../contexts/ThreadContext';
 import BubbleWidget from './core/BubbleWidget';
 import { MinimizableChatWindow, MinimizableChatWindowProps } from './composite/MinimizableChatWindow';
 import ChatButton from './ChatButton';
@@ -34,6 +36,7 @@ const GeUI: React.FC<GeUIProps> = ({
   bubbleEnabled = true,
   allowFullScreen = false,
   disableVoice = false,
+  enableThreadManagement = false,
   options = {}
 }) => {
   // State for chat window visibility
@@ -63,7 +66,19 @@ const GeUI: React.FC<GeUIProps> = ({
     [webrtcURL, websocketURL, options.mcpEndpoints, options.uiFramework, options.onFormSubmit, options.onButtonClick, options.onInputChange, options.onLinkClick, options.onWebSocketConnect, disableVoice]
   );
 
-  const client = useGeUIClient(clientOptions);
+  // Use a single client - either with thread management or without
+  const client = enableThreadManagement 
+    ? useThreadInterfaceWrapper({
+        ...clientOptions,
+        threadOptions: {
+          enablePersistence: options.threadManager?.enablePersistence ?? true,
+          storageKey: options.threadManager?.storageKey,
+          maxThreads: options.threadManager?.maxThreads,
+          autoGenerateTitles: options.threadManager?.autoGenerateTitles,
+          generateTitle: options.threadManager?.generateTitle,
+        }
+      })
+    : useGeUIClient(clientOptions);
   
   // Apply audio stream to audio element when available
   useEffect(() => {
@@ -125,7 +140,6 @@ const GeUI: React.FC<GeUIProps> = ({
   };
   
   // Props for the MinimizableChatWindow
-  console.log('🎯 Passing messages to ChatWindow:', client.messages);
   const chatWindowProps: MinimizableChatWindowProps = {
     messages: client.messages,
     onSendMessage: client.sendText,
@@ -154,7 +168,49 @@ const GeUI: React.FC<GeUIProps> = ({
     crayonTheme: options.crayonTheme,
   };
   
-  return (
+  // Prepare thread context value if thread management is enabled
+  const threadContextValue = enableThreadManagement && 'threads' in client ? {
+    // Thread state
+    threads: client.threads,
+    activeThreadId: client.activeThreadId,
+    currentThread: client.activeThread,
+    isCreatingThread: false, // ThreadInterface doesn't have this specific state
+    isLoadingThreads: 'isLoadingThreads' in client ? client.isLoadingThreads : false,
+    isSwitchingThread: client.isSwitching,
+    threadError: null, // ThreadInterface doesn't expose errors directly
+    
+    // Client state
+    messages: client.messages,
+    connectionState: client.connectionState,
+    voiceState: client.voiceState,
+    isLoading: client.isLoading,
+    isEnhancing: client.isEnhancing,
+    streamingContent: client.streamingContent,
+    streamingContentType: client.streamingContentType,
+    streamingMessageId: client.streamingMessageId,
+    isStreamingActive: client.isStreamingActive,
+    
+    // Thread actions
+    createThread: client.createThread,
+    switchThread: client.switchThread,
+    deleteThread: client.deleteThread,
+    renameThread: client.renameThread,
+    clearAllThreads: client.clearAllThreads,
+    refreshThreads: () => {}, // ThreadInterface doesn't have refresh
+    
+    // Client actions
+    sendText: client.sendText,
+    sendC1Action: client.sendC1Action,
+    startVoice: client.startVoice,
+    stopVoice: client.stopVoice,
+    clearMessages: client.clearMessages,
+    
+    // Utility methods
+    getThread: (id: string) => client.threads.find(t => t.id === id),
+    isReadyForVoice: client.isReadyForVoice,
+  } : null;
+
+  const content = (
     <>
       {/* Hidden audio element for voice output - only render if voice is enabled */}
       {!disableVoice && <audio ref={audioRef} autoPlay style={{ display: 'none' }} />}
@@ -263,6 +319,17 @@ const GeUI: React.FC<GeUIProps> = ({
       )}
     </>
   );
+
+  // Wrap with ThreadProvider if thread management is enabled
+  if (enableThreadManagement && threadContextValue) {
+    return (
+      <ThreadProvider value={threadContextValue}>
+        {content}
+      </ThreadProvider>
+    );
+  }
+
+  return content;
 };
 
 export default GeUI;

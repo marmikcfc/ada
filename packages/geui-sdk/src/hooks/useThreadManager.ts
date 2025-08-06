@@ -1,417 +1,409 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { Thread, ThreadSummary, ThreadManagerOptions } from '../types';
+import { Message, ConnectionState } from '../types';
+import { ConnectionService, ConnectionEvent } from '../core/ConnectionService';
 
 /**
- * Configuration options for the useThreadManager hook
+ * Options for the useThreadManager hook
  */
-export interface UseThreadManagerOptions extends ThreadManagerOptions {
-  /** Storage key for persisting threads */
+export interface UseThreadManagerOptions {
+  /** Thread ID to manage */
+  threadId: string;
+  
+  /**
+   * Optional backend API base URL for thread operations
+   * When provided, uses RESTful endpoints:
+   * - GET {apiUrl}/{threadId}/messages - Get thread messages
+   * - POST {apiUrl}/{threadId}/messages - Add message
+   * - PUT {apiUrl}/{threadId} - Update thread metadata
+   */
+  apiUrl?: string;
+  
+  /** HTTP headers for API requests */
+  headers?: Record<string, string>;
+  
+  /** Whether to enable localStorage persistence (default: true) */
+  enableLocalStorage?: boolean;
+  
+  /** Storage key prefix for localStorage (default: 'geui-messages') */
   storageKey?: string;
-  /** Whether to persist threads to localStorage */
-  enablePersistence?: boolean;
-  /** Function to generate thread titles based on first message */
-  generateTitle?: (firstMessage: string) => string;
-  /** Maximum number of threads to keep in memory */
-  maxThreadsInMemory?: number;
+  
+  /** Connection configuration for WebSocket/WebRTC */
+  connectionConfig?: {
+    webrtcURL?: string;
+    websocketURL?: string;
+  };
+  
+  /** Whether to auto-connect on mount (default: true) */
+  autoConnect?: boolean;
 }
 
 /**
  * Thread manager state and actions
  */
-export interface ThreadManagerState {
-  /** List of thread summaries */
-  threads: ThreadSummary[];
-  /** Currently active thread ID */
-  activeThreadId: string | null;
-  /** Whether a new thread is being created */
-  isCreatingThread: boolean;
-  /** Whether threads are being loaded */
+export interface UseThreadManagerResult {
+  /** Thread messages */
+  messages: Message[];
+  
+  /** Loading state */
   isLoading: boolean;
-  /** Current thread data */
-  currentThread: Thread | null;
-  /** Error message if any */
-  error: string | null;
+  
+  /** Error state */
+  error: Error | null;
+  
+  /** Connection state */
+  connectionState: ConnectionState;
+  
+  /** Load messages for the thread */
+  loadMessages: () => Promise<void>;
+  
+  /** Add a message to the thread */
+  addMessage: (message: Message) => Promise<void>;
+  
+  /** Clear all messages */
+  clearMessages: () => void;
+  
+  /** Save messages to storage */
+  saveMessages: () => Promise<void>;
+  
+  /** Connect to WebSocket/WebRTC with thread context */
+  connect: () => Promise<void>;
+  
+  /** Disconnect from WebSocket/WebRTC */
+  disconnect: () => Promise<void>;
+  
+  /** Send a text message */
+  sendMessage: (content: string) => Promise<void>;
+  
+  /** Get connection service instance */
+  getConnectionService: () => ConnectionService | null;
 }
 
 /**
- * Thread manager actions
+ * Hook for managing individual thread content with localStorage and optional API support
  */
-export interface ThreadManagerActions {
-  /** Create a new thread */
-  createThread: (initialMessage?: string) => Promise<string>;
-  /** Switch to a different thread */
-  switchThread: (threadId: string) => Promise<void>;
-  /** Delete a thread */
-  deleteThread: (threadId: string) => Promise<void>;
-  /** Rename a thread */
-  renameThread: (threadId: string, newTitle: string) => Promise<void>;
-  /** Update thread with new message */
-  updateThread: (threadId: string, message: string, messageId: string) => void;
-  /** Get thread by ID */
-  getThread: (threadId: string) => Thread | null;
-  /** Clear all threads */
-  clearAllThreads: () => void;
-  /** Refresh threads from storage */
-  refreshThreads: () => void;
-}
-
-/**
- * Return type for useThreadManager hook
- */
-export interface UseThreadManagerResult extends ThreadManagerState, ThreadManagerActions {}
-
-/**
- * Default thread title generator
- */
-const defaultGenerateTitle = (firstMessage: string): string => {
-  const trimmed = firstMessage.trim();
-  if (trimmed.length <= 30) return trimmed;
-  return trimmed.substring(0, 30).trim() + '...';
-};
-
-/**
- * Hook for managing conversation threads
- * 
- * Provides state management for multiple conversation threads with
- * automatic persistence to localStorage.
- */
-export function useThreadManager(options: UseThreadManagerOptions = {}): UseThreadManagerResult {
+export function useThreadManager(options: UseThreadManagerOptions): UseThreadManagerResult {
   const {
-    storageKey = 'geui-threads',
-    enablePersistence = true,
-    generateTitle = defaultGenerateTitle,
-    maxThreadsInMemory = 100,
-    maxThreads: _maxThreads = 50, // Prefix unused vars with underscore
-    autoGenerateTitles = true,
-    showCreateButton: _showCreateButton = true,
-    allowThreadDeletion: _allowThreadDeletion = true,
+    threadId,
+    apiUrl,
+    headers,
+    enableLocalStorage = true,
+    storageKey = 'geui-messages',
+    connectionConfig,
+    autoConnect = true,
   } = options;
 
   // State
-  const [threads, setThreads] = useState<ThreadSummary[]>([]);
-  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
-  const [isCreatingThread, setIsCreatingThread] = useState(false);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
 
-  // Refs for thread data storage
-  const threadsDataRef = useRef<Map<string, Thread>>(new Map());
+  // Refs
+  const connectionServiceRef = useRef<ConnectionService | null>(null);
   const initialized = useRef(false);
 
-  // Get current thread
-  const currentThread = activeThreadId ? threadsDataRef.current.get(activeThreadId) || null : null;
-
-  // Storage helpers
-  const saveToStorage = useCallback((threadsMap: Map<string, Thread>, summaries: ThreadSummary[]) => {
-    if (!enablePersistence) return;
+  // API helper functions
+  const fetchFromAPI = useCallback(async (endpoint: string, options?: RequestInit) => {
+    if (!apiUrl) throw new Error('API URL not configured');
     
+    const response = await fetch(`${apiUrl}${endpoint}`, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...headers,
+        ...options?.headers,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`API request failed: ${response.statusText}`);
+    }
+
+    return response.json();
+  }, [apiUrl, headers]);
+
+  // LocalStorage helpers
+  const saveToLocalStorage = useCallback((messages: Message[]) => {
+    if (!enableLocalStorage) return;
+
     try {
+      const key = `${storageKey}-${threadId}`;
       const data = {
-        threads: Array.from(threadsMap.entries()).map(([id, thread]) => [id, {
-          ...thread,
-          createdAt: thread.createdAt.toISOString(),
-          updatedAt: thread.updatedAt.toISOString(),
-        }]),
-        summaries: summaries.map(summary => ({
-          ...summary,
-          updatedAt: summary.updatedAt.toISOString(),
+        threadId,
+        messages: messages.map(msg => ({
+          ...msg,
+          timestamp: msg.timestamp.toISOString(),
         })),
-        activeThreadId,
+        lastSyncedAt: new Date().toISOString(),
+        version: 1,
       };
-      localStorage.setItem(storageKey, JSON.stringify(data));
+      localStorage.setItem(key, JSON.stringify(data));
     } catch (err) {
-      console.warn('Failed to save threads to localStorage:', err);
+      console.warn('Failed to save messages to localStorage:', err);
     }
-  }, [enablePersistence, storageKey, activeThreadId]);
+  }, [enableLocalStorage, storageKey, threadId]);
 
-  const loadFromStorage = useCallback((): { threadsMap: Map<string, Thread>; summaries: ThreadSummary[]; activeId: string | null } => {
-    if (!enablePersistence) return { threadsMap: new Map(), summaries: [], activeId: null };
-    
+  const loadFromLocalStorage = useCallback((): Message[] => {
+    if (!enableLocalStorage) return [];
+
     try {
-      const data = localStorage.getItem(storageKey);
-      if (!data) return { threadsMap: new Map(), summaries: [], activeId: null };
-      
+      const key = `${storageKey}-${threadId}`;
+      const data = localStorage.getItem(key);
+      if (!data) return [];
+
       const parsed = JSON.parse(data);
-      const threadsMap = new Map<string, Thread>(
-        (parsed.threads as [string, any][]).map(([id, thread]) => [
-          id,
-          {
-            ...thread,
-            createdAt: new Date(thread.createdAt),
-            updatedAt: new Date(thread.updatedAt),
-          } as Thread
-        ])
-      );
-      
-      const summaries = parsed.summaries.map((summary: any) => ({
-        ...summary,
-        updatedAt: new Date(summary.updatedAt),
+      return parsed.messages.map((msg: any) => ({
+        ...msg,
+        timestamp: new Date(msg.timestamp),
       }));
-      
-      return { threadsMap, summaries, activeId: parsed.activeThreadId };
     } catch (err) {
-      console.warn('Failed to load threads from localStorage:', err);
-      return { threadsMap: new Map(), summaries: [], activeId: null };
+      console.warn('Failed to load messages from localStorage:', err);
+      return [];
     }
-  }, [enablePersistence, storageKey]);
+  }, [enableLocalStorage, storageKey, threadId]);
 
-  // Initialize threads from storage
-  useEffect(() => {
-    if (initialized.current) return;
-    initialized.current = true;
-    
+  // Load messages
+  const loadMessages = useCallback(async () => {
     setIsLoading(true);
+    setError(null);
+
     try {
-      const { threadsMap, summaries, activeId } = loadFromStorage();
-      threadsDataRef.current = threadsMap;
-      setThreads(summaries);
-      setActiveThreadId(activeId);
+      if (apiUrl) {
+        // Load from API
+        const data = await fetchFromAPI(`/${threadId}/messages`);
+        const messages = (data.messages || data).map((msg: any) => ({
+          ...msg,
+          timestamp: new Date(msg.timestamp),
+        }));
+        setMessages(messages);
+        
+        // Cache in localStorage if enabled
+        if (enableLocalStorage) {
+          saveToLocalStorage(messages);
+        }
+      } else {
+        // Load from localStorage
+        const localMessages = loadFromLocalStorage();
+        setMessages(localMessages);
+      }
     } catch (err) {
-      setError('Failed to load threads');
+      setError(err instanceof Error ? err : new Error('Failed to load messages'));
     } finally {
       setIsLoading(false);
     }
-  }, [loadFromStorage]);
+  }, [apiUrl, threadId, fetchFromAPI, enableLocalStorage, saveToLocalStorage, loadFromLocalStorage]);
 
-  // Create a new thread
-  const createThread = useCallback(async (initialMessage?: string): Promise<string> => {
-    setIsCreatingThread(true);
+  // Add message
+  const addMessage = useCallback(async (message: Message) => {
     setError(null);
-    
-    try {
-      const threadId = crypto.randomUUID();
-      const now = new Date();
-      
-      const newThread: Thread = {
-        id: threadId,
-        title: initialMessage && autoGenerateTitles 
-          ? generateTitle(initialMessage)
-          : `New Conversation`,
-        createdAt: now,
-        updatedAt: now,
-        messageCount: 0,
-        lastMessage: initialMessage || '',
-        isActive: true,
-      };
 
-      const newSummary: ThreadSummary = {
-        id: threadId,
-        title: newThread.title,
-        lastMessage: newThread.lastMessage || '',
-        updatedAt: now,
-        messageCount: 0,
-        isActive: true,
-      };
+    try {
+      if (apiUrl) {
+        // Add via API
+        await fetchFromAPI(`/${threadId}/messages`, {
+          method: 'POST',
+          body: JSON.stringify(message),
+        });
+      }
 
       // Update state
-      const updatedThreadsMap = new Map(threadsDataRef.current);
-      updatedThreadsMap.set(threadId, newThread);
-      
-      // Deactivate other threads
-      const updatedSummaries = threads.map(thread => ({ ...thread, isActive: false }));
-      updatedSummaries.unshift(newSummary);
-      
-      // Limit threads in memory
-      if (updatedSummaries.length > maxThreadsInMemory) {
-        const removedThreads = updatedSummaries.splice(maxThreadsInMemory);
-        removedThreads.forEach(thread => updatedThreadsMap.delete(thread.id));
-      }
-      
-      threadsDataRef.current = updatedThreadsMap;
-      setThreads(updatedSummaries);
-      setActiveThreadId(threadId);
-      
-      // Save to storage
-      saveToStorage(updatedThreadsMap, updatedSummaries);
-      
-      return threadId;
-    } catch (err) {
-      setError('Failed to create thread');
-      throw err;
-    } finally {
-      setIsCreatingThread(false);
-    }
-  }, [threads, autoGenerateTitles, generateTitle, maxThreadsInMemory, saveToStorage]);
+      setMessages(prev => [...prev, message]);
 
-  // Switch to a different thread
-  const switchThread = useCallback(async (threadId: string): Promise<void> => {
-    if (threadId === activeThreadId) return;
+      // Save to localStorage
+      if (enableLocalStorage) {
+        saveToLocalStorage([...messages, message]);
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to add message');
+      setError(error);
+      throw error;
+    }
+  }, [apiUrl, threadId, fetchFromAPI, enableLocalStorage, saveToLocalStorage, messages]);
+
+  // Clear messages
+  const clearMessages = useCallback(() => {
+    setMessages([]);
     
+    if (enableLocalStorage) {
+      const key = `${storageKey}-${threadId}`;
+      localStorage.removeItem(key);
+    }
+  }, [enableLocalStorage, storageKey, threadId]);
+
+  // Save messages
+  const saveMessages = useCallback(async () => {
     setError(null);
-    
-    try {
-      // Check if thread exists
-      const thread = threadsDataRef.current.get(threadId);
-      if (!thread) {
-        throw new Error('Thread not found');
-      }
-      
-      // Update active states
-      const updatedSummaries = threads.map(t => ({
-        ...t,
-        isActive: t.id === threadId,
-      }));
-      
-      setThreads(updatedSummaries);
-      setActiveThreadId(threadId);
-      
-      // Save to storage
-      saveToStorage(threadsDataRef.current, updatedSummaries);
-    } catch (err) {
-      setError('Failed to switch thread');
-      throw err;
-    }
-  }, [activeThreadId, threads, saveToStorage]);
 
-  // Delete a thread
-  const deleteThread = useCallback(async (threadId: string): Promise<void> => {
-    setError(null);
-    
     try {
-      // Remove from data
-      const updatedThreadsMap = new Map(threadsDataRef.current);
-      updatedThreadsMap.delete(threadId);
-      
-      // Remove from summaries
-      const updatedSummaries = threads.filter(t => t.id !== threadId);
-      
-      // If deleted thread was active, switch to first available thread
-      let newActiveId = activeThreadId;
-      if (activeThreadId === threadId) {
-        newActiveId = updatedSummaries.length > 0 ? updatedSummaries[0].id : null;
-        if (newActiveId) {
-          updatedSummaries[0].isActive = true;
-        }
+      if (apiUrl) {
+        // Save via API
+        await fetchFromAPI(`/${threadId}`, {
+          method: 'PUT',
+          body: JSON.stringify({ messages }),
+        });
       }
-      
-      threadsDataRef.current = updatedThreadsMap;
-      setThreads(updatedSummaries);
-      setActiveThreadId(newActiveId);
-      
-      // Save to storage
-      saveToStorage(updatedThreadsMap, updatedSummaries);
-    } catch (err) {
-      setError('Failed to delete thread');
-      throw err;
-    }
-  }, [threads, activeThreadId, saveToStorage]);
 
-  // Rename a thread
-  const renameThread = useCallback(async (threadId: string, newTitle: string): Promise<void> => {
-    setError(null);
-    
-    try {
-      // Update thread data
-      const updatedThreadsMap = new Map(threadsDataRef.current);
-      const thread = updatedThreadsMap.get(threadId);
-      if (!thread) {
-        throw new Error('Thread not found');
+      // Save to localStorage
+      if (enableLocalStorage) {
+        saveToLocalStorage(messages);
       }
-      
-      const updatedThread = {
-        ...thread,
-        title: newTitle,
-        updatedAt: new Date(),
-      };
-      updatedThreadsMap.set(threadId, updatedThread);
-      
-      // Update summaries
-      const updatedSummaries = threads.map(t => 
-        t.id === threadId 
-          ? { ...t, title: newTitle, updatedAt: new Date() }
-          : t
-      );
-      
-      threadsDataRef.current = updatedThreadsMap;
-      setThreads(updatedSummaries);
-      
-      // Save to storage
-      saveToStorage(updatedThreadsMap, updatedSummaries);
     } catch (err) {
-      setError('Failed to rename thread');
-      throw err;
+      const error = err instanceof Error ? err : new Error('Failed to save messages');
+      setError(error);
+      throw error;
     }
-  }, [threads, saveToStorage]);
+  }, [apiUrl, threadId, fetchFromAPI, messages, enableLocalStorage, saveToLocalStorage]);
 
-  // Update thread with new message
-  const updateThread = useCallback((threadId: string, message: string, _messageId: string): void => {
-    const updatedThreadsMap = new Map(threadsDataRef.current);
-    const thread = updatedThreadsMap.get(threadId);
-    if (!thread) return;
-    
-    const now = new Date();
-    const updatedThread = {
-      ...thread,
-      messageCount: thread.messageCount + 1,
-      lastMessage: message.substring(0, 100), // Truncate for display
-      updatedAt: now,
+  // Initialize connection service
+  useEffect(() => {
+    if (!connectionConfig?.websocketURL || connectionServiceRef.current) return;
+
+    const service = new ConnectionService({
+      ...connectionConfig,
+      onWebSocketConnect: (ws) => {
+        // Send thread context when connecting
+        ws.send(JSON.stringify({
+          type: 'connect',
+          thread_id: threadId,
+        }));
+        
+        return () => {
+          // Cleanup function
+        };
+      },
+    });
+
+    // Set up event listeners
+    service.on(ConnectionEvent.STATE_CHANGED, (state: ConnectionState) => {
+      setConnectionState(state);
+    });
+
+    service.on(ConnectionEvent.MESSAGE_RECEIVED, (message: Message) => {
+      setMessages(prev => [...prev, message]);
+      
+      // Auto-save to localStorage
+      if (enableLocalStorage) {
+        saveToLocalStorage([...messages, message]);
+      }
+    });
+
+    connectionServiceRef.current = service;
+
+    // Auto-connect if enabled
+    if (autoConnect) {
+      service.setActiveThreadId(threadId);
+      service.connectWebSocket(threadId).catch(err => {
+        console.error('Failed to connect:', err);
+        setError(err);
+      });
+    }
+
+    return () => {
+      service.disconnect();
+      connectionServiceRef.current = null;
     };
-    updatedThreadsMap.set(threadId, updatedThread);
-    
-    // Update summaries
-    const updatedSummaries = threads.map(t => 
-      t.id === threadId 
-        ? { 
-            ...t, 
-            messageCount: updatedThread.messageCount,
-            lastMessage: updatedThread.lastMessage,
-            updatedAt: now,
-          }
-        : t
-    );
-    
-    threadsDataRef.current = updatedThreadsMap;
-    setThreads(updatedSummaries);
-    
-    // Save to storage
-    saveToStorage(updatedThreadsMap, updatedSummaries);
-  }, [threads, saveToStorage]);
+  }, [connectionConfig, threadId, autoConnect, enableLocalStorage, saveToLocalStorage, messages]);
 
-  // Get thread by ID
-  const getThread = useCallback((threadId: string): Thread | null => {
-    return threadsDataRef.current.get(threadId) || null;
+  // Update thread ID in connection service when it changes
+  useEffect(() => {
+    if (connectionServiceRef.current && connectionServiceRef.current.getActiveThreadId() !== threadId) {
+      connectionServiceRef.current.switchToThread(threadId).catch(err => {
+        console.error('Failed to switch thread:', err);
+        setError(err);
+      });
+    }
+  }, [threadId]);
+
+  // Connect
+  const connect = useCallback(async () => {
+    if (!connectionServiceRef.current) {
+      throw new Error('Connection service not initialized');
+    }
+
+    setError(null);
+    
+    try {
+      connectionServiceRef.current.setActiveThreadId(threadId);
+      await connectionServiceRef.current.connectWebSocket(threadId);
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to connect');
+      setError(error);
+      throw error;
+    }
+  }, [threadId]);
+
+  // Disconnect
+  const disconnect = useCallback(async () => {
+    if (!connectionServiceRef.current) return;
+
+    try {
+      await connectionServiceRef.current.disconnectCurrentThread();
+    } catch (err) {
+      console.error('Failed to disconnect:', err);
+    }
   }, []);
 
-  // Clear all threads
-  const clearAllThreads = useCallback((): void => {
-    threadsDataRef.current.clear();
-    setThreads([]);
-    setActiveThreadId(null);
-    
-    if (enablePersistence) {
-      try {
-        localStorage.removeItem(storageKey);
-      } catch (err) {
-        console.warn('Failed to clear threads from localStorage:', err);
-      }
+  // Send message
+  const sendMessage = useCallback(async (content: string) => {
+    if (!connectionServiceRef.current) {
+      throw new Error('Connection service not initialized');
     }
-  }, [enablePersistence, storageKey]);
 
-  // Refresh threads from storage
-  const refreshThreads = useCallback((): void => {
-    const { threadsMap, summaries, activeId } = loadFromStorage();
-    threadsDataRef.current = threadsMap;
-    setThreads(summaries);
-    setActiveThreadId(activeId);
-  }, [loadFromStorage]);
+    setError(null);
+
+    try {
+      const message: Message = {
+        id: crypto.randomUUID(),
+        role: 'user',
+        content,
+        timestamp: new Date(),
+      };
+
+      // Add to local state immediately
+      setMessages(prev => [...prev, message]);
+
+      // Send via connection service (includes thread_id)
+      connectionServiceRef.current.sendMessage({
+        ...message,
+        type: 'prompt',
+      });
+
+      // Save to localStorage
+      if (enableLocalStorage) {
+        saveToLocalStorage([...messages, message]);
+      }
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error('Failed to send message');
+      setError(error);
+      throw error;
+    }
+  }, [enableLocalStorage, saveToLocalStorage, messages]);
+
+  // Get connection service
+  const getConnectionService = useCallback(() => {
+    return connectionServiceRef.current;
+  }, []);
+
+  // Load messages on mount
+  useEffect(() => {
+    if (initialized.current) return;
+    initialized.current = true;
+
+    loadMessages();
+  }, [loadMessages]);
 
   return {
-    // State
-    threads,
-    activeThreadId,
-    isCreatingThread,
+    messages,
     isLoading,
-    currentThread,
     error,
-    
-    // Actions
-    createThread,
-    switchThread,
-    deleteThread,
-    renameThread,
-    updateThread,
-    getThread,
-    clearAllThreads,
-    refreshThreads,
+    connectionState,
+    loadMessages,
+    addMessage,
+    clearMessages,
+    saveMessages,
+    connect,
+    disconnect,
+    sendMessage,
+    getConnectionService,
   };
-} 
+}
