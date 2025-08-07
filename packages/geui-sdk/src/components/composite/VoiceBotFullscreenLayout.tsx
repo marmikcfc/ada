@@ -5,13 +5,11 @@ import {
 } from '@thesysai/genui-sdk';
 import VoiceBotUI from '../core/VoiceBotUI';
 import { ChatWindow } from './ChatWindow';
-import { ThreadList, Thread as CoreThread } from '../core/ThreadList';
+import { ThreadList } from '../core/ThreadList';
 import { createTheme } from '../../theming/defaultTheme';
+import { useOptionalThreadContext } from '../../contexts/ThreadContext';
 import '../FullscreenLayout.css';
-import { Message } from '../../types';
-
-// Use Core ThreadList interface
-type Thread = CoreThread;
+import { Message, Thread } from '../../types';
 
 interface VoiceBotFullscreenLayoutConfig {
   // Agent configuration
@@ -130,13 +128,22 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
     columnWidths = "300px 1fr 400px"
   } = layoutConfig;
   
+  // Check if we have thread context available
+  const threadContext = useOptionalThreadContext();
+  
   const [isThreadManagerCollapsed, setIsThreadManagerCollapsed] = useState(false);
-  const [threads, setThreads] = useState<Thread[]>([]);
-  const [isCreatingThread, setIsCreatingThread] = useState(false);
+  
+  // Use thread context if available, otherwise use local state
+  const [localThreads, setLocalThreads] = useState<Thread[]>([]);
+  const [localIsCreatingThread, setLocalIsCreatingThread] = useState(false);
+  const [localActiveThreadId, setLocalActiveThreadId] = useState<string | null>(null);
+  
+  const threads = threadContext?.threads || localThreads;
+  const isCreatingThread = threadContext?.isCreatingThread || localIsCreatingThread;
+  const activeThreadId = threadContext?.activeThreadId || localActiveThreadId;
   
   // Theme setup for ThreadList
   const mergedTheme = createTheme({});
-  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
 
   // Thread list management with stable callbacks
   const threadListManager = useThreadListManager({
@@ -186,42 +193,59 @@ const VoiceBotFullscreenLayout: React.FC<VoiceBotFullscreenLayoutProps> = ({
 
   // Handle thread selection
   const handleThreadSelect = useCallback((threadId: string) => {
-    setActiveThreadId(threadId);
+    if (threadContext?.switchThread) {
+      threadContext.switchThread(threadId);
+    } else {
+      setLocalActiveThreadId(threadId);
+    }
     console.log('Selected thread:', threadId);
-  }, []);
+  }, [threadContext]);
 
   // Handle create new thread
-  const handleCreateThread = useCallback(() => {
-    setIsCreatingThread(true);
-    const newThread: Thread = {
-      id: crypto.randomUUID(),
-      title: 'New Conversation',
-      messageCount: 0,
-      updatedAt: new Date(),
-      isActive: true
-    };
-    setThreads(prev => [newThread, ...prev.map(t => ({ ...t, isActive: false }))]);
-    setActiveThreadId(newThread.id);
-    setIsCreatingThread(false);
-    console.log('Created new thread:', newThread.id);
-  }, []);
+  const handleCreateThread = useCallback(async () => {
+    if (threadContext?.createThread) {
+      await threadContext.createThread();
+    } else {
+      setLocalIsCreatingThread(true);
+      const newThread: Thread = {
+        id: crypto.randomUUID(),
+        title: 'New Conversation',
+        messageCount: 0,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        isActive: true
+      };
+      setLocalThreads(prev => [newThread, ...prev.map(t => ({ ...t, isActive: false }))]);
+      setLocalActiveThreadId(newThread.id);
+      setLocalIsCreatingThread(false);
+      console.log('Created new thread:', newThread.id);
+    }
+  }, [threadContext]);
 
   // Handle delete thread
-  const handleDeleteThread = useCallback((threadId: string) => {
-    setThreads(prev => prev.filter(t => t.id !== threadId));
-    if (activeThreadId === threadId) {
-      setActiveThreadId(null);
+  const handleDeleteThread = useCallback(async (threadId: string) => {
+    if (threadContext?.deleteThread) {
+      await threadContext.deleteThread(threadId);
+    } else {
+      setLocalThreads(prev => prev.filter(t => t.id !== threadId));
+      if (localActiveThreadId === threadId) {
+        setLocalActiveThreadId(null);
+      }
     }
     console.log('Deleted thread:', threadId);
-  }, [activeThreadId]);
+  }, [threadContext, localActiveThreadId]);
 
   // Handle rename thread
   const handleRenameThread = useCallback((threadId: string, newTitle: string) => {
-    setThreads(prev => prev.map(t => 
-      t.id === threadId ? { ...t, title: newTitle } : t
-    ));
+    if (threadContext?.renameThread) {
+      threadContext.renameThread(threadId, newTitle);
+    } else {
+      setLocalThreads(prev => prev.map(t => 
+        t.id === threadId ? { ...t, title: newTitle } : t
+      ));
+    }
     console.log('Renamed thread:', threadId, 'to:', newTitle);
-  }, []);
+  }, [threadContext]);
 
 
   return (

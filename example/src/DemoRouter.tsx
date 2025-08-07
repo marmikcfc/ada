@@ -95,8 +95,8 @@ const demos: Demo[] = [
   {
     id: 'threadmanagement',
     title: 'Thread Management & Settings',
-    description: 'Clean 2-column layout with thread management, comprehensive settings, and no voice features',
-    icon: '💬',
+    description: 'ThreadInterface with disconnect/reconnect architecture, single localStorage collection, and comprehensive settings',
+    icon: '🧵',
     status: 'supported',
     component: ThreadManagementDemo
   }

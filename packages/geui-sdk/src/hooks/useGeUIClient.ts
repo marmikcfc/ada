@@ -22,6 +22,11 @@ export interface UseGeUIClientOptions extends ConnectionServiceOptions {
    * Whether to automatically connect on mount
    */
   autoConnect?: boolean;
+  
+  /**
+   * Initial messages to load (useful for restoring thread messages)
+   */
+  initialMessages?: Message[];
 }
 
 /**
@@ -41,17 +46,33 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
   audioStream: MediaStream | null;
   sendC1Action: (action: { llmFriendlyMessage: string, humanFriendlyMessage: string }) => void;
   clearMessages: () => void;
+  setMessages: (messages: Message[]) => void;
   getBackendConnectionId: () => string | null;
   isReadyForVoice: () => boolean;
 } {
   // Connection service instance stored in a ref to persist across renders
   const connectionServiceRef = useRef<ConnectionService | null>(null);
   
+  // Track if we're currently initializing to prevent double initialization in StrictMode
+  const initializingRef = useRef(false);
+  
   // Thread ID
-  const [threadId, setThreadId] = useState<string | undefined>(options.initialThreadId);
+  const [threadId, setThreadIdInternal] = useState<string | undefined>(options.initialThreadId);
+  
+  // Custom setThreadId that also updates the connection service
+  const setThreadId = useCallback((newThreadId: string) => {
+    setThreadIdInternal(newThreadId);
+    
+    // Switch thread in connection service if it exists
+    if (connectionServiceRef.current) {
+      connectionServiceRef.current.switchToThread(newThreadId).catch(error => {
+        console.error('Error switching thread:', error);
+      });
+    }
+  }, []);
   
   // Message history
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<Message[]>(options.initialMessages || []);
   
   // Connection states
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
@@ -79,6 +100,11 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
 
   // Effect to manage the connection lifecycle
   useEffect(() => {
+    // Prevent double initialization in StrictMode
+    if (initializingRef.current) {
+      return;
+    }
+    
     // Prevent creating a new service if one already exists for the same URLs
     if (connectionServiceRef.current && 
         connectionServiceRef.current.webrtcURL === webrtcURL &&
@@ -88,10 +114,13 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
 
     // If a service exists but URLs have changed, disconnect the old one first
     if (connectionServiceRef.current) {
+      console.log('Cleaning up existing ConnectionService before creating new one...');
       connectionServiceRef.current.disconnect();
       connectionServiceRef.current.removeAllListeners();
+      connectionServiceRef.current = null;
     }
 
+    initializingRef.current = true;
     console.log('Initializing new ConnectionService...');
     const newService = new ConnectionService({ 
       webrtcURL, 
@@ -208,15 +237,20 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
     
     // Auto-connect if enabled (WebSocket-first pattern)
     if (autoConnect) {
-      newService.connectWebSocket().catch(error => {
+      newService.connectWebSocket(options.initialThreadId).catch(error => {
         console.error('Error auto-connecting WebSocket:', error);
         // Don't throw - let user retry manually
+      }).finally(() => {
+        initializingRef.current = false;
       });
+    } else {
+      initializingRef.current = false;
     }
     
     // Cleanup function to run when component unmounts or dependencies change
     return () => {
       console.log("Cleaning up and disconnecting ConnectionService...");
+      initializingRef.current = false;
       if (connectionServiceRef.current) {
         connectionServiceRef.current.disconnect();
         connectionServiceRef.current.removeAllListeners();
@@ -310,6 +344,10 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
   const clearMessages = useCallback(() => {
     setMessages([]);
   }, []);
+  
+  const setMessagesDirectly = useCallback((newMessages: Message[]) => {
+    setMessages(newMessages);
+  }, []);
 
   // Get backend connection ID (useful for debugging)
   const getBackendConnectionId = useCallback(() => {
@@ -354,6 +392,7 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
     // Additional methods
     sendC1Action,
     clearMessages,
+    setMessages: setMessagesDirectly,
     getBackendConnectionId,
     isReadyForVoice,
   };
