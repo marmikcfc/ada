@@ -150,6 +150,7 @@ export interface GeUIOptions {
   onFormSubmit?: (formId: string, formData: FormData) => void;
   onButtonClick?: (actionType: string, context: any) => void;
   onInputChange?: (fieldName: string, value: any) => void;
+  onLinkClick?: (href: string, context: any) => void;
   
   /** Custom WebSocket connection handler (for per-connection setup) */
   onWebSocketConnect?: (ws: WebSocket) => () => void;
@@ -526,6 +527,8 @@ export interface AssistantMessage extends BaseMessage {
   framework?: 'tailwind' | 'shadcn' | 'chakra' | 'mui' | 'bootstrap' | 'c1' | 'inline';
   /** React component/node for custom rendering (only used when contentType is 'react') */
   reactContent?: React.ReactNode;
+  /** Whether this message is in a loading state */
+  isLoading?: boolean;
   /** Whether this message has voice-over audio */
   hasVoiceOver?: boolean;
   /** Whether to allow dangerous HTML (bypasses sanitization) */
@@ -565,6 +568,40 @@ export type ConnectionState = 'connected' | 'connecting' | 'disconnected' | 'err
 export type VoiceConnectionState = 'connected' | 'connecting' | 'disconnected';
 
 /**
+ * Interaction processing states
+ */
+export interface InteractionProcessingState {
+  type: string;
+  identifier: string;
+  processing: boolean;
+  timestamp?: number;
+}
+
+/**
+ * Interaction types for user interactions
+ */
+export type InteractionType = 'form_submit' | 'button_click' | 'input_change' | 'link_click';
+
+/**
+ * Interaction processing event data
+ */
+export interface InteractionProcessingEvent {
+  type: InteractionType;
+  identifier: string;
+  processing: boolean;
+}
+
+/**
+ * Debounce configuration for interactions
+ */
+export interface InteractionDebounceConfig {
+  [key: string]: {
+    delay: number;
+    callback: () => void;
+  };
+}
+
+/**
  * Genux client interface (for headless use)
  */
 export interface GeUIClient {
@@ -574,6 +611,12 @@ export interface GeUIClient {
   messages: Message[];
   connectionState: ConnectionState;
   voiceState: VoiceConnectionState;
+  
+  /** Check if a specific interaction is currently being processed */
+  isInteractionProcessing: (type: InteractionType, identifier: string) => boolean;
+  
+  /** Get all currently processing interactions */
+  getProcessingInteractions: () => InteractionProcessingState[];
 }
 
 /**

@@ -57,9 +57,10 @@ const GeUI: React.FC<GeUIProps> = ({
       onFormSubmit: options.onFormSubmit,
       onButtonClick: options.onButtonClick,
       onInputChange: options.onInputChange,
+      onLinkClick: options.onLinkClick,
       onWebSocketConnect: options.onWebSocketConnect,
     }),
-    [webrtcURL, websocketURL, options.mcpEndpoints, options.uiFramework, options.onFormSubmit, options.onButtonClick, options.onInputChange, options.onWebSocketConnect, disableVoice]
+    [webrtcURL, websocketURL, options.mcpEndpoints, options.uiFramework, options.onFormSubmit, options.onButtonClick, options.onInputChange, options.onLinkClick, options.onWebSocketConnect, disableVoice]
   );
 
   const client = useGeUIClient(clientOptions);

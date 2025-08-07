@@ -364,6 +364,9 @@ class ResponseAggregatorProcessor(FrameProcessor):
                     immediate_msg["connection_id"] = self.agent_instance.connection_id
                     immediate_msg["thread_id"] = self.agent_instance.thread_id
                     
+                    # Store the immediate message ID for later reference
+                    self.immediate_message_id = immediate_msg['id']
+                    
                     # Broadcast immediate voice response to all relevant connections
                     delivery_count = await broadcast_voice_message(immediate_msg)
                     logger.info(
