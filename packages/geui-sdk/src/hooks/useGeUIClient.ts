@@ -27,6 +27,11 @@ export interface UseGeUIClientOptions extends ConnectionServiceOptions {
    * Initial messages to load (useful for restoring thread messages)
    */
   initialMessages?: Message[];
+  
+  /**
+   * Callback when a new thread is created
+   */
+  onThreadCreated?: (threadId: string) => void;
 }
 
 /**
@@ -163,6 +168,16 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
     };
     const handleMessageReceived = (message: Message) => {
       console.log('🔥 MESSAGE_RECEIVED handler called:', message);
+      
+      // Check if message contains a threadId and update if needed
+      if ('threadId' in message && message.threadId) {
+        const currentThreadId = threadId;
+        if (!currentThreadId || currentThreadId !== message.threadId) {
+          console.log('📝 Updating thread ID from message:', message.threadId);
+          setThreadIdInternal(message.threadId);
+        }
+      }
+      
       setMessages(prev => {
         console.log('🔥 Previous messages:', prev);
         const newMessages = [...prev, message];
@@ -234,6 +249,17 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
     newService.on(ConnectionEvent.INTERACTION_LOADING, handleInteractionLoading);
     newService.on(ConnectionEvent.AUDIO_STREAM, handleAudioStream);
     newService.on(ConnectionEvent.ERROR, handleError);
+    
+    // Handle thread creation events
+    const handleThreadCreated = (data: { threadId: string }) => {
+      console.log('Thread created:', data.threadId);
+      setThreadIdInternal(data.threadId);
+      // Optionally emit event for parent components to handle
+      if (options.onThreadCreated) {
+        options.onThreadCreated(data.threadId);
+      }
+    };
+    newService.on('thread:created' as ConnectionEvent, handleThreadCreated);
     
     // Auto-connect if enabled (WebSocket-first pattern)
     if (autoConnect) {

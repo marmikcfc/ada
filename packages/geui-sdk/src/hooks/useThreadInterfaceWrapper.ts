@@ -72,10 +72,7 @@ export function useThreadInterfaceWrapper(options: UseThreadInterfaceWrapperOpti
     generateTitle = (msg: string) => msg.substring(0, 30).trim() + '...'
   } = threadOptions;
 
-  // Use the GeUI client for connection management
-  const client = useGeUIClient(clientOptions);
-
-  // Thread state
+  // Thread state - Define these first before using them in callbacks
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [threadMessages, setThreadMessages] = useState<Record<string, Message[]>>({});
@@ -141,6 +138,65 @@ export function useThreadInterfaceWrapper(options: UseThreadInterfaceWrapperOpti
     }
   }, [storageKey, enablePersistence, loadFromStorage]);
 
+  // Handler for auto-generated threads from ConnectionService
+  const handleAutoThreadCreation = useCallback((threadId: string) => {
+    console.log('[ThreadInterfaceWrapper] Auto-thread created:', threadId);
+    
+    // Check if this thread already exists
+    const existingThread = threads.find(t => t.id === threadId);
+    if (existingThread) {
+      console.log('[ThreadInterfaceWrapper] Thread already exists, setting as active');
+      setActiveThreadId(threadId);
+      return;
+    }
+    
+    // Create a new thread with the auto-generated ID
+    const now = new Date();
+    const newThread: Thread = {
+      id: threadId,
+      title: `Thread ${threads.length + 1}`,
+      createdAt: now,
+      updatedAt: now,
+      messageCount: 0
+    };
+    
+    console.log('[ThreadInterfaceWrapper] Adding auto-generated thread to list:', newThread);
+    
+    // Update state
+    setThreads(prev => [...prev, newThread]);
+    setThreadMessages(prev => ({ ...prev, [threadId]: [] }));
+    setActiveThreadId(threadId);
+    
+    // Save to storage
+    if (enablePersistence) {
+      const storage = loadFromStorage() || {
+        version: 1,
+        threads: {},
+        activeThreadId: null,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      storage.threads[threadId] = {
+        id: threadId,
+        title: newThread.title,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+        messageCount: 0,
+        messages: []
+      };
+      
+      storage.activeThreadId = threadId;
+      saveToStorage(storage);
+      console.log('[ThreadInterfaceWrapper] Saved auto-generated thread to localStorage');
+    }
+  }, [threads, enablePersistence, loadFromStorage, saveToStorage]);
+
+  // Use the GeUI client for connection management with onThreadCreated handler
+  const client = useGeUIClient({
+    ...clientOptions,
+    onThreadCreated: handleAutoThreadCreation
+  });
+
   // Load initial data
   useEffect(() => {
     // Only load once
@@ -177,10 +233,53 @@ export function useThreadInterfaceWrapper(options: UseThreadInterfaceWrapperOpti
         }
       }
     }
+    
+    // Create a default thread if none exist
+    if (threads.length === 0 && !storage) {
+      console.log('[ThreadInterfaceWrapper] No threads found, creating default thread');
+      const defaultThreadId = `thread-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const now = new Date();
+      const defaultThread: Thread = {
+        id: defaultThreadId,
+        title: 'Thread 1',
+        createdAt: now,
+        updatedAt: now,
+        messageCount: 0
+      };
+      
+      setThreads([defaultThread]);
+      setThreadMessages({ [defaultThreadId]: [] });
+      setActiveThreadId(defaultThreadId);
+      
+      // Save to storage
+      if (enablePersistence) {
+        const newStorage = {
+          version: 1,
+          threads: {
+            [defaultThreadId]: {
+              id: defaultThreadId,
+              title: defaultThread.title,
+              createdAt: now.toISOString(),
+              updatedAt: now.toISOString(),
+              messageCount: 0,
+              messages: []
+            }
+          },
+          activeThreadId: defaultThreadId,
+          lastUpdated: new Date().toISOString()
+        };
+        saveToStorage(newStorage);
+        console.log('[ThreadInterfaceWrapper] Created and saved default thread');
+      }
+      
+      // Set thread ID in client
+      client.setThreadId(defaultThreadId);
+    }
+    
     // Mark as initialized and threads loaded
     initializedRef.current = true;
     setIsLoadingThreads(false);
-  }, []);
+  }, [enablePersistence, saveToStorage, client]);
 
   // Update thread ID in connection when it changes
   useEffect(() => {
