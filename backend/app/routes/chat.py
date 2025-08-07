@@ -31,6 +31,13 @@ DEDUP_WINDOW_SECONDS = 5.0  # Time window to consider interactions as duplicates
 # Router for per-connection chat endpoints
 router = APIRouter(tags=["per-connection-chat"])
 
+@router.get("/session-stats")
+async def get_session_stats():
+    """Debug endpoint to get session manager statistics"""
+    from app.session_manager import session_manager
+    stats = await session_manager.get_stats()
+    return stats
+
 def _generate_interaction_hash(interaction_type: str, interaction_context: Dict[str, Any]) -> str:
     """Generate a unique hash for an interaction to detect duplicates"""
     import hashlib
@@ -131,6 +138,11 @@ async def websocket_per_connection_messages(websocket: WebSocket):
     finally:
         # Cleanup connection resources
         if connection_id:
+            # Unregister from session manager
+            from app.session_manager import session_manager
+            await session_manager.unregister_ws_connection(connection_id)
+            
+            # Cleanup connection manager resources
             await connection_manager.cleanup_connection(connection_id)
 
 async def _wait_for_configuration(websocket: WebSocket, connection_id: str) -> bool:
@@ -146,6 +158,21 @@ async def _wait_for_configuration(websocket: WebSocket, connection_id: str) -> b
         try:
             config_payload = json.loads(config_data)
             config_message = ConnectionConfigMessage(**config_payload)
+            
+            # Extract session and thread IDs if provided
+            session_id = config_payload.get('session_id')
+            thread_id = config_payload.get('thread_id', 'default-thread')
+            
+            # Register with session manager
+            if session_id:
+                from app.session_manager import session_manager
+                await session_manager.register_websocket_connection(
+                    session_id=session_id,
+                    ws_connection_id=connection_id,
+                    thread_id=thread_id
+                )
+                logger.info(f"Registered WebSocket {connection_id} with session {session_id}, thread {thread_id}")
+            
         except (json.JSONDecodeError, ValidationError) as e:
             error_msg = ErrorMessage(
                 message=f"Invalid configuration format: {str(e)}",

@@ -18,6 +18,7 @@ from pipecat.transports.network.webrtc_connection import IceServer, SmallWebRTCC
 from agent.voice_based_interaction_agent import VoiceInterfaceAgent
 
 from app.config import config
+# Connection mapper import removed - not needed for message routing
 # NOTE:
 # Import the *module* so we always access the current queue instances that are
 # created during `initialize_queues()` inside the FastAPI lifespan.  Using
@@ -44,6 +45,8 @@ class WebRTCOffer(BaseModel):
     pc_id: Optional[str] = None
     restart_pc: Optional[bool] = False
     backend_connection_id: Optional[str] = None  # Backend WebSocket connection ID for message routing
+    session_id: Optional[str] = None  # Session ID for session-based routing
+    thread_id: Optional[str] = None  # Thread ID for current thread
 
 class WebRTCAnswer(BaseModel):
     """WebRTC answer response model"""
@@ -123,7 +126,11 @@ async def handle_offer(request: WebRTCOffer, background_tasks: BackgroundTasks, 
             # Note: This is a best-effort cleanup. The WeakSet will handle most cleanup automatically
             for agent in list(getattr(webrtc_connection, '_associated_agents', [])):
                 try:
-                    # Legacy vis_processor registration removed - using per-connection only
+                    # Unregister from session manager
+                    from app.session_manager import session_manager
+                    rtc_connection_id = webrtc_connection.pc_id
+                    await session_manager.unregister_rtc_connection(rtc_connection_id)
+                    logger.info(f"Unregistered RTC {rtc_connection_id} from session manager")
                     
                     # Also try to unregister from connection manager if connection_id is available
                     if hasattr(agent, 'connection_id') and agent.connection_id:
@@ -150,15 +157,36 @@ async def handle_offer(request: WebRTCOffer, background_tasks: BackgroundTasks, 
         
         # Create voice interface agent with backend connection ID (passed directly from frontend)
         backend_connection_id = request.backend_connection_id
-        logger.info(f"Received backend connection ID: {backend_connection_id}")
+        session_id = request.session_id
+        thread_id = request.thread_id or 'default-thread'
+        
+        logger.info(f"WebRTC offer - backend_connection_id: {backend_connection_id}, session_id: {session_id}, thread_id: {thread_id}")
+        
+        # Register RTC connection with session manager if session_id provided
+        if session_id:
+            from app.session_manager import session_manager
+            rtc_connection_id = pipecat_connection.pc_id
+            await session_manager.register_rtc_connection(
+                session_id=session_id,
+                rtc_connection_id=rtc_connection_id,
+                thread_id=thread_id
+            )
+            logger.info(f"Registered RTC {rtc_connection_id} with session {session_id}, thread {thread_id}")
+            
+            # Get the linked WebSocket connection for this session
+            linked_ws_id = await session_manager.get_linked_ws_for_rtc(rtc_connection_id)
+            if linked_ws_id:
+                # Use linked WebSocket ID for message routing
+                backend_connection_id = linked_ws_id
+                logger.info(f"Using linked WebSocket {linked_ws_id} for RTC {rtc_connection_id}")
+            else:
+                logger.warning(f"No linked WebSocket found for RTC {rtc_connection_id} in session {session_id}")
         
         agent = VoiceInterfaceAgent(
             pipecat_connection,
             queues.llm_message_queue,
-            connection_id=backend_connection_id  # Direct backend connection ID - no mapping needed
+            connection_id=backend_connection_id  # Use linked WebSocket ID for routing
         )
-        
-        # Legacy vis_processor registration removed - using per-connection only
         
         # Register with connection manager for proper message routing
         if backend_connection_id:

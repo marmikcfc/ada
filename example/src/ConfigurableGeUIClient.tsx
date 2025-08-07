@@ -69,9 +69,22 @@ export const ConfigurableGeUIClient: React.FC<ConfigurableGeUIClientProps> = ({
         if (data.type === 'connection_established' && !configHandled) {
           console.log('[ConfigurableGeUIClient] Received connection_established, sending config');
           
+          // Get session and thread IDs from ConnectionService
+          const connectionService = (window as any).__currentConnectionService;
+          const sessionId = connectionService?.getSessionId() || 
+                          localStorage.getItem('geui_session_id') || 
+                          `session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+          
+          // Get current thread ID from the connection service or URL
+          const threadId = connectionService?.getActiveThreadId() || 
+                         window.location.hash.replace('#', '') || 
+                         'default-thread';
+          
           const configMessage = {
             type: 'connection_config',
-            config: connectionConfig
+            config: connectionConfig,
+            session_id: sessionId,
+            thread_id: threadId
           };
           
           console.log('[ConfigurableGeUIClient] Sending configuration:', configMessage);

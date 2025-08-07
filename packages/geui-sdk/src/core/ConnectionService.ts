@@ -134,6 +134,9 @@ export class ConnectionService extends EventEmitter {
   // Simple connection identifier for logging (generated locally)
   private connectionLogId: string;
   
+  // Session management - persistent across thread switches
+  private sessionId: string;
+  
   // Thread management for voice isolation
   private activeThreadId: string | null = null;
   private threadVoiceMapping: Map<string, boolean> = new Map(); // Track which threads have voice enabled
@@ -158,6 +161,10 @@ export class ConnectionService extends EventEmitter {
     this.maxReconnectAttempts = options.maxReconnectAttempts ?? 5;
     this.connectionLogId = `conn-${Date.now()}-${Math.random().toString(36).substring(2, 5)}`;
     
+    // Initialize or get persistent session ID
+    this.sessionId = this.getOrCreateSessionId();
+    console.log(`[WS:${this.connectionLogId}] Using session ID: ${this.sessionId}`);
+    
     // UI Framework support
     this.uiFramework = options.uiFramework || 'inline';
     this.onFormSubmit = options.onFormSubmit;
@@ -168,6 +175,44 @@ export class ConnectionService extends EventEmitter {
     
     // Setup global interaction handlers
     this.setupGlobalHandlers();
+    
+    // Expose service globally for session coordination
+    (window as any).__currentConnectionService = this;
+  }
+
+  /**
+   * Get or create a persistent session ID
+   */
+  private getOrCreateSessionId(): string {
+    const SESSION_KEY = 'geui_session_id';
+    
+    // Try to get existing session ID from localStorage
+    let sessionId = localStorage.getItem(SESSION_KEY);
+    
+    if (!sessionId) {
+      // Generate new session ID if none exists
+      sessionId = `session-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      localStorage.setItem(SESSION_KEY, sessionId);
+      console.log(`[Session] Created new session ID: ${sessionId}`);
+    } else {
+      console.log(`[Session] Using existing session ID: ${sessionId}`);
+    }
+    
+    return sessionId;
+  }
+
+  /**
+   * Get the current session ID
+   */
+  public getSessionId(): string {
+    return this.sessionId;
+  }
+
+  /**
+   * Get the active thread ID
+   */
+  public getActiveThreadId(): string | null {
+    return this.activeThreadId;
   }
 
   /**
@@ -397,7 +442,7 @@ export class ConnectionService extends EventEmitter {
       const offer = await peerConnection.createOffer();
       await peerConnection.setLocalDescription(offer);
 
-      // Send offer to backend with backend connection ID and thread context for proper routing
+      // Send offer to backend with session, connection ID and thread context for proper routing
       const response = await fetch(this.webrtcURL, {
         method: 'POST',
         headers: {
@@ -406,6 +451,7 @@ export class ConnectionService extends EventEmitter {
         body: JSON.stringify({
           sdp: offer.sdp,
           type: offer.type,
+          session_id: this.sessionId, // Include session ID
           backend_connection_id: this.backendConnectionId, // Include backend connection ID
           thread_id: this.activeThreadId, // Include thread context
         }),

@@ -14,6 +14,8 @@ import time
 
 logger = logging.getLogger(__name__)
 
+# Connection mapper import removed - no longer needed for ID translation
+
 @dataclass
 class VoiceSubscription:
     """Represents a voice message subscription for a connection"""
@@ -161,6 +163,9 @@ class VoiceBroadcastManager:
             
             logger.warning(f"Attempted to update thread for unknown connection: {connection_id}")
             return False
+    
+    # broadcast_from_rtc method removed - no longer needed
+    # Voice agents now call broadcast() directly with the correct connection_id
     
     async def broadcast(self, message: dict) -> int:
         """
