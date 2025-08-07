@@ -521,9 +521,6 @@ export class ConnectionService extends EventEmitter {
    * Send a chat message via WebSocket
    */
   public async sendChatMessage(message: string, threadId?: string): Promise<string> {
-    // Use provided threadId or active thread
-    const targetThreadId = threadId || this.activeThreadId;
-    
     // Ensure WebSocket is connected first
     if (!this.webSocket || this.webSocket.readyState !== WebSocket.OPEN) {
       console.log(`[WS:${this.connectionLogId}] WebSocket not connected, connecting for chat message...`);
@@ -542,19 +539,32 @@ export class ConnectionService extends EventEmitter {
       await this.waitForConfiguration();
     }
     
+    // Ensure we have a thread ID - either provided, active, or generate new one
+    let targetThreadId = threadId || this.activeThreadId;
+    
+    if (!targetThreadId) {
+      // Generate a new thread ID if none exists
+      targetThreadId = `thread-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      console.log(`[WS:${this.connectionLogId}] Generated new thread ID: ${targetThreadId}`);
+      
+      // Set as active thread
+      this.setActiveThreadId(targetThreadId);
+      
+      // Emit event for thread creation
+      this.emit('thread:created', { threadId: targetThreadId });
+    }
+    
     const messageId = crypto.randomUUID();
     
     if (!this.webSocket) {
       throw new Error('WebSocket is not connected');
     }
     
-    // Update thread connection info if we have a thread
-    if (targetThreadId) {
-      this.setThreadConnectionInfo(targetThreadId, {
-        websocketConnectionId: this.backendConnectionId || undefined,
-        websocketState: this.connectionState
-      });
-    }
+    // Update thread connection info
+    this.setThreadConnectionInfo(targetThreadId, {
+      websocketConnectionId: this.backendConnectionId || undefined,
+      websocketState: this.connectionState
+    });
     
     this.webSocket.send(JSON.stringify({
       type: 'chat',
@@ -572,9 +582,6 @@ export class ConnectionService extends EventEmitter {
    * Send a C1Component action via WebSocket
    */
   public async sendC1Action(action: { llmFriendlyMessage: string }, threadId?: string): Promise<string> {
-    // Use provided threadId or active thread
-    const targetThreadId = threadId || this.activeThreadId;
-    
     // Ensure WebSocket is connected first
     if (!this.webSocket || this.webSocket.readyState !== WebSocket.OPEN) {
       console.log(`[WS:${this.connectionLogId}] WebSocket not connected, connecting for C1 action...`);
@@ -587,19 +594,32 @@ export class ConnectionService extends EventEmitter {
       await this.waitForBackendConnectionId();
     }
     
+    // Ensure we have a thread ID - either provided, active, or generate new one
+    let targetThreadId = threadId || this.activeThreadId;
+    
+    if (!targetThreadId) {
+      // Generate a new thread ID if none exists
+      targetThreadId = `thread-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      console.log(`[WS:${this.connectionLogId}] Generated new thread ID for C1 action: ${targetThreadId}`);
+      
+      // Set as active thread
+      this.setActiveThreadId(targetThreadId);
+      
+      // Emit event for thread creation
+      this.emit('thread:created', { threadId: targetThreadId });
+    }
+    
     const messageId = crypto.randomUUID();
     
     if (!this.webSocket) {
       throw new Error('WebSocket is not connected');
     }
     
-    // Update thread connection info if we have a thread
-    if (targetThreadId) {
-      this.setThreadConnectionInfo(targetThreadId, {
-        websocketConnectionId: this.backendConnectionId || undefined,
-        websocketState: this.connectionState
-      });
-    }
+    // Update thread connection info
+    this.setThreadConnectionInfo(targetThreadId, {
+      websocketConnectionId: this.backendConnectionId || undefined,
+      websocketState: this.connectionState
+    });
     
     this.webSocket.send(JSON.stringify({
       type: 'thesys_bridge',
@@ -703,13 +723,6 @@ export class ConnectionService extends EventEmitter {
   public setActiveThreadId(threadId: string | null): void {
     console.log(`[WS:${this.connectionLogId}] Setting active thread ID: ${threadId}`);
     this.activeThreadId = threadId;
-  }
-
-  /**
-   * Get the active thread ID
-   */
-  public getActiveThreadId(): string | null {
-    return this.activeThreadId;
   }
 
   /**
