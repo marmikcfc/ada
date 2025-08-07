@@ -363,7 +363,7 @@ class ConnectionManager:
         )
         
         try:
-            client = EnhancedMCPClient(temp_path)
+            client = EnhancedMCPClient(temp_path, max_tool_calls=mcp_config.max_tool_calls)
             await asyncio.wait_for(client.initialize(), timeout=mcp_config.timeout)
             
             await self.update_state(

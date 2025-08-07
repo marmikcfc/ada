@@ -1,0 +1,961 @@
+2025-08-04 19:34:48,191 - app.config - INFO - Loading application configuration...
+2025-08-04 19:34:48,192 - app.config - INFO - Configuration loaded successfully
+2025-08-04 19:34:48.374 | INFO     | pipecat:<module>:13 - ᓚᘏᗢ Pipecat 0.0.67 ᓚᘏᗢ
+2025-08-04 19:34:50,305 - app.chat_history_manager - INFO - Chat history manager initialized with max_history=50, max_inactive_time=3600s
+2025-08-04 19:34:50,514 - tools - INFO - Google Images Search initialized successfully
+2025-08-04 19:34:50,521 - root - INFO - Checking dist directory path: /Users/marmikpandya/.pyenv/versions/3.11.10/lib/python3.11/site-packages/pipecat_ai_small_webrtc_prebuilt/client/dist
+2025-08-04 19:34:50,523 - __main__ - INFO - Starting Ada Interaction Engine
+2025-08-04 19:34:50,523 - app.server - INFO - Starting Ada Interaction Engine server on 0.0.0.0:8000
+INFO:     Started server process [7712]
+INFO:     Waiting for application startup.
+2025-08-04 19:34:50,548 - app.queues - INFO - Initializing communication queues...
+2025-08-04 19:34:50,548 - app.queues - INFO - Communication queues initialized successfully
+2025-08-04 19:34:50,548 - app.queues - INFO - Voice broadcast manager ready for subscriptions
+2025-08-04 19:34:50,548 - app.server - INFO - Initializing Thesys Client...
+2025-08-04 19:34:50,614 - app.server - INFO - Thesys Client initialized successfully.
+2025-08-04 19:34:50,614 - app.server - INFO - Starting Visualization Processor (per-connection MCP only)...
+2025-08-04 19:34:50,614 - app.server - INFO - Visualization Processor started successfully (per-connection MCP only).
+2025-08-04 19:34:50,614 - app.server - INFO - Server startup complete - using per-connection MCP clients only
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:     ('127.0.0.1', 59214) - "WebSocket /ws/per-connection-messages" [accepted]
+2025-08-04 19:34:59,085 - app.connection_manager - INFO - Registered connection fef9c823-82c5-4590-a757-c9734821bd0f from 127.0.0.1
+2025-08-04 19:34:59,085 - app.routes.chat - INFO - WebSocket connection registered: fef9c823-82c5-4590-a757-c9734821bd0f from 127.0.0.1:59214
+INFO:     connection open
+2025-08-04 19:34:59,088 - app.connection_manager - INFO - Connection fef9c823-82c5-4590-a757-c9734821bd0f: ConnectionState.CONNECTING → ConnectionState.CONFIG_RECEIVED - Configuration received, validating...
+2025-08-04 19:34:59,088 - app.connection_manager - INFO - Connection fef9c823-82c5-4590-a757-c9734821bd0f: ConnectionState.CONFIG_RECEIVED → ConnectionState.VALIDATING - Configuration validated, initializing MCP client...
+2025-08-04 19:34:59,089 - app.connection_manager - INFO - Connection fef9c823-82c5-4590-a757-c9734821bd0f: ConnectionState.VALIDATING → ConnectionState.MCP_INITIALIZING - Creating MCP client configuration...
+2025-08-04 19:34:59,089 - app.connection_manager - INFO - Connection fef9c823-82c5-4590-a757-c9734821bd0f: ConnectionState.MCP_INITIALIZING → ConnectionState.MCP_INITIALIZING - Connecting to MCP servers...
+2025-08-04 19:34:59,089 - agent.enhanced_mcp_client_agent - INFO - Built-in tools added successfully
+2025-08-04 19:34:59,098 - agent.enhanced_mcp_client_agent - INFO - Enhanced MCP client initialized with 0 servers
+2025-08-04 19:34:59,099 - app.connection_manager - INFO - Connection fef9c823-82c5-4590-a757-c9734821bd0f: ConnectionState.MCP_INITIALIZING → ConnectionState.MCP_INITIALIZING - Connected to 0 MCP servers
+2025-08-04 19:34:59,099 - app.connection_manager - INFO - Connection fef9c823-82c5-4590-a757-c9734821bd0f: ConnectionState.MCP_INITIALIZING → ConnectionState.MCP_INITIALIZING - MCP client ready with 0 servers, setting up visualization...
+2025-08-04 19:34:59,099 - app.connection_manager - INFO - Connection fef9c823-82c5-4590-a757-c9734821bd0f: ConnectionState.MCP_INITIALIZING → ConnectionState.VIZ_INITIALIZING - Setting up thesys visualization provider...
+2025-08-04 19:34:59,107 - app.viz_provider_factory - INFO - Thesys provider initialized successfully
+2025-08-04 19:34:59,107 - app.connection_manager - INFO - Connection fef9c823-82c5-4590-a757-c9734821bd0f: ConnectionState.VIZ_INITIALIZING → ConnectionState.VIZ_INITIALIZING - thesys provider ready
+2025-08-04 19:34:59,107 - app.connection_manager - INFO - Connection fef9c823-82c5-4590-a757-c9734821bd0f: ConnectionState.VIZ_INITIALIZING → ConnectionState.VIZ_INITIALIZING - Visualization provider (thesys) ready, finalizing setup...
+2025-08-04 19:34:59,107 - app.connection_manager - INFO - Connection fef9c823-82c5-4590-a757-c9734821bd0f: ConnectionState.VIZ_INITIALIZING → ConnectionState.READY - Connection ready for chat!
+2025-08-04 19:34:59,113 - app.connection_manager - INFO - Started processor for connection fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:34:59,113 - app.connection_manager - INFO - Connection fef9c823-82c5-4590-a757-c9734821bd0f: ConnectionState.READY → ConnectionState.ACTIVE - Connection active and processing messages
+2025-08-04 19:34:59,113 - app.connection_processor - INFO - Starting processor for connection fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:34:59,113 - app.routes.chat - INFO - Per-connection sender started for fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:34:59,113 - app.routes.chat - INFO - Starting voice bridge for connection fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:34:59,113 - app.voice_broadcast_manager - INFO - Voice broadcast subscription created for connection fef9c823-82c5-4590-a757-c9734821bd0f with thread_id None
+2025-08-04 19:34:59,113 - app.routes.chat - INFO - Subscribed to voice broadcasts for connection fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:01.344 | DEBUG    | pipecat.transports.network.webrtc_connection:_initialize:136 - Initializing new peer connection
+2025-08-04 19:35:01.353 | DEBUG    | pipecat.transports.network.webrtc_connection:_create_answer:214 - Creating answer
+2025-08-04 19:35:01.354 | DEBUG    | pipecat.transports.network.webrtc_connection:on_track:197 - Track audio received
+2025-08-04 19:35:01.357 | DEBUG    | pipecat.transports.network.webrtc_connection:on_icegatheringstatechange:193 - ICE gathering state is gathering
+2025-08-04 19:35:01.426 | DEBUG    | pipecat.transports.network.webrtc_connection:on_icegatheringstatechange:193 - ICE gathering state is complete
+2025-08-04 19:35:01.427 | DEBUG    | pipecat.transports.network.webrtc_connection:_create_answer:217 - Setting the answer after the local description is created
+2025-08-04 19:35:01,427 - app.webrtc - INFO - Received backend connection ID: fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:01.427 | INFO     | agent.voice_based_interaction_agent:__init__:107 - Voice agent initialized with thread_id: SmallWebRTCConnection#0, connection_id: fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:01,428 - app.voice_broadcast_manager - INFO - Updated voice thread for connection fef9c823-82c5-4590-a757-c9734821bd0f: None -> SmallWebRTCConnection#0
+2025-08-04 19:35:01,428 - app.connection_manager - INFO - Registered voice agent for connection fef9c823-82c5-4590-a757-c9734821bd0f with thread_id SmallWebRTCConnection#0
+2025-08-04 19:35:01,428 - app.voice_manager - INFO - Voice agent registered for connection fef9c823-82c5-4590-a757-c9734821bd0f with thread SmallWebRTCConnection#0
+2025-08-04 19:35:01.428 | INFO     | agent.voice_based_interaction_agent:register_with_connection_manager:123 - Registered voice agent with connection manager for connection fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:01,428 - app.webrtc - INFO - Registered voice agent with connection manager for backend connection fef9c823-82c5-4590-a757-c9734821bd0f
+Looking for dist directory at: /Users/marmikpandya/.pyenv/versions/3.11.10/lib/python3.11/site-packages/pipecat_ai_small_webrtc_prebuilt/client/dist
+INFO:     127.0.0.1:59227 - "POST /api/offer HTTP/1.1" 200 OK
+2025-08-04 19:35:01.428 | WARNING  | agent.voice_based_interaction_agent:load_voice_agent_prompt:95 - Voice agent prompt file not found at /Users/marmikpandya/Desktop/GeUI_sdk/backend/agent/../../prompts/voice_agent_system.txt, using fallback
+2025-08-04 19:35:01.428 | DEBUG    | pipecat.audio.vad.silero:__init__:111 - Loading Silero VAD model...
+2025-08-04 19:35:01.486 | DEBUG    | pipecat.audio.vad.silero:__init__:133 - Loaded Silero VAD
+2025-08-04 19:35:01.491 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking PipelineSource#0 -> SmallWebRTCInputTransport#0
+2025-08-04 19:35:01.491 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking SmallWebRTCInputTransport#0 -> RTVIProcessor#0
+2025-08-04 19:35:01.491 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking RTVIProcessor#0 -> DeepgramSTTService#0
+2025-08-04 19:35:01.491 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking DeepgramSTTService#0 -> UserTranscriptProcessor#0
+2025-08-04 19:35:01.491 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking UserTranscriptProcessor#0 -> OpenAIUserContextAggregator#0
+2025-08-04 19:35:01.491 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking OpenAIUserContextAggregator#0 -> OpenAILLMService#0
+2025-08-04 19:35:01.491 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking OpenAILLMService#0 -> ResponseAggregatorProcessor#0
+2025-08-04 19:35:01.491 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking ResponseAggregatorProcessor#0 -> CartesiaTTSService#0
+2025-08-04 19:35:01.491 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking CartesiaTTSService#0 -> SmallWebRTCOutputTransport#0
+2025-08-04 19:35:01.491 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking SmallWebRTCOutputTransport#0 -> OpenAIAssistantContextAggregator#0
+2025-08-04 19:35:01.491 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking OpenAIAssistantContextAggregator#0 -> PipelineSink#0
+/Users/marmikpandya/.pyenv/versions/3.11.10/lib/python3.11/site-packages/pipecat/pipeline/task.py:192: DeprecationWarning: Field 'observers' is deprecated, use the 'observers' parameter instead.
+  warnings.warn(
+2025-08-04 19:35:01.492 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking PipelineTaskSource#0 -> Pipeline#0
+2025-08-04 19:35:01.492 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking Pipeline#0 -> PipelineTaskSink#0
+2025-08-04 19:35:01.492 | DEBUG    | pipecat.pipeline.runner:run:38 - Runner PipelineRunner#0 started running PipelineTask#0
+2025-08-04 19:35:01.492 | DEBUG    | pipecat.services.deepgram.stt:_connect:143 - Connecting to Deepgram
+2025-08-04 19:35:01,500 - aioice.ice - INFO - Connection(0) Discovered peer reflexive candidate Candidate(NAxOXTfKNR 1 udp 1853827327 2401:4900:1c80:eec8:955b:f659:e1ee:c434 52314 typ prflx)
+2025-08-04 19:35:01.500 | DEBUG    | pipecat.transports.network.webrtc_connection:on_iceconnectionstatechange:187 - ICE connection state is checking, connection is connecting
+2025-08-04 19:35:01.500 | DEBUG    | pipecat.transports.network.webrtc_connection:_handle_new_connection_state:313 - Connection state changed to: connecting
+2025-08-04 19:35:01,500 - aioice.ice - INFO - Connection(0) Check CandidatePair(('2401:4900:1c80:eec8:14b9:ef44:e649:63a9', 58798) -> ('2401:4900:1c80:eec8:955b:f659:e1ee:c434', 52314)) State.WAITING -> State.IN_PROGRESS
+2025-08-04 19:35:01,500 - aioice.ice - INFO - Connection(0) Check CandidatePair(('2401:4900:1c80:eec8:14b9:ef44:e649:63a9', 58798) -> ('2401:4900:1c80:eec8:955b:f659:e1ee:c434', 52314)) State.IN_PROGRESS -> State.SUCCEEDED
+2025-08-04 19:35:01,500 - aioice.ice - INFO - Connection(0) ICE completed
+2025-08-04 19:35:01.520 | DEBUG    | pipecat.transports.network.webrtc_connection:on_iceconnectionstatechange:187 - ICE connection state is completed, connection is connecting
+2025-08-04 19:35:01,677 - aioice.ice - INFO - Connection(0) Discovered peer reflexive candidate Candidate(iSC2f71Seo 1 udp 1853759231 192.168.1.25 60276 typ prflx)
+2025-08-04 19:35:01,677 - aioice.ice - INFO - Connection(0) Check CandidatePair(('192.168.1.25', 63944) -> ('192.168.1.25', 60276)) State.WAITING -> State.IN_PROGRESS
+2025-08-04 19:35:01,678 - aioice.ice - INFO - Connection(0) Check CandidatePair(('192.168.1.25', 63944) -> ('192.168.1.25', 60276)) State.IN_PROGRESS -> State.SUCCEEDED
+2025-08-04 19:35:03.257 | DEBUG    | pipecat.services.cartesia.tts:_connect_websocket:203 - Connecting to Cartesia
+2025-08-04 19:35:04.076 | INFO     | pipecat.transports.network.small_webrtc:connect:308 - Connecting to Small WebRTC
+2025-08-04 19:35:04.077 | WARNING  | pipecat.transports.network.webrtc_connection:video_input_track:361 - No video transceiver is available
+2025-08-04 19:35:04.077 | INFO     | pipecat.audio.vad.vad_analyzer:set_params:74 - Setting VAD params to: confidence=0.7 start_secs=0.2 stop_secs=0.8 min_volume=0.6
+2025-08-04 19:35:04.077 | DEBUG    | pipecat.transports.network.small_webrtc:on_connected:166 - Peer connection established.
+2025-08-04 19:35:04.078 | WARNING  | pipecat.transports.network.webrtc_connection:video_input_track:361 - No video transceiver is available
+2025-08-04 19:35:04.078 | DEBUG    | pipecat.transports.network.webrtc_connection:replace_audio_track:267 - Replacing audio track audio
+2025-08-04 19:35:04.078 | INFO     | agent.voice_based_interaction_agent:on_client_connected:289 - Pipecat Client connected
+2025-08-04 19:35:04.506 | DEBUG    | pipecat.transports.base_input:_handle_user_interruption:214 - User started speaking
+2025-08-04 19:35:04.820 | DEBUG    | pipecat.transports.base_input:_handle_user_interruption:224 - User stopped speaking
+2025-08-04 19:35:05.102 | INFO     | agent.voice_based_interaction_agent:handle_transcript_update:305 - Capturing transcriber logs [2025-08-04T14:05:05.101+00:00] user: Hello?
+2025-08-04 19:35:05,102 - app.chat_history_manager - INFO - Created new thread SmallWebRTCConnection#0
+2025-08-04 19:35:05.102 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:150 - --- send_user_transcription_to_frontend ---
+2025-08-04 19:35:05.102 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:151 - User transcription: Hello?
+2025-08-04 19:35:05.102 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:152 - -----------------------------------------------
+2025-08-04 19:35:05.102 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:166 - Added user transcription to chat history for thread SmallWebRTCConnection#0
+2025-08-04 19:35:05,109 - app.voice_broadcast_manager - INFO - ✅ Broadcasted user_transcription (ID: 2338c263-79cb-4571-80a6-e8677bd9c2fd) to 1/1 subscribers
+2025-08-04 19:35:05.109 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:170 - User transcription broadcasted to 1 subscribers: {'id': '2338c263-79cb-4571-80a6-e8677bd9c2fd', 'role': 'user', 'type': 'user_transcription', 'content': 'Hello?', 'connection_id': 'fef9c823-82c5-4590-a757-c9734821bd0f', 'thread_id': 'SmallWebRTCConnection#0'}
+2025-08-04 19:35:05,109 - app.routes.chat - INFO - Voice bridge fef9c823-82c5-4590-a757-c9734821bd0f: received broadcast message type 'user_transcription' with ID 2338c263-79cb-4571-80a6-e8677bd9c2fd
+2025-08-04 19:35:05,109 - app.routes.chat - INFO - ✅ Successfully queued voice message user_transcription to per-connection queue for fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:05,121 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: user_transcription with ID 2338c263-79cb-4571-80a6-e8677bd9c2fd
+2025-08-04 19:35:05,121 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: user_transcription
+2025-08-04 19:35:05.609 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:76 - 🧠 → OpenAILLMService#0 LLM CONTEXT FRAME: [{'role': 'system', 'content': "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."}, {'role': 'user', 'content': 'Start by greeting the user warmly and introducing yourself.'}, {'role': 'user', 'content': 'Hello?'}] at 4.12s
+2025-08-04 19:35:05.609 | DEBUG    | pipecat.services.openai.base_llm:_stream_chat_completions:156 - OpenAILLMService#0: Generating chat [[{"role": "system", "content": "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."}, {"role": "user", "content": "Start by greeting the user warmly and introducing yourself."}, {"role": "user", "content": "Hello?"}]]
+2025-08-04 19:35:05.612 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:57 - 🧠 OpenAILLMService#0 → LLM START RESPONSE at 4.12s
+2025-08-04 19:35:06,306 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-04 19:35:06.347 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: 'Hello' at 4.85s
+2025-08-04 19:35:06.347 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: '!' at 4.85s
+2025-08-04 19:35:06.348 | DEBUG    | pipecat.services.cartesia.tts:run_tts:278 - CartesiaTTSService#0: Generating TTS [Hello!]
+2025-08-04 19:35:06.407 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: " I'm" at 4.91s
+2025-08-04 19:35:06.407 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' your' at 4.91s
+2025-08-04 19:35:06.435 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' friendly' at 4.94s
+2025-08-04 19:35:06.435 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' assistant' at 4.94s
+2025-08-04 19:35:06.458 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' here' at 4.97s
+2025-08-04 19:35:06.458 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' to' at 4.97s
+2025-08-04 19:35:06.506 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' help' at 5.01s
+2025-08-04 19:35:06.506 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' you' at 5.01s
+2025-08-04 19:35:06.547 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' with' at 5.05s
+2025-08-04 19:35:06.547 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' any' at 5.05s
+2025-08-04 19:35:06.574 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' questions' at 5.08s
+2025-08-04 19:35:06.574 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' you' at 5.08s
+2025-08-04 19:35:06.647 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' might' at 5.15s
+2025-08-04 19:35:06.647 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' have' at 5.15s
+2025-08-04 19:35:06.647 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: '.' at 5.15s
+2025-08-04 19:35:06.649 | DEBUG    | pipecat.services.cartesia.tts:run_tts:278 - CartesiaTTSService#0: Generating TTS [ I'm your friendly assistant here to help you with any questions you might have.]
+2025-08-04 19:35:06.649 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:57 - 🧠 OpenAILLMService#0 → LLM END RESPONSE at 5.16s
+2025-08-04 19:35:06,650 - app.voice_broadcast_manager - INFO - ✅ Broadcasted immediate_voice_response (ID: f2c4f406-70b0-4a15-9207-a9d8bccdacbe) to 1/1 subscribers
+2025-08-04 19:35:06.650 | INFO     | agent.voice_based_interaction_agent:process_frame:372 - Broadcasted immediate_voice_response to 1 subscribers (id=f2c4f406-70b0-4a15-9207-a9d8bccdacbe)
+2025-08-04 19:35:06.650 | INFO     | agent.voice_based_interaction_agent:process_frame:378 - Added assistant response to chat history for thread SmallWebRTCConnection#0
+2025-08-04 19:35:06.650 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:140 - --- process_downstream_display (payload for Thesys) ---
+2025-08-04 19:35:06.650 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:141 - History (for Thesys context): [{'role': 'user', 'content': 'Hello?'}, {'role': 'user', 'content': 'Hello?', 'id': '2338c263-79cb-4571-80a6-e8677bd9c2fd'}, {'role': 'assistant', 'content': "Hello! I'm your friendly assistant here to help you with any questions you might have."}]
+2025-08-04 19:35:06.650 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:142 - Assistant Spoken Response (for Thesys): Hello! I'm your friendly assistant here to help you with any questions you might have.
+2025-08-04 19:35:06.650 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:143 - ----------------------------------------------------------
+2025-08-04 19:35:06.650 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:146 - Visualization processing now handled through per-connection MCP clients
+2025-08-04 19:35:06,650 - app.routes.chat - INFO - Voice bridge fef9c823-82c5-4590-a757-c9734821bd0f: received broadcast message type 'immediate_voice_response' with ID f2c4f406-70b0-4a15-9207-a9d8bccdacbe
+2025-08-04 19:35:06,650 - app.routes.chat - INFO - ✅ Successfully queued voice message immediate_voice_response to per-connection queue for fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:06,650 - app.routes.chat - INFO - ✅ Queued voice response for enhancement processing: Hello! I'm your friendly assistant here to help yo...
+2025-08-04 19:35:06,650 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: immediate_voice_response with ID f2c4f406-70b0-4a15-9207-a9d8bccdacbe
+2025-08-04 19:35:06,650 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: immediate_voice_response
+2025-08-04 19:35:06,650 - app.connection_processor - INFO - Processing message for fef9c823-82c5-4590-a757-c9734821bd0f: Hello! I'm your friendly assistant here to help you with any questions you might have....
+2025-08-04 19:35:06.674 | DEBUG    | pipecat.transports.base_output:_bot_started_speaking:385 - Bot started speaking
+2025-08-04 19:35:08,194 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-04 19:35:11,514 - agent.enhanced_mcp_client_agent - INFO - Streaming detected function call: process_enhancement_decision with args: {"displayEnhancement":false,"displayEnhancedText":"","voiceOverText":""}
+2025-08-04 19:35:11,515 - agent.enhanced_mcp_client_agent - INFO - Enhanced MCP Agent decision (streaming): enhancement=False, tools_used=0
+2025-08-04 19:35:11,515 - app.connection_processor - INFO - Enhancement decision for fef9c823-82c5-4590-a757-c9734821bd0f: False
+2025-08-04 19:35:11,515 - app.connection_processor - INFO - Skipping duplicate response for voice source without enhancement: fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:11.725 | DEBUG    | pipecat.transports.base_output:_bot_stopped_speaking:400 - Bot stopped speaking
+2025-08-04 19:35:12.788 | DEBUG    | pipecat.transports.base_input:_handle_user_interruption:214 - User started speaking
+2025-08-04 19:35:15.621 | DEBUG    | pipecat.transports.base_input:_handle_user_interruption:224 - User stopped speaking
+2025-08-04 19:35:17.494 | INFO     | agent.voice_based_interaction_agent:handle_transcript_update:305 - Capturing transcriber logs [2025-08-04T14:05:17.494+00:00] user: Can you list all the places that you can help me with?
+2025-08-04 19:35:17.495 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:150 - --- send_user_transcription_to_frontend ---
+2025-08-04 19:35:17.495 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:151 - User transcription: Can you list all the places that you can help me with?
+2025-08-04 19:35:17.495 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:152 - -----------------------------------------------
+2025-08-04 19:35:17.495 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:166 - Added user transcription to chat history for thread SmallWebRTCConnection#0
+2025-08-04 19:35:17,495 - app.voice_broadcast_manager - INFO - ✅ Broadcasted user_transcription (ID: b2b0571f-da4c-4603-9a2e-4b8547b49ecc) to 1/1 subscribers
+2025-08-04 19:35:17.495 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:170 - User transcription broadcasted to 1 subscribers: {'id': 'b2b0571f-da4c-4603-9a2e-4b8547b49ecc', 'role': 'user', 'type': 'user_transcription', 'content': 'Can you list all the places that you can help me with?', 'connection_id': 'fef9c823-82c5-4590-a757-c9734821bd0f', 'thread_id': 'SmallWebRTCConnection#0'}
+2025-08-04 19:35:17,495 - app.routes.chat - INFO - Voice bridge fef9c823-82c5-4590-a757-c9734821bd0f: received broadcast message type 'user_transcription' with ID b2b0571f-da4c-4603-9a2e-4b8547b49ecc
+2025-08-04 19:35:17,495 - app.routes.chat - INFO - ✅ Successfully queued voice message user_transcription to per-connection queue for fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:17,495 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: user_transcription with ID b2b0571f-da4c-4603-9a2e-4b8547b49ecc
+2025-08-04 19:35:17,496 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: user_transcription
+2025-08-04 19:35:17.997 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:76 - 🧠 → OpenAILLMService#0 LLM CONTEXT FRAME: [{'role': 'system', 'content': "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."}, {'role': 'user', 'content': 'Start by greeting the user warmly and introducing yourself.'}, {'role': 'user', 'content': 'Hello?'}, {'role': 'assistant', 'content': "Hello! I'm your friendly assistant here to help you with any questions you might have."}, {'role': 'user', 'content': 'Can you list all the places that you can help me with?'}] at 16.50s
+2025-08-04 19:35:17.998 | DEBUG    | pipecat.services.openai.base_llm:_stream_chat_completions:156 - OpenAILLMService#0: Generating chat [[{"role": "system", "content": "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."}, {"role": "user", "content": "Start by greeting the user warmly and introducing yourself."}, {"role": "user", "content": "Hello?"}, {"role": "assistant", "content": "Hello! I'm your friendly assistant here to help you with any questions you might have."}, {"role": "user", "content": "Can you list all the places that you can help me with?"}]]
+2025-08-04 19:35:18.002 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:57 - 🧠 OpenAILLMService#0 → LLM START RESPONSE at 16.51s
+2025-08-04 19:35:19,167 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-04 19:35:19.267 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: 'I' at 17.77s
+2025-08-04 19:35:19.268 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' can' at 17.77s
+2025-08-04 19:35:19.328 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' assist' at 17.84s
+2025-08-04 19:35:19.328 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' you' at 17.84s
+2025-08-04 19:35:19.388 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' with' at 17.90s
+2025-08-04 19:35:19.389 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' a' at 17.90s
+2025-08-04 19:35:19.458 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' wide' at 17.96s
+2025-08-04 19:35:19.458 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' range' at 17.96s
+2025-08-04 19:35:19.509 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' of' at 18.02s
+2025-08-04 19:35:19.509 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' topics' at 18.02s
+2025-08-04 19:35:19.574 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ',' at 18.08s
+2025-08-04 19:35:19.574 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' including' at 18.08s
+2025-08-04 19:35:19.659 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' general' at 18.17s
+2025-08-04 19:35:19.659 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' knowledge' at 18.17s
+2025-08-04 19:35:19.677 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ',' at 18.18s
+2025-08-04 19:35:19.677 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' travel' at 18.18s
+2025-08-04 19:35:19.717 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' advice' at 18.22s
+2025-08-04 19:35:19.717 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ',' at 18.22s
+2025-08-04 19:35:19.756 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' cooking' at 18.26s
+2025-08-04 19:35:19.756 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' tips' at 18.26s
+2025-08-04 19:35:19.828 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ',' at 18.34s
+2025-08-04 19:35:19.829 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' and' at 18.34s
+2025-08-04 19:35:19.897 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' technology' at 18.40s
+2025-08-04 19:35:19.897 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' questions' at 18.40s
+2025-08-04 19:35:19.969 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: '.' at 18.48s
+2025-08-04 19:35:19.969 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' Just' at 18.48s
+2025-08-04 19:35:19.969 | DEBUG    | pipecat.services.cartesia.tts:run_tts:278 - CartesiaTTSService#0: Generating TTS [I can assist you with a wide range of topics, including general knowledge, travel advice, cooking tips, and technology questions.]
+2025-08-04 19:35:20.019 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' let' at 18.53s
+2025-08-04 19:35:20.020 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' me' at 18.53s
+2025-08-04 19:35:20.088 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' know' at 18.60s
+2025-08-04 19:35:20.089 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' what' at 18.60s
+2025-08-04 19:35:20.132 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' you' at 18.64s
+2025-08-04 19:35:20.132 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' need' at 18.64s
+2025-08-04 19:35:20.230 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' help' at 18.74s
+2025-08-04 19:35:20.231 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: ' with' at 18.74s
+2025-08-04 19:35:20.231 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#0 → LLM GENERATING: '!' at 18.74s
+2025-08-04 19:35:20.231 | DEBUG    | pipecat.services.cartesia.tts:run_tts:278 - CartesiaTTSService#0: Generating TTS [ Just let me know what you need help with!]
+2025-08-04 19:35:20.232 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:57 - 🧠 OpenAILLMService#0 → LLM END RESPONSE at 18.74s
+2025-08-04 19:35:20,232 - app.voice_broadcast_manager - INFO - ✅ Broadcasted immediate_voice_response (ID: 1ddc1292-3ea2-405f-8063-091a68183728) to 1/1 subscribers
+2025-08-04 19:35:20.232 | INFO     | agent.voice_based_interaction_agent:process_frame:372 - Broadcasted immediate_voice_response to 1 subscribers (id=1ddc1292-3ea2-405f-8063-091a68183728)
+2025-08-04 19:35:20.232 | INFO     | agent.voice_based_interaction_agent:process_frame:378 - Added assistant response to chat history for thread SmallWebRTCConnection#0
+2025-08-04 19:35:20.232 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:140 - --- process_downstream_display (payload for Thesys) ---
+2025-08-04 19:35:20.232 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:141 - History (for Thesys context): [{'role': 'user', 'content': 'Hello?'}, {'role': 'user', 'content': 'Hello?', 'id': '2338c263-79cb-4571-80a6-e8677bd9c2fd'}, {'role': 'assistant', 'content': "Hello! I'm your friendly assistant here to help you with any questions you might have."}, {'role': 'user', 'content': 'Can you list all the places that you can help me with?'}, {'role': 'user', 'content': 'Can you list all the places that you can help me with?', 'id': 'b2b0571f-da4c-4603-9a2e-4b8547b49ecc'}, {'role': 'assistant', 'content': 'I can assist you with a wide range of topics, including general knowledge, travel advice, cooking tips, and technology questions. Just let me know what you need help with!'}]
+2025-08-04 19:35:20.232 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:142 - Assistant Spoken Response (for Thesys): I can assist you with a wide range of topics, including general knowledge, travel advice, cooking tips, and technology questions. Just let me know what you need help with!
+2025-08-04 19:35:20.232 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:143 - ----------------------------------------------------------
+2025-08-04 19:35:20.232 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:146 - Visualization processing now handled through per-connection MCP clients
+2025-08-04 19:35:20,232 - app.routes.chat - INFO - Voice bridge fef9c823-82c5-4590-a757-c9734821bd0f: received broadcast message type 'immediate_voice_response' with ID 1ddc1292-3ea2-405f-8063-091a68183728
+2025-08-04 19:35:20,232 - app.routes.chat - INFO - ✅ Successfully queued voice message immediate_voice_response to per-connection queue for fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:20,232 - app.routes.chat - INFO - ✅ Queued voice response for enhancement processing: I can assist you with a wide range of topics, incl...
+2025-08-04 19:35:20,232 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: immediate_voice_response with ID 1ddc1292-3ea2-405f-8063-091a68183728
+2025-08-04 19:35:20,233 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: immediate_voice_response
+2025-08-04 19:35:20,233 - app.connection_processor - INFO - Processing message for fef9c823-82c5-4590-a757-c9734821bd0f: I can assist you with a wide range of topics, including general knowledge, travel advice, cooking ti...
+2025-08-04 19:35:20.308 | DEBUG    | pipecat.transports.base_output:_bot_started_speaking:385 - Bot started speaking
+2025-08-04 19:35:21,387 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-04 19:35:23,614 - agent.enhanced_mcp_client_agent - INFO - Streaming detected function call: process_enhancement_decision with args: {"displayEnhancement":true,"displayEnhancedText":"## Topics I Can Assist With\n\n1. **General Knowledge**\n2. **Travel Advice**\n3. **Cooking Tips**\n4. **Technology Questions**\n\n*Feel free to ask about any of these topics!*","voiceOverText":"I can assist you with general knowledge, travel advice, cooking tips, and technology questions."}
+2025-08-04 19:35:23.614 | INFO     | agent.voice_based_interaction_agent:inject_tts_voice_over:179 - --- inject_tts_voice_over ---
+2025-08-04 19:35:23.614 | INFO     | agent.voice_based_interaction_agent:inject_tts_voice_over:180 - Voice-over text: I can assist you with general knowledge, travel advice, cooking tips, and technology questions.
+2025-08-04 19:35:23.614 | INFO     | agent.voice_based_interaction_agent:inject_tts_voice_over:181 - --------------------------------
+2025-08-04 19:35:23.614 | INFO     | agent.voice_based_interaction_agent:inject_tts_voice_over:197 - Successfully injected TTS voice-over frame: 'I can assist you with general knowledge, travel advice, cooking tips, and technology questions....'
+2025-08-04 19:35:23,614 - app.connection_manager - INFO - Successfully injected TTS to connection fef9c823-82c5-4590-a757-c9734821bd0f: 'I can assist you with general knowledge, travel ad...'
+2025-08-04 19:35:23,614 - app.connection_processor - INFO - Injected voice-over to connection fef9c823-82c5-4590-a757-c9734821bd0f: 'I can assist you with general knowledge, travel ad...'
+2025-08-04 19:35:23,614 - agent.enhanced_mcp_client_agent - INFO - Enhanced MCP Agent decision (streaming): enhancement=True, tools_used=0
+2025-08-04 19:35:23,614 - app.connection_processor - INFO - Enhancement decision for fef9c823-82c5-4590-a757-c9734821bd0f: True
+2025-08-04 19:35:23,614 - app.connection_processor - INFO - Enqueued enhancement_started to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:23,619 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: enhancement_started with ID 430f43e0-9fee-4828-a927-e770b2517c89
+2025-08-04 19:35:23,620 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: enhancement_started
+2025-08-04 19:35:24,875 - httpx - INFO - HTTP Request: POST https://api.thesys.dev/v1/visualize/chat/completions "HTTP/1.1 200 OK"
+2025-08-04 19:35:30.859 | DEBUG    | pipecat.transports.base_output:_bot_stopped_speaking:400 - Bot stopped speaking
+2025-08-04 19:35:30.859 | DEBUG    | pipecat.services.cartesia.tts:run_tts:278 - CartesiaTTSService#0: Generating TTS [I can assist you with general knowledge, travel advice, cooking tips, and technology questions.]
+2025-08-04 19:35:31,052 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,052 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,053 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,068 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,068 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,069 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,079 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,079 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,079 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,090 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,090 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,090 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,106 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,107 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,107 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,118 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,118 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,118 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,129 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,130 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,130 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,138 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,139 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,139 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,150 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,151 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,151 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,168 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,169 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,169 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31.173 | DEBUG    | pipecat.transports.base_output:_bot_started_speaking:385 - Bot started speaking
+2025-08-04 19:35:31,186 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,187 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,187 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,197 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,198 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,198 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,209 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,210 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,210 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,227 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,228 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,228 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,238 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,238 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,239 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,249 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,250 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,250 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,269 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,270 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,270 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,286 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,287 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,287 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,297 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,298 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,298 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,307 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,308 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,308 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,318 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,318 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,318 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,328 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,329 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,329 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,338 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,338 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,339 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,350 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,351 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,351 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,367 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,368 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,368 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,378 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,378 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,378 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,388 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,388 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,388 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,398 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,398 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,398 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,408 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,408 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,408 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,425 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,426 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,426 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,436 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,436 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,436 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,446 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,447 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,447 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,457 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,458 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,458 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,468 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,468 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,468 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,478 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,478 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,478 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,488 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,488 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,488 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,498 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,498 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,498 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,508 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,508 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,508 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,518 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,518 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,518 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,527 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,528 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,528 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,538 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,538 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,538 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,549 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,549 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,549 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,558 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,558 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,558 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,568 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,569 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,569 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,578 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,586 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,586 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,589 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,589 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,589 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,606 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,606 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,607 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,616 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,617 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,617 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,626 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,627 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,627 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,638 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,638 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,638 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,648 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,648 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,648 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,658 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,658 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,658 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,668 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,668 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,668 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,678 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,679 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,679 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,688 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,688 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,689 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,698 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,698 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,699 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,708 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,708 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,708 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,726 - app.connection_processor - INFO - Enqueued c1_token to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,726 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: c1_token with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,726 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: c1_token
+2025-08-04 19:35:31,737 - app.connection_processor - INFO - Enqueued chat_done to per-connection queue (source: per_connection_processor)
+2025-08-04 19:35:31,737 - app.connection_processor - INFO - Streamed 58 chunks for connection fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:31,737 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: got message from queue: chat_done with ID 1fb6c72e-19e4-41d7-ab30-41ec2b36499d
+2025-08-04 19:35:31,737 - app.routes.chat - INFO - Per-connection sender fef9c823-82c5-4590-a757-c9734821bd0f: sent message to WebSocket: chat_done
+2025-08-04 19:35:36.939 | DEBUG    | pipecat.transports.base_output:_bot_stopped_speaking:400 - Bot stopped speaking
+2025-08-04 19:35:37.016 | DEBUG    | pipecat.transports.base_output:_bot_started_speaking:385 - Bot started speaking
+2025-08-04 19:35:37.859 | DEBUG    | pipecat.transports.base_output:_bot_stopped_speaking:400 - Bot stopped speaking
+2025-08-04 19:35:38.116 | DEBUG    | pipecat.transports.network.webrtc_connection:on_ended:202 - Track audio ended
+2025-08-04 19:35:38.116 | WARNING  | pipecat.transports.network.small_webrtc:read_audio_frame:258 - Received an unexpected media stream error while reading the audio.
+2025-08-04 19:35:38.116 | DEBUG    | pipecat.transports.network.webrtc_connection:on_iceconnectionstatechange:187 - ICE connection state is closed, connection is closed
+2025-08-04 19:35:38.116 | DEBUG    | pipecat.transports.network.webrtc_connection:_handle_new_connection_state:313 - Connection state changed to: closed
+2025-08-04 19:35:38,116 - app.webrtc - INFO - WebRTC connection closed for pc_id: SmallWebRTCConnection#0
+2025-08-04 19:35:38,116 - app.voice_manager - INFO - Removed thread mapping SmallWebRTCConnection#0 -> fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:38,117 - app.connection_manager - INFO - Unregistered voice agent for connection fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:38,117 - app.voice_manager - INFO - Voice agent unregistered for connection fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:38,117 - app.webrtc - INFO - Unregistered voice agent on connection close
+2025-08-04 19:35:38,117 - app.webrtc - INFO - Discarding peer connection for pc_id: SmallWebRTCConnection#0
+2025-08-04 19:35:38.117 | DEBUG    | pipecat.transports.network.small_webrtc:on_closed:176 - Client connection closed.
+2025-08-04 19:35:38.117 | INFO     | agent.voice_based_interaction_agent:on_client_closed:297 - Pipecat Client closed
+2025-08-04 19:35:38.117 | DEBUG    | pipecat.pipeline.task:cancel:288 - Canceling pipeline task PipelineTask#0
+2025-08-04 19:35:38.118 | DEBUG    | pipecat.services.deepgram.stt:_disconnect:167 - Disconnecting from Deepgram
+tasks cancelled error: 
+2025-08-04 19:35:38,619 - deepgram.clients.common.v1.abstract_async_websocket - ERROR - tasks cancelled error: 
+tasks cancelled error: 
+2025-08-04 19:35:38,621 - deepgram.clients.common.v1.abstract_async_websocket - ERROR - tasks cancelled error: 
+2025-08-04 19:35:38.623 | DEBUG    | pipecat.services.cartesia.tts:_disconnect_websocket:217 - Disconnecting from Cartesia
+2025-08-04 19:35:38.776 | DEBUG    | pipecat.pipeline.runner:run:55 - Runner PipelineRunner#0 finished running PipelineTask#0
+2025-08-04 19:35:47,581 - app.routes.chat - INFO - WebSocket disconnected for fef9c823-82c5-4590-a757-c9734821bd0f
+INFO:     connection closed
+2025-08-04 19:35:47,582 - app.voice_broadcast_manager - INFO - Voice broadcast subscription removed for connection fef9c823-82c5-4590-a757-c9734821bd0f (processed 4 messages)
+2025-08-04 19:35:47,582 - app.routes.chat - INFO - Unsubscribed from voice broadcasts for connection fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:47,583 - app.connection_manager - INFO - Cleaning up connection fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:47,583 - app.connection_manager - ERROR - Failed to send state update to fef9c823-82c5-4590-a757-c9734821bd0f: Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+2025-08-04 19:35:47,583 - app.connection_manager - ERROR - Failed to send state update to fef9c823-82c5-4590-a757-c9734821bd0f: Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+2025-08-04 19:35:47,583 - app.connection_processor - INFO - Processor cancelled for connection fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:47,584 - app.connection_processor - INFO - Processor stopped for connection fef9c823-82c5-4590-a757-c9734821bd0f
+2025-08-04 19:35:47,584 - app.connection_manager - INFO - Connection fef9c823-82c5-4590-a757-c9734821bd0f cleaned up successfully
+INFO:     ('127.0.0.1', 59332) - "WebSocket /ws/per-connection-messages" [accepted]
+2025-08-04 19:35:54,219 - app.connection_manager - INFO - Registered connection 8ebc24bb-45df-472f-a6ac-e5910646c3da from 127.0.0.1
+2025-08-04 19:35:54,219 - app.routes.chat - INFO - WebSocket connection registered: 8ebc24bb-45df-472f-a6ac-e5910646c3da from 127.0.0.1:59332
+INFO:     connection open
+2025-08-04 19:35:54,222 - app.connection_manager - INFO - Connection 8ebc24bb-45df-472f-a6ac-e5910646c3da: ConnectionState.CONNECTING → ConnectionState.CONFIG_RECEIVED - Configuration received, validating...
+2025-08-04 19:35:54,222 - app.connection_manager - INFO - Connection 8ebc24bb-45df-472f-a6ac-e5910646c3da: ConnectionState.CONFIG_RECEIVED → ConnectionState.VALIDATING - Configuration validated, initializing MCP client...
+2025-08-04 19:35:54,222 - app.connection_manager - INFO - Connection 8ebc24bb-45df-472f-a6ac-e5910646c3da: ConnectionState.VALIDATING → ConnectionState.MCP_INITIALIZING - Creating MCP client configuration...
+2025-08-04 19:35:54,224 - app.connection_manager - INFO - Connection 8ebc24bb-45df-472f-a6ac-e5910646c3da: ConnectionState.MCP_INITIALIZING → ConnectionState.MCP_INITIALIZING - Connecting to MCP servers...
+2025-08-04 19:35:54,224 - agent.enhanced_mcp_client_agent - INFO - Built-in tools added successfully
+2025-08-04 19:35:54,237 - agent.enhanced_mcp_client_agent - INFO - Enhanced MCP client initialized with 0 servers
+2025-08-04 19:35:54,238 - app.connection_manager - INFO - Connection 8ebc24bb-45df-472f-a6ac-e5910646c3da: ConnectionState.MCP_INITIALIZING → ConnectionState.MCP_INITIALIZING - Connected to 0 MCP servers
+2025-08-04 19:35:54,238 - app.connection_manager - INFO - Connection 8ebc24bb-45df-472f-a6ac-e5910646c3da: ConnectionState.MCP_INITIALIZING → ConnectionState.MCP_INITIALIZING - MCP client ready with 0 servers, setting up visualization...
+2025-08-04 19:35:54,238 - app.connection_manager - INFO - Connection 8ebc24bb-45df-472f-a6ac-e5910646c3da: ConnectionState.MCP_INITIALIZING → ConnectionState.VIZ_INITIALIZING - Setting up openai visualization provider...
+2025-08-04 19:35:54,249 - app.viz_provider_factory - INFO - OpenAI provider initialized successfully
+2025-08-04 19:35:54,249 - app.connection_manager - INFO - Connection 8ebc24bb-45df-472f-a6ac-e5910646c3da: ConnectionState.VIZ_INITIALIZING → ConnectionState.VIZ_INITIALIZING - openai provider ready
+2025-08-04 19:35:54,250 - app.connection_manager - INFO - Connection 8ebc24bb-45df-472f-a6ac-e5910646c3da: ConnectionState.VIZ_INITIALIZING → ConnectionState.VIZ_INITIALIZING - Visualization provider (openai) ready, finalizing setup...
+2025-08-04 19:35:54,250 - app.connection_manager - INFO - Connection 8ebc24bb-45df-472f-a6ac-e5910646c3da: ConnectionState.VIZ_INITIALIZING → ConnectionState.READY - Connection ready for chat!
+2025-08-04 19:35:54,250 - app.connection_manager - INFO - Started processor for connection 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:35:54,250 - app.connection_manager - INFO - Connection 8ebc24bb-45df-472f-a6ac-e5910646c3da: ConnectionState.READY → ConnectionState.ACTIVE - Connection active and processing messages
+2025-08-04 19:35:54,250 - app.connection_processor - INFO - Starting processor for connection 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:35:54,250 - app.routes.chat - INFO - Per-connection sender started for 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:35:54,250 - app.routes.chat - INFO - Starting voice bridge for connection 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:35:54,250 - app.voice_broadcast_manager - INFO - Voice broadcast subscription created for connection 8ebc24bb-45df-472f-a6ac-e5910646c3da with thread_id None
+2025-08-04 19:35:54,250 - app.routes.chat - INFO - Subscribed to voice broadcasts for connection 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:35:56.827 | DEBUG    | pipecat.transports.network.webrtc_connection:_initialize:136 - Initializing new peer connection
+2025-08-04 19:35:56.830 | DEBUG    | pipecat.transports.network.webrtc_connection:_create_answer:214 - Creating answer
+2025-08-04 19:35:56.831 | DEBUG    | pipecat.transports.network.webrtc_connection:on_track:197 - Track audio received
+2025-08-04 19:35:56.834 | DEBUG    | pipecat.transports.network.webrtc_connection:on_icegatheringstatechange:193 - ICE gathering state is gathering
+2025-08-04 19:35:56.862 | DEBUG    | pipecat.transports.network.webrtc_connection:on_icegatheringstatechange:193 - ICE gathering state is complete
+2025-08-04 19:35:56.863 | DEBUG    | pipecat.transports.network.webrtc_connection:_create_answer:217 - Setting the answer after the local description is created
+2025-08-04 19:35:56,863 - app.webrtc - INFO - Received backend connection ID: 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:35:56.863 | INFO     | agent.voice_based_interaction_agent:__init__:107 - Voice agent initialized with thread_id: SmallWebRTCConnection#1, connection_id: 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:35:56,863 - app.voice_broadcast_manager - INFO - Updated voice thread for connection 8ebc24bb-45df-472f-a6ac-e5910646c3da: None -> SmallWebRTCConnection#1
+2025-08-04 19:35:56,863 - app.connection_manager - INFO - Registered voice agent for connection 8ebc24bb-45df-472f-a6ac-e5910646c3da with thread_id SmallWebRTCConnection#1
+2025-08-04 19:35:56,863 - app.voice_manager - INFO - Voice agent registered for connection 8ebc24bb-45df-472f-a6ac-e5910646c3da with thread SmallWebRTCConnection#1
+2025-08-04 19:35:56.863 | INFO     | agent.voice_based_interaction_agent:register_with_connection_manager:123 - Registered voice agent with connection manager for connection 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:35:56,863 - app.webrtc - INFO - Registered voice agent with connection manager for backend connection 8ebc24bb-45df-472f-a6ac-e5910646c3da
+INFO:     127.0.0.1:59335 - "POST /api/offer HTTP/1.1" 200 OK
+2025-08-04 19:35:56.864 | WARNING  | agent.voice_based_interaction_agent:load_voice_agent_prompt:95 - Voice agent prompt file not found at /Users/marmikpandya/Desktop/GeUI_sdk/backend/agent/../../prompts/voice_agent_system.txt, using fallback
+2025-08-04 19:35:56.864 | DEBUG    | pipecat.audio.vad.silero:__init__:111 - Loading Silero VAD model...
+2025-08-04 19:35:56.926 | DEBUG    | pipecat.audio.vad.silero:__init__:133 - Loaded Silero VAD
+2025-08-04 19:35:56.931 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking PipelineSource#1 -> SmallWebRTCInputTransport#1
+2025-08-04 19:35:56.931 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking SmallWebRTCInputTransport#1 -> RTVIProcessor#1
+2025-08-04 19:35:56.931 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking RTVIProcessor#1 -> DeepgramSTTService#1
+2025-08-04 19:35:56.931 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking DeepgramSTTService#1 -> UserTranscriptProcessor#1
+2025-08-04 19:35:56.931 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking UserTranscriptProcessor#1 -> OpenAIUserContextAggregator#1
+2025-08-04 19:35:56.931 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking OpenAIUserContextAggregator#1 -> OpenAILLMService#1
+2025-08-04 19:35:56.931 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking OpenAILLMService#1 -> ResponseAggregatorProcessor#1
+2025-08-04 19:35:56.931 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking ResponseAggregatorProcessor#1 -> CartesiaTTSService#1
+2025-08-04 19:35:56.932 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking CartesiaTTSService#1 -> SmallWebRTCOutputTransport#1
+2025-08-04 19:35:56.932 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking SmallWebRTCOutputTransport#1 -> OpenAIAssistantContextAggregator#1
+2025-08-04 19:35:56.932 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking OpenAIAssistantContextAggregator#1 -> PipelineSink#1
+/Users/marmikpandya/.pyenv/versions/3.11.10/lib/python3.11/site-packages/pipecat/pipeline/task.py:192: DeprecationWarning: Field 'observers' is deprecated, use the 'observers' parameter instead.
+  warnings.warn(
+2025-08-04 19:35:56.932 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking PipelineTaskSource#1 -> Pipeline#1
+2025-08-04 19:35:56.932 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking Pipeline#1 -> PipelineTaskSink#1
+2025-08-04 19:35:56.932 | DEBUG    | pipecat.pipeline.runner:run:38 - Runner PipelineRunner#1 started running PipelineTask#1
+2025-08-04 19:35:56.932 | DEBUG    | pipecat.services.deepgram.stt:_connect:143 - Connecting to Deepgram
+2025-08-04 19:35:56,938 - aioice.ice - INFO - Connection(2) Discovered peer reflexive candidate Candidate(7ww41E2iED 1 udp 1853827327 2401:4900:1c80:eec8:955b:f659:e1ee:c434 65353 typ prflx)
+2025-08-04 19:35:56.938 | DEBUG    | pipecat.transports.network.webrtc_connection:on_iceconnectionstatechange:187 - ICE connection state is checking, connection is connecting
+2025-08-04 19:35:56.938 | DEBUG    | pipecat.transports.network.webrtc_connection:_handle_new_connection_state:313 - Connection state changed to: connecting
+2025-08-04 19:35:56,938 - aioice.ice - INFO - Connection(2) Check CandidatePair(('2401:4900:1c80:eec8:14b9:ef44:e649:63a9', 63259) -> ('2401:4900:1c80:eec8:955b:f659:e1ee:c434', 65353)) State.WAITING -> State.IN_PROGRESS
+2025-08-04 19:35:56,938 - aioice.ice - INFO - Connection(2) Check CandidatePair(('2401:4900:1c80:eec8:14b9:ef44:e649:63a9', 63259) -> ('2401:4900:1c80:eec8:955b:f659:e1ee:c434', 65353)) State.IN_PROGRESS -> State.SUCCEEDED
+2025-08-04 19:35:56,938 - aioice.ice - INFO - Connection(2) ICE completed
+2025-08-04 19:35:56.953 | DEBUG    | pipecat.transports.network.webrtc_connection:on_iceconnectionstatechange:187 - ICE connection state is completed, connection is connecting
+2025-08-04 19:35:57,111 - aioice.ice - INFO - Connection(2) Discovered peer reflexive candidate Candidate(6s6yK3iltx 1 udp 1853759231 192.168.1.25 50698 typ prflx)
+2025-08-04 19:35:57,112 - aioice.ice - INFO - Connection(2) Check CandidatePair(('192.168.1.25', 52510) -> ('192.168.1.25', 50698)) State.WAITING -> State.IN_PROGRESS
+2025-08-04 19:35:57,112 - aioice.ice - INFO - Connection(2) Check CandidatePair(('192.168.1.25', 52510) -> ('192.168.1.25', 50698)) State.IN_PROGRESS -> State.SUCCEEDED
+2025-08-04 19:35:58.642 | DEBUG    | pipecat.services.cartesia.tts:_connect_websocket:203 - Connecting to Cartesia
+2025-08-04 19:35:59.228 | INFO     | pipecat.transports.network.small_webrtc:connect:308 - Connecting to Small WebRTC
+2025-08-04 19:35:59.229 | WARNING  | pipecat.transports.network.webrtc_connection:video_input_track:361 - No video transceiver is available
+2025-08-04 19:35:59.229 | INFO     | pipecat.audio.vad.vad_analyzer:set_params:74 - Setting VAD params to: confidence=0.7 start_secs=0.2 stop_secs=0.8 min_volume=0.6
+2025-08-04 19:35:59.231 | DEBUG    | pipecat.transports.network.small_webrtc:on_connected:166 - Peer connection established.
+2025-08-04 19:35:59.231 | WARNING  | pipecat.transports.network.webrtc_connection:video_input_track:361 - No video transceiver is available
+2025-08-04 19:35:59.231 | DEBUG    | pipecat.transports.network.webrtc_connection:replace_audio_track:267 - Replacing audio track audio
+2025-08-04 19:35:59.232 | INFO     | agent.voice_based_interaction_agent:on_client_connected:289 - Pipecat Client connected
+2025-08-04 19:35:59.703 | DEBUG    | pipecat.transports.base_input:_handle_user_interruption:214 - User started speaking
+2025-08-04 19:35:59.985 | DEBUG    | pipecat.transports.base_input:_handle_user_interruption:224 - User stopped speaking
+2025-08-04 19:36:00.397 | INFO     | agent.voice_based_interaction_agent:handle_transcript_update:305 - Capturing transcriber logs [2025-08-04T14:06:00.397+00:00] user: Hello.
+2025-08-04 19:36:00,398 - app.chat_history_manager - INFO - Created new thread SmallWebRTCConnection#1
+2025-08-04 19:36:00.398 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:150 - --- send_user_transcription_to_frontend ---
+2025-08-04 19:36:00.398 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:151 - User transcription: Hello.
+2025-08-04 19:36:00.398 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:152 - -----------------------------------------------
+2025-08-04 19:36:00.398 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:166 - Added user transcription to chat history for thread SmallWebRTCConnection#1
+2025-08-04 19:36:00,398 - app.voice_broadcast_manager - INFO - ✅ Broadcasted user_transcription (ID: 2bc0b34d-0818-4ede-8791-944a427918ba) to 1/1 subscribers
+2025-08-04 19:36:00.398 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:170 - User transcription broadcasted to 1 subscribers: {'id': '2bc0b34d-0818-4ede-8791-944a427918ba', 'role': 'user', 'type': 'user_transcription', 'content': 'Hello.', 'connection_id': '8ebc24bb-45df-472f-a6ac-e5910646c3da', 'thread_id': 'SmallWebRTCConnection#1'}
+2025-08-04 19:36:00,398 - app.routes.chat - INFO - Voice bridge 8ebc24bb-45df-472f-a6ac-e5910646c3da: received broadcast message type 'user_transcription' with ID 2bc0b34d-0818-4ede-8791-944a427918ba
+2025-08-04 19:36:00,398 - app.routes.chat - INFO - ✅ Successfully queued voice message user_transcription to per-connection queue for 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:36:00,398 - app.routes.chat - INFO - Per-connection sender 8ebc24bb-45df-472f-a6ac-e5910646c3da: got message from queue: user_transcription with ID 2bc0b34d-0818-4ede-8791-944a427918ba
+2025-08-04 19:36:00,398 - app.routes.chat - INFO - Per-connection sender 8ebc24bb-45df-472f-a6ac-e5910646c3da: sent message to WebSocket: user_transcription
+2025-08-04 19:36:00.898 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:76 - 🧠 → OpenAILLMService#1 LLM CONTEXT FRAME: [{'role': 'system', 'content': "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."}, {'role': 'user', 'content': 'Start by greeting the user warmly and introducing yourself.'}, {'role': 'user', 'content': 'Hello.'}] at 3.97s
+2025-08-04 19:36:00.898 | DEBUG    | pipecat.services.openai.base_llm:_stream_chat_completions:156 - OpenAILLMService#1: Generating chat [[{"role": "system", "content": "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."}, {"role": "user", "content": "Start by greeting the user warmly and introducing yourself."}, {"role": "user", "content": "Hello."}]]
+2025-08-04 19:36:00.900 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:57 - 🧠 OpenAILLMService#1 → LLM START RESPONSE at 3.97s
+2025-08-04 19:36:01,617 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-04 19:36:01.646 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: 'Hello' at 4.71s
+2025-08-04 19:36:01.646 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: '!' at 4.71s
+2025-08-04 19:36:01.647 | DEBUG    | pipecat.services.cartesia.tts:run_tts:278 - CartesiaTTSService#1: Generating TTS [Hello!]
+2025-08-04 19:36:01.705 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: " I'm" at 4.77s
+2025-08-04 19:36:01.705 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' here' at 4.77s
+2025-08-04 19:36:01.758 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' to' at 4.83s
+2025-08-04 19:36:01.758 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' help' at 4.83s
+2025-08-04 19:36:01.799 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' with' at 4.87s
+2025-08-04 19:36:01.799 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' any' at 4.87s
+2025-08-04 19:36:01.830 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' questions' at 4.90s
+2025-08-04 19:36:01.830 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' you' at 4.90s
+2025-08-04 19:36:01.869 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' may' at 4.94s
+2025-08-04 19:36:01.869 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' have' at 4.94s
+2025-08-04 19:36:01.885 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: '.' at 4.95s
+2025-08-04 19:36:01.885 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:57 - 🧠 OpenAILLMService#1 → LLM END RESPONSE at 4.95s
+2025-08-04 19:36:01.886 | DEBUG    | pipecat.services.cartesia.tts:run_tts:278 - CartesiaTTSService#1: Generating TTS [ I'm here to help with any questions you may have.]
+2025-08-04 19:36:01,886 - app.voice_broadcast_manager - INFO - ✅ Broadcasted immediate_voice_response (ID: f34e897d-80b8-4277-82b5-e2188c81343f) to 1/1 subscribers
+2025-08-04 19:36:01.886 | INFO     | agent.voice_based_interaction_agent:process_frame:372 - Broadcasted immediate_voice_response to 1 subscribers (id=f34e897d-80b8-4277-82b5-e2188c81343f)
+2025-08-04 19:36:01.886 | INFO     | agent.voice_based_interaction_agent:process_frame:378 - Added assistant response to chat history for thread SmallWebRTCConnection#1
+2025-08-04 19:36:01.886 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:140 - --- process_downstream_display (payload for Thesys) ---
+2025-08-04 19:36:01.886 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:141 - History (for Thesys context): [{'role': 'user', 'content': 'Hello.'}, {'role': 'user', 'content': 'Hello.', 'id': '2bc0b34d-0818-4ede-8791-944a427918ba'}, {'role': 'assistant', 'content': "Hello! I'm here to help with any questions you may have."}]
+2025-08-04 19:36:01.886 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:142 - Assistant Spoken Response (for Thesys): Hello! I'm here to help with any questions you may have.
+2025-08-04 19:36:01.886 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:143 - ----------------------------------------------------------
+2025-08-04 19:36:01.886 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:146 - Visualization processing now handled through per-connection MCP clients
+2025-08-04 19:36:01,886 - app.routes.chat - INFO - Voice bridge 8ebc24bb-45df-472f-a6ac-e5910646c3da: received broadcast message type 'immediate_voice_response' with ID f34e897d-80b8-4277-82b5-e2188c81343f
+2025-08-04 19:36:01,886 - app.routes.chat - INFO - ✅ Successfully queued voice message immediate_voice_response to per-connection queue for 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:36:01,886 - app.routes.chat - INFO - ✅ Queued voice response for enhancement processing: Hello! I'm here to help with any questions you may...
+2025-08-04 19:36:01,886 - app.routes.chat - INFO - Per-connection sender 8ebc24bb-45df-472f-a6ac-e5910646c3da: got message from queue: immediate_voice_response with ID f34e897d-80b8-4277-82b5-e2188c81343f
+2025-08-04 19:36:01,886 - app.routes.chat - INFO - Per-connection sender 8ebc24bb-45df-472f-a6ac-e5910646c3da: sent message to WebSocket: immediate_voice_response
+2025-08-04 19:36:01,886 - app.connection_processor - INFO - Processing message for 8ebc24bb-45df-472f-a6ac-e5910646c3da: Hello! I'm here to help with any questions you may have....
+2025-08-04 19:36:01.956 | DEBUG    | pipecat.transports.base_output:_bot_started_speaking:385 - Bot started speaking
+2025-08-04 19:36:02,926 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-04 19:36:05,256 - agent.enhanced_mcp_client_agent - INFO - Streaming detected function call: process_enhancement_decision with args: {"displayEnhancement":false,"displayEnhancedText":"","voiceOverText":""}
+2025-08-04 19:36:05,257 - agent.enhanced_mcp_client_agent - INFO - Enhanced MCP Agent decision (streaming): enhancement=False, tools_used=0
+2025-08-04 19:36:05,257 - app.connection_processor - INFO - Enhancement decision for 8ebc24bb-45df-472f-a6ac-e5910646c3da: False
+2025-08-04 19:36:05,257 - app.connection_processor - INFO - Skipping duplicate response for voice source without enhancement: 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:36:06.168 | DEBUG    | pipecat.transports.base_output:_bot_stopped_speaking:400 - Bot stopped speaking
+2025-08-04 19:36:07.738 | DEBUG    | pipecat.transports.base_input:_handle_user_interruption:214 - User started speaking
+2025-08-04 19:36:10.026 | INFO     | agent.voice_based_interaction_agent:handle_transcript_update:305 - Capturing transcriber logs [2025-08-04T14:06:10.026+00:00] user: Can you make a list of all the questions you can help me with
+2025-08-04 19:36:10.026 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:150 - --- send_user_transcription_to_frontend ---
+2025-08-04 19:36:10.026 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:151 - User transcription: Can you make a list of all the questions you can help me with
+2025-08-04 19:36:10.026 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:152 - -----------------------------------------------
+2025-08-04 19:36:10.027 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:166 - Added user transcription to chat history for thread SmallWebRTCConnection#1
+2025-08-04 19:36:10,027 - app.voice_broadcast_manager - INFO - ✅ Broadcasted user_transcription (ID: 1f29d967-d31a-46a8-b84b-f60b6b80bcc1) to 1/1 subscribers
+2025-08-04 19:36:10.027 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:170 - User transcription broadcasted to 1 subscribers: {'id': '1f29d967-d31a-46a8-b84b-f60b6b80bcc1', 'role': 'user', 'type': 'user_transcription', 'content': 'Can you make a list of all the questions you can help me with', 'connection_id': '8ebc24bb-45df-472f-a6ac-e5910646c3da', 'thread_id': 'SmallWebRTCConnection#1'}
+2025-08-04 19:36:10,027 - app.routes.chat - INFO - Voice bridge 8ebc24bb-45df-472f-a6ac-e5910646c3da: received broadcast message type 'user_transcription' with ID 1f29d967-d31a-46a8-b84b-f60b6b80bcc1
+2025-08-04 19:36:10,027 - app.routes.chat - INFO - ✅ Successfully queued voice message user_transcription to per-connection queue for 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:36:10,027 - app.routes.chat - INFO - Per-connection sender 8ebc24bb-45df-472f-a6ac-e5910646c3da: got message from queue: user_transcription with ID 1f29d967-d31a-46a8-b84b-f60b6b80bcc1
+2025-08-04 19:36:10,027 - app.routes.chat - INFO - Per-connection sender 8ebc24bb-45df-472f-a6ac-e5910646c3da: sent message to WebSocket: user_transcription
+2025-08-04 19:36:10.457 | DEBUG    | pipecat.transports.base_input:_handle_user_interruption:224 - User stopped speaking
+2025-08-04 19:36:10.459 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:76 - 🧠 → OpenAILLMService#1 LLM CONTEXT FRAME: [{'role': 'system', 'content': "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."}, {'role': 'user', 'content': 'Start by greeting the user warmly and introducing yourself.'}, {'role': 'user', 'content': 'Hello.'}, {'role': 'assistant', 'content': "Hello! I'm here to help with any questions you may have."}, {'role': 'user', 'content': 'Can you make a list of all the questions you can help me with'}] at 13.53s
+2025-08-04 19:36:10.459 | DEBUG    | pipecat.services.openai.base_llm:_stream_chat_completions:156 - OpenAILLMService#1: Generating chat [[{"role": "system", "content": "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."}, {"role": "user", "content": "Start by greeting the user warmly and introducing yourself."}, {"role": "user", "content": "Hello."}, {"role": "assistant", "content": "Hello! I'm here to help with any questions you may have."}, {"role": "user", "content": "Can you make a list of all the questions you can help me with"}]]
+2025-08-04 19:36:10.462 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:57 - 🧠 OpenAILLMService#1 → LLM START RESPONSE at 13.53s
+2025-08-04 19:36:11,198 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-04 19:36:11.238 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: 'I' at 14.31s
+2025-08-04 19:36:11.238 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' can' at 14.31s
+2025-08-04 19:36:11.258 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' assist' at 14.33s
+2025-08-04 19:36:11.258 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' with' at 14.33s
+2025-08-04 19:36:11.296 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' a' at 14.36s
+2025-08-04 19:36:11.296 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' wide' at 14.36s
+2025-08-04 19:36:11.349 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' range' at 14.42s
+2025-08-04 19:36:11.349 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' of' at 14.42s
+2025-08-04 19:36:11.420 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' questions' at 14.49s
+2025-08-04 19:36:11.420 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ',' at 14.49s
+2025-08-04 19:36:11.505 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' including' at 14.57s
+2025-08-04 19:36:11.505 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' those' at 14.57s
+2025-08-04 19:36:11.538 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' about' at 14.61s
+2025-08-04 19:36:11.538 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' general' at 14.61s
+2025-08-04 19:36:11.538 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' knowledge' at 14.61s
+2025-08-04 19:36:11.619 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ',' at 14.69s
+2025-08-04 19:36:11.620 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' advice' at 14.69s
+2025-08-04 19:36:11.620 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ',' at 14.69s
+2025-08-04 19:36:11.620 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' and' at 14.69s
+2025-08-04 19:36:11.647 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' problem' at 14.72s
+2025-08-04 19:36:11.647 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: '-solving' at 14.72s
+2025-08-04 19:36:11.716 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: '.' at 14.78s
+2025-08-04 19:36:11.716 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' Just' at 14.78s
+2025-08-04 19:36:11.717 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' ask' at 14.78s
+2025-08-04 19:36:11.717 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' me' at 14.78s
+2025-08-04 19:36:11.718 | DEBUG    | pipecat.services.cartesia.tts:run_tts:278 - CartesiaTTSService#1: Generating TTS [I can assist with a wide range of questions, including those about general knowledge, advice, and problem-solving.]
+2025-08-04 19:36:11.762 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' anything' at 14.83s
+2025-08-04 19:36:11.762 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: " that's" at 14.83s
+2025-08-04 19:36:11.820 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' on' at 14.89s
+2025-08-04 19:36:11.820 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' your' at 14.89s
+2025-08-04 19:36:11.968 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: ' mind' at 15.04s
+2025-08-04 19:36:11.968 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#1 → LLM GENERATING: '!' at 15.04s
+2025-08-04 19:36:11.969 | DEBUG    | pipecat.services.cartesia.tts:run_tts:278 - CartesiaTTSService#1: Generating TTS [ Just ask me anything that's on your mind!]
+2025-08-04 19:36:11.997 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:57 - 🧠 OpenAILLMService#1 → LLM END RESPONSE at 15.06s
+2025-08-04 19:36:11,997 - app.voice_broadcast_manager - INFO - ✅ Broadcasted immediate_voice_response (ID: eeaa399b-1324-4340-b2f4-60392ee0146b) to 1/1 subscribers
+2025-08-04 19:36:11.997 | INFO     | agent.voice_based_interaction_agent:process_frame:372 - Broadcasted immediate_voice_response to 1 subscribers (id=eeaa399b-1324-4340-b2f4-60392ee0146b)
+2025-08-04 19:36:11.997 | INFO     | agent.voice_based_interaction_agent:process_frame:378 - Added assistant response to chat history for thread SmallWebRTCConnection#1
+2025-08-04 19:36:11.997 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:140 - --- process_downstream_display (payload for Thesys) ---
+2025-08-04 19:36:11.998 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:141 - History (for Thesys context): [{'role': 'user', 'content': 'Hello.'}, {'role': 'user', 'content': 'Hello.', 'id': '2bc0b34d-0818-4ede-8791-944a427918ba'}, {'role': 'assistant', 'content': "Hello! I'm here to help with any questions you may have."}, {'role': 'user', 'content': 'Can you make a list of all the questions you can help me with'}, {'role': 'user', 'content': 'Can you make a list of all the questions you can help me with', 'id': '1f29d967-d31a-46a8-b84b-f60b6b80bcc1'}, {'role': 'assistant', 'content': "I can assist with a wide range of questions, including those about general knowledge, advice, and problem-solving. Just ask me anything that's on your mind!"}]
+2025-08-04 19:36:11.998 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:142 - Assistant Spoken Response (for Thesys): I can assist with a wide range of questions, including those about general knowledge, advice, and problem-solving. Just ask me anything that's on your mind!
+2025-08-04 19:36:11.998 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:143 - ----------------------------------------------------------
+2025-08-04 19:36:11.998 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:146 - Visualization processing now handled through per-connection MCP clients
+2025-08-04 19:36:11,998 - app.routes.chat - INFO - Voice bridge 8ebc24bb-45df-472f-a6ac-e5910646c3da: received broadcast message type 'immediate_voice_response' with ID eeaa399b-1324-4340-b2f4-60392ee0146b
+2025-08-04 19:36:11,998 - app.routes.chat - INFO - ✅ Successfully queued voice message immediate_voice_response to per-connection queue for 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:36:11,998 - app.routes.chat - INFO - ✅ Queued voice response for enhancement processing: I can assist with a wide range of questions, inclu...
+2025-08-04 19:36:11,998 - app.routes.chat - INFO - Per-connection sender 8ebc24bb-45df-472f-a6ac-e5910646c3da: got message from queue: immediate_voice_response with ID eeaa399b-1324-4340-b2f4-60392ee0146b
+2025-08-04 19:36:11,998 - app.routes.chat - INFO - Per-connection sender 8ebc24bb-45df-472f-a6ac-e5910646c3da: sent message to WebSocket: immediate_voice_response
+2025-08-04 19:36:11,998 - app.connection_processor - INFO - Processing message for 8ebc24bb-45df-472f-a6ac-e5910646c3da: I can assist with a wide range of questions, including those about general knowledge, advice, and pr...
+2025-08-04 19:36:12.057 | DEBUG    | pipecat.transports.base_output:_bot_started_speaking:385 - Bot started speaking
+2025-08-04 19:36:12,877 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-04 19:36:16,578 - agent.enhanced_mcp_client_agent - INFO - Streaming detected function call: process_enhancement_decision with args: {"displayEnhancement":true,"displayEnhancedText":"## Questions I Can Assist With\n\n1. **General Knowledge**\n   - History, Science, Geography, etc.\n2. **Advice**\n   - Personal, Professional, Relationship advice, etc.\n3. **Problem-Solving**\n   - Technical issues, Math problems, etc.\n4. **Recommendations**\n   - Books, Movies, Travel, etc.\n5. **Learning**\n   - Study tips, Educational resources, etc.\n\nFeel free to ask about any of these topics!","voiceOverText":"I can assist with a variety of topics, including general knowledge, advice, and problem-solving, displayed in a list format."}
+2025-08-04 19:36:16.578 | INFO     | agent.voice_based_interaction_agent:inject_tts_voice_over:179 - --- inject_tts_voice_over ---
+2025-08-04 19:36:16.578 | INFO     | agent.voice_based_interaction_agent:inject_tts_voice_over:180 - Voice-over text: I can assist with a variety of topics, including general knowledge, advice, and problem-solving, displayed in a list format.
+2025-08-04 19:36:16.578 | INFO     | agent.voice_based_interaction_agent:inject_tts_voice_over:181 - --------------------------------
+2025-08-04 19:36:16.578 | INFO     | agent.voice_based_interaction_agent:inject_tts_voice_over:197 - Successfully injected TTS voice-over frame: 'I can assist with a variety of topics, including general knowledge, advice, and problem-solving, dis...'
+2025-08-04 19:36:16,578 - app.connection_manager - INFO - Successfully injected TTS to connection 8ebc24bb-45df-472f-a6ac-e5910646c3da: 'I can assist with a variety of topics, including g...'
+2025-08-04 19:36:16,578 - app.connection_processor - INFO - Injected voice-over to connection 8ebc24bb-45df-472f-a6ac-e5910646c3da: 'I can assist with a variety of topics, including g...'
+2025-08-04 19:36:16,578 - agent.enhanced_mcp_client_agent - INFO - Enhanced MCP Agent decision (streaming): enhancement=True, tools_used=0
+2025-08-04 19:36:16,578 - app.connection_processor - INFO - Enhancement decision for 8ebc24bb-45df-472f-a6ac-e5910646c3da: True
+2025-08-04 19:36:16,578 - app.connection_processor - INFO - Enqueued enhancement_started to per-connection queue (source: per_connection_processor)
+2025-08-04 19:36:16,579 - utils.prompt_manager - INFO - Loaded prompt: openai_tailwind_generator_system
+2025-08-04 19:36:16,579 - app.viz_provider_factory - INFO - Starting OpenAI structured output with model: gpt-4o-mini
+2025-08-04 19:36:16,579 - app.viz_provider_factory - INFO - Input messages: [{'role': 'system', 'content': 'You are "Tailwind Generator GPT", an AI that creates beautiful, interactive web interfaces using Tailwind CSS and ShadCN component patterns.\n\nCORE MISSION:\nTransform text responses into modern, responsive HTML fragments with Tailwind utility classes and ShadCN component styling.\n\nOUTPUT FORMAT:\nYou must return a JSON object with this exact structure:\n{\n  "htmlContent": "<your HTML fragment here>",\n  "contentType": "html",\n  "framework": "tailwind",\n  "title": "Optional title"\n}\n\nCRITICAL HTML FRAGMENT REQUIREMENTS:\n1. **Generate ONLY HTML fragments** - Do NOT include DOCTYPE, html, head, or body tags\n2. **Assume Tailwind CSS is already loaded** - Do not include any CSS links or style tags\n3. **Generate only the component/form HTML** that can be directly embedded in an existing page\n4. **Start directly with the content** (e.g., <div>, <form>, <section>, etc.)\n\nSTRICT REQUIREMENTS:\n1. **Use Tailwind CSS utility classes** - NO inline styles\n2. **Follow ShadCN component patterns** for consistency\n3. **Include interactive elements** with window.geuiSDK event handlers\n4. **Return valid JSON with htmlContent field**\n5. **Use semantic HTML structure** with proper accessibility\n\nINTERACTION PATTERNS:\n• Forms: onsubmit="window.geuiSDK.handleFormSubmit(event, \'form-id\')"\n• Buttons: onclick="window.geuiSDK.handleButtonClick(event, \'action-type\', {context})"\n• Inputs: onchange="window.geuiSDK.handleInputChange(event, \'field-name\')"\n\nDESIGN PRINCIPLES:\n• Use Tailwind\'s design system (spacing, colors, typography)\n• Follow ShadCN\'s component architecture and styling patterns\n• Implement proper responsive design with Tailwind breakpoints\n• Use appropriate hover, focus, and active states\n• Maintain consistent color palette (slate for neutral, blue for primary)\n\nTAILWIND UTILITY PATTERNS:\n\n**Card Components (ShadCN Style):**\n```html\n<div class="rounded-lg border bg-card text-card-foreground shadow-sm">\n  <div class="flex flex-col space-y-1.5 p-6">\n    <h3 class="text-2xl font-semibold leading-none tracking-tight">Card Title</h3>\n    <p class="text-sm text-muted-foreground">Card description</p>\n  </div>\n  <div class="p-6 pt-0">\n    Card content goes here\n  </div>\n</div>\n```\n\n**Interactive Buttons:**\n```html\n<button onclick="window.geuiSDK.handleButtonClick(event, \'primary-action\', {})" \n        class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">\n  Primary Button\n</button>\n\n<button onclick="window.geuiSDK.handleButtonClick(event, \'secondary-action\', {})" \n        class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2">\n  Secondary Button\n</button>\n```\n\n**Form Components:**\n```html\n<form onsubmit="window.geuiSDK.handleFormSubmit(event, \'contact-form\')" class="space-y-4">\n  <div class="space-y-2">\n    <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">\n      Name\n    </label>\n    <input type="text" name="name" placeholder="Enter your name" \n           onchange="window.geuiSDK.handleInputChange(event, \'name\')"\n           class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" \n           required>\n  </div>\n  <button type="submit" \n          class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2 w-full">\n    Submit\n  </button>\n</form>\n```\n\n**Data Tables:**\n```html\n<div class="rounded-md border">\n  <table class="w-full caption-bottom text-sm">\n    <thead class="[&_tr]:border-b">\n      <tr class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">\n        <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">\n          Name\n        </th>\n        <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">\n          Status\n        </th>\n      </tr>\n    </thead>\n    <tbody class="[&_tr:last-child]:border-0">\n      <tr class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">\n        <td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">John Doe</td>\n        <td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">\n          <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium bg-green-100 text-green-800">\n            Active\n          </span>\n        </td>\n      </tr>\n    </tbody>\n  </table>\n</div>\n```\n\n**Grid Layouts:**\n```html\n<div class="grid gap-4 md:grid-cols-2 lg:grid-cols-4">\n  <div class="rounded-lg border bg-card text-card-foreground shadow-sm">\n    <div class="p-6 flex flex-row items-center justify-between space-y-0 pb-2">\n      <h3 class="tracking-tight text-sm font-medium">Metric Title</h3>\n    </div>\n    <div class="p-6 pt-0">\n      <div class="text-2xl font-bold">$45,231.89</div>\n      <p class="text-xs text-muted-foreground">+20.1% from last month</p>\n    </div>\n  </div>\n</div>\n```\n\n**Alert Components:**\n```html\n<div class="relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive">\n  <h5 class="mb-1 font-medium leading-none tracking-tight">Error</h5>\n  <div class="text-sm [&_p]:leading-relaxed">Something went wrong. Please try again.</div>\n</div>\n```\n\nRESPONSIVE DESIGN:\n• Use breakpoint prefixes: sm:, md:, lg:, xl:, 2xl:\n• Implement mobile-first design approach\n• Use appropriate spacing scales: p-4, m-2, space-y-4, gap-6\n• Utilize flexbox and grid utilities for layouts\n\nACCESSIBILITY:\n• Include proper ARIA labels and roles\n• Ensure keyboard navigation works\n• Use semantic HTML elements\n• Maintain sufficient color contrast\n\nIMPORTANT REMINDERS:\n• Generate ONLY HTML fragments - NO DOCTYPE, html, head, or body tags\n• Start directly with your component HTML (div, form, section, etc.)\n• Assume Tailwind CSS is already loaded - do not include any CSS links\n• Use window.geuiSDK (not window.genuxSDK) for all event handlers\n• Always return a JSON object with htmlContent field containing your HTML fragment\n\nAvailable server-side tools for interactivity:\n- **builtin_get_image_src**: Get the image src URL for the given alt text using Google Images search\n- **builtin_get_images**: Get multiple images for the given search query using Google Images search\n\nYou can reference these tools in your UI components to create interactive elements\nthat trigger server-side actions when users interact with them.'}, {'role': 'user', 'content': 'Can you make a list of all the questions you can help me with'}, {'role': 'user', 'content': 'Can you make a list of all the questions you can help me with'}, {'role': 'assistant', 'content': "I can assist with a wide range of questions, including those about general knowledge, advice, and problem-solving. Just ask me anything that's on your mind!"}, {'role': 'assistant', 'content': '## Questions I Can Assist With\n\n1. **General Knowledge**\n   - History, Science, Geography, etc.\n2. **Advice**\n   - Personal, Professional, Relationship advice, etc.\n3. **Problem-Solving**\n   - Technical issues, Math problems, etc.\n4. **Recommendations**\n   - Books, Movies, Travel, etc.\n5. **Learning**\n   - Study tips, Educational resources, etc.\n\nFeel free to ask about any of these topics!'}]
+2025-08-04 19:36:16,585 - app.routes.chat - INFO - Per-connection sender 8ebc24bb-45df-472f-a6ac-e5910646c3da: got message from queue: enhancement_started with ID 6d9699a4-5695-4bdf-8729-c9ba95c9dd96
+2025-08-04 19:36:16,585 - app.routes.chat - INFO - Per-connection sender 8ebc24bb-45df-472f-a6ac-e5910646c3da: sent message to WebSocket: enhancement_started
+2025-08-04 19:36:20.418 | DEBUG    | pipecat.transports.base_output:_bot_stopped_speaking:400 - Bot stopped speaking
+2025-08-04 19:36:20.420 | DEBUG    | pipecat.services.cartesia.tts:run_tts:278 - CartesiaTTSService#1: Generating TTS [I can assist with a variety of topics, including general knowledge, advice, and problem-solving, displayed in a list format.]
+2025-08-04 19:36:20.858 | DEBUG    | pipecat.transports.base_output:_bot_started_speaking:385 - Bot started speaking
+2025-08-04 19:36:24,198 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-04 19:36:24,220 - app.viz_provider_factory - INFO - OpenAI HTML response received: 746 characters
+2025-08-04 19:36:24,221 - app.viz_provider_factory - INFO - HTML content: <div class="rounded-lg border bg-card text-card-foreground shadow-sm p-6">
+  <h3 class="text-2xl font-semibold leading-none tracking-tight">Questions I Can Assist With</h3>
+  <ul class="list-disc list...
+2025-08-04 19:36:24,221 - app.voice_broadcast_manager - INFO - ✅ Broadcasted voice_response (ID: 28439cf5-42ef-456b-9ede-9b435cb75e7d) to 1/1 subscribers
+2025-08-04 19:36:24,221 - app.connection_processor - INFO - Broadcasted voice_response to 1 subscribers (source: per_connection_processor)
+2025-08-04 19:36:24,221 - app.connection_processor - INFO - Streamed 1 chunks for connection 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:36:24,221 - app.routes.chat - INFO - Voice bridge 8ebc24bb-45df-472f-a6ac-e5910646c3da: received broadcast message type 'voice_response' with ID 28439cf5-42ef-456b-9ede-9b435cb75e7d
+2025-08-04 19:36:24,221 - app.routes.chat - INFO - ✅ Successfully queued voice message voice_response to per-connection queue for 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:36:24,221 - app.routes.chat - INFO - Per-connection sender 8ebc24bb-45df-472f-a6ac-e5910646c3da: got message from queue: voice_response with ID 28439cf5-42ef-456b-9ede-9b435cb75e7d
+2025-08-04 19:36:24,221 - app.routes.chat - INFO - Per-connection sender 8ebc24bb-45df-472f-a6ac-e5910646c3da: sent message to WebSocket: voice_response
+2025-08-04 19:36:28.527 | DEBUG    | pipecat.transports.base_output:_bot_stopped_speaking:400 - Bot stopped speaking
+2025-08-04 19:36:29.050 | DEBUG    | pipecat.transports.network.webrtc_connection:on_ended:202 - Track audio ended
+2025-08-04 19:36:29.051 | WARNING  | pipecat.transports.network.small_webrtc:read_audio_frame:258 - Received an unexpected media stream error while reading the audio.
+2025-08-04 19:36:29.052 | DEBUG    | pipecat.transports.network.webrtc_connection:on_iceconnectionstatechange:187 - ICE connection state is closed, connection is closed
+2025-08-04 19:36:29.052 | DEBUG    | pipecat.transports.network.webrtc_connection:_handle_new_connection_state:313 - Connection state changed to: closed
+2025-08-04 19:36:29,052 - app.webrtc - INFO - WebRTC connection closed for pc_id: SmallWebRTCConnection#1
+2025-08-04 19:36:29,053 - app.voice_manager - INFO - Removed thread mapping SmallWebRTCConnection#1 -> 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:36:29,053 - app.connection_manager - INFO - Unregistered voice agent for connection 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:36:29,053 - app.voice_manager - INFO - Voice agent unregistered for connection 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:36:29,053 - app.webrtc - INFO - Unregistered voice agent on connection close
+2025-08-04 19:36:29,053 - app.webrtc - INFO - Discarding peer connection for pc_id: SmallWebRTCConnection#1
+2025-08-04 19:36:29.053 | DEBUG    | pipecat.transports.network.small_webrtc:on_closed:176 - Client connection closed.
+2025-08-04 19:36:29.053 | INFO     | agent.voice_based_interaction_agent:on_client_closed:297 - Pipecat Client closed
+2025-08-04 19:36:29.053 | DEBUG    | pipecat.pipeline.task:cancel:288 - Canceling pipeline task PipelineTask#1
+2025-08-04 19:36:29.054 | DEBUG    | pipecat.services.deepgram.stt:_disconnect:167 - Disconnecting from Deepgram
+2025-08-04 19:36:30,482 - app.routes.chat - INFO - WebSocket disconnected for 8ebc24bb-45df-472f-a6ac-e5910646c3da
+INFO:     connection closed
+2025-08-04 19:36:30,483 - app.voice_broadcast_manager - INFO - Voice broadcast subscription removed for connection 8ebc24bb-45df-472f-a6ac-e5910646c3da (processed 5 messages)
+2025-08-04 19:36:30,483 - app.routes.chat - INFO - Unsubscribed from voice broadcasts for connection 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:36:30,483 - app.connection_manager - INFO - Cleaning up connection 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:36:30,483 - app.connection_manager - ERROR - Failed to send state update to 8ebc24bb-45df-472f-a6ac-e5910646c3da: Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+2025-08-04 19:36:30,484 - app.connection_manager - ERROR - Failed to send state update to 8ebc24bb-45df-472f-a6ac-e5910646c3da: Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+2025-08-04 19:36:30,484 - app.connection_processor - INFO - Processor cancelled for connection 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:36:30,484 - app.connection_processor - INFO - Processor stopped for connection 8ebc24bb-45df-472f-a6ac-e5910646c3da
+2025-08-04 19:36:30,485 - app.connection_manager - INFO - Connection 8ebc24bb-45df-472f-a6ac-e5910646c3da cleaned up successfully
+2025-08-04 19:36:31.407 | DEBUG    | pipecat.services.cartesia.tts:_disconnect_websocket:217 - Disconnecting from Cartesia
+2025-08-04 19:36:31.857 | DEBUG    | pipecat.pipeline.runner:run:55 - Runner PipelineRunner#1 finished running PipelineTask#1
+INFO:     ('127.0.0.1', 59484) - "WebSocket /ws/per-connection-messages" [accepted]
+2025-08-04 19:36:40,981 - app.connection_manager - INFO - Registered connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358 from 127.0.0.1
+2025-08-04 19:36:40,981 - app.routes.chat - INFO - WebSocket connection registered: fa3d2e2c-7baa-4089-aac4-6cde10f0d358 from 127.0.0.1:59484
+INFO:     connection open
+2025-08-04 19:36:40,984 - app.connection_manager - INFO - Connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358: ConnectionState.CONNECTING → ConnectionState.CONFIG_RECEIVED - Configuration received, validating...
+2025-08-04 19:36:40,984 - app.connection_manager - INFO - Connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358: ConnectionState.CONFIG_RECEIVED → ConnectionState.VALIDATING - Configuration validated, initializing MCP client...
+2025-08-04 19:36:40,984 - app.connection_manager - INFO - Connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358: ConnectionState.VALIDATING → ConnectionState.MCP_INITIALIZING - Creating MCP client configuration...
+2025-08-04 19:36:40,987 - app.connection_manager - INFO - Connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358: ConnectionState.MCP_INITIALIZING → ConnectionState.MCP_INITIALIZING - Connecting to MCP servers...
+2025-08-04 19:36:40,987 - agent.enhanced_mcp_client_agent - INFO - Built-in tools added successfully
+2025-08-04 19:36:41,001 - agent.enhanced_mcp_client_agent - INFO - Enhanced MCP client initialized with 0 servers
+2025-08-04 19:36:41,002 - app.connection_manager - INFO - Connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358: ConnectionState.MCP_INITIALIZING → ConnectionState.MCP_INITIALIZING - Connected to 0 MCP servers
+2025-08-04 19:36:41,002 - app.connection_manager - INFO - Connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358: ConnectionState.MCP_INITIALIZING → ConnectionState.MCP_INITIALIZING - MCP client ready with 0 servers, setting up visualization...
+2025-08-04 19:36:41,002 - app.connection_manager - INFO - Connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358: ConnectionState.MCP_INITIALIZING → ConnectionState.VIZ_INITIALIZING - Setting up openai visualization provider...
+2025-08-04 19:36:41,012 - app.viz_provider_factory - INFO - OpenAI provider initialized successfully
+2025-08-04 19:36:41,013 - app.connection_manager - INFO - Connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358: ConnectionState.VIZ_INITIALIZING → ConnectionState.VIZ_INITIALIZING - openai provider ready
+2025-08-04 19:36:41,013 - app.connection_manager - INFO - Connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358: ConnectionState.VIZ_INITIALIZING → ConnectionState.VIZ_INITIALIZING - Visualization provider (openai) ready, finalizing setup...
+2025-08-04 19:36:41,013 - app.connection_manager - INFO - Connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358: ConnectionState.VIZ_INITIALIZING → ConnectionState.READY - Connection ready for chat!
+2025-08-04 19:36:41,013 - app.connection_manager - INFO - Started processor for connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:36:41,013 - app.connection_manager - INFO - Connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358: ConnectionState.READY → ConnectionState.ACTIVE - Connection active and processing messages
+2025-08-04 19:36:41,013 - app.connection_processor - INFO - Starting processor for connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:36:41,013 - app.routes.chat - INFO - Per-connection sender started for fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:36:41,013 - app.routes.chat - INFO - Starting voice bridge for connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:36:41,013 - app.voice_broadcast_manager - INFO - Voice broadcast subscription created for connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358 with thread_id None
+2025-08-04 19:36:41,013 - app.routes.chat - INFO - Subscribed to voice broadcasts for connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:36:44.562 | DEBUG    | pipecat.transports.network.webrtc_connection:_initialize:136 - Initializing new peer connection
+2025-08-04 19:36:44.565 | DEBUG    | pipecat.transports.network.webrtc_connection:_create_answer:214 - Creating answer
+2025-08-04 19:36:44.566 | DEBUG    | pipecat.transports.network.webrtc_connection:on_track:197 - Track audio received
+2025-08-04 19:36:44.567 | DEBUG    | pipecat.transports.network.webrtc_connection:on_icegatheringstatechange:193 - ICE gathering state is gathering
+2025-08-04 19:36:44.594 | DEBUG    | pipecat.transports.network.webrtc_connection:on_icegatheringstatechange:193 - ICE gathering state is complete
+2025-08-04 19:36:44.594 | DEBUG    | pipecat.transports.network.webrtc_connection:_create_answer:217 - Setting the answer after the local description is created
+2025-08-04 19:36:44,594 - app.webrtc - INFO - Received backend connection ID: fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:36:44.595 | INFO     | agent.voice_based_interaction_agent:__init__:107 - Voice agent initialized with thread_id: SmallWebRTCConnection#2, connection_id: fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:36:44,595 - app.voice_broadcast_manager - INFO - Updated voice thread for connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358: None -> SmallWebRTCConnection#2
+2025-08-04 19:36:44,595 - app.connection_manager - INFO - Registered voice agent for connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358 with thread_id SmallWebRTCConnection#2
+2025-08-04 19:36:44,595 - app.voice_manager - INFO - Voice agent registered for connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358 with thread SmallWebRTCConnection#2
+2025-08-04 19:36:44.595 | INFO     | agent.voice_based_interaction_agent:register_with_connection_manager:123 - Registered voice agent with connection manager for connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:36:44,595 - app.webrtc - INFO - Registered voice agent with connection manager for backend connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+INFO:     127.0.0.1:59487 - "POST /api/offer HTTP/1.1" 200 OK
+2025-08-04 19:36:44.595 | WARNING  | agent.voice_based_interaction_agent:load_voice_agent_prompt:95 - Voice agent prompt file not found at /Users/marmikpandya/Desktop/GeUI_sdk/backend/agent/../../prompts/voice_agent_system.txt, using fallback
+2025-08-04 19:36:44.595 | DEBUG    | pipecat.audio.vad.silero:__init__:111 - Loading Silero VAD model...
+2025-08-04 19:36:44.665 | DEBUG    | pipecat.audio.vad.silero:__init__:133 - Loaded Silero VAD
+2025-08-04 19:36:44.671 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking PipelineSource#2 -> SmallWebRTCInputTransport#2
+2025-08-04 19:36:44.671 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking SmallWebRTCInputTransport#2 -> RTVIProcessor#2
+2025-08-04 19:36:44.671 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking RTVIProcessor#2 -> DeepgramSTTService#2
+2025-08-04 19:36:44.671 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking DeepgramSTTService#2 -> UserTranscriptProcessor#2
+2025-08-04 19:36:44.671 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking UserTranscriptProcessor#2 -> OpenAIUserContextAggregator#2
+2025-08-04 19:36:44.671 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking OpenAIUserContextAggregator#2 -> OpenAILLMService#2
+2025-08-04 19:36:44.671 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking OpenAILLMService#2 -> ResponseAggregatorProcessor#2
+2025-08-04 19:36:44.671 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking ResponseAggregatorProcessor#2 -> CartesiaTTSService#2
+2025-08-04 19:36:44.671 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking CartesiaTTSService#2 -> SmallWebRTCOutputTransport#2
+2025-08-04 19:36:44.672 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking SmallWebRTCOutputTransport#2 -> OpenAIAssistantContextAggregator#2
+2025-08-04 19:36:44.672 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking OpenAIAssistantContextAggregator#2 -> PipelineSink#2
+/Users/marmikpandya/.pyenv/versions/3.11.10/lib/python3.11/site-packages/pipecat/pipeline/task.py:192: DeprecationWarning: Field 'observers' is deprecated, use the 'observers' parameter instead.
+  warnings.warn(
+2025-08-04 19:36:44.672 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking PipelineTaskSource#2 -> Pipeline#2
+2025-08-04 19:36:44.672 | DEBUG    | pipecat.processors.frame_processor:link:178 - Linking Pipeline#2 -> PipelineTaskSink#2
+2025-08-04 19:36:44.672 | DEBUG    | pipecat.pipeline.runner:run:38 - Runner PipelineRunner#2 started running PipelineTask#2
+2025-08-04 19:36:44.672 | DEBUG    | pipecat.services.deepgram.stt:_connect:143 - Connecting to Deepgram
+2025-08-04 19:36:44,677 - aioice.ice - INFO - Connection(4) Discovered peer reflexive candidate Candidate(hPrBGuO4pS 1 udp 1853827327 2401:4900:1c80:eec8:955b:f659:e1ee:c434 49342 typ prflx)
+2025-08-04 19:36:44.677 | DEBUG    | pipecat.transports.network.webrtc_connection:on_iceconnectionstatechange:187 - ICE connection state is checking, connection is connecting
+2025-08-04 19:36:44.677 | DEBUG    | pipecat.transports.network.webrtc_connection:_handle_new_connection_state:313 - Connection state changed to: connecting
+2025-08-04 19:36:44,677 - aioice.ice - INFO - Connection(4) Check CandidatePair(('2401:4900:1c80:eec8:14b9:ef44:e649:63a9', 52468) -> ('2401:4900:1c80:eec8:955b:f659:e1ee:c434', 49342)) State.WAITING -> State.IN_PROGRESS
+2025-08-04 19:36:44,678 - aioice.ice - INFO - Connection(4) Check CandidatePair(('2401:4900:1c80:eec8:14b9:ef44:e649:63a9', 52468) -> ('2401:4900:1c80:eec8:955b:f659:e1ee:c434', 49342)) State.IN_PROGRESS -> State.SUCCEEDED
+2025-08-04 19:36:44,678 - aioice.ice - INFO - Connection(4) ICE completed
+2025-08-04 19:36:44.694 | DEBUG    | pipecat.transports.network.webrtc_connection:on_iceconnectionstatechange:187 - ICE connection state is completed, connection is connecting
+2025-08-04 19:36:44,862 - aioice.ice - INFO - Connection(4) Discovered peer reflexive candidate Candidate(m2ucxggAKn 1 udp 1853759231 192.168.1.25 60187 typ prflx)
+2025-08-04 19:36:44,862 - aioice.ice - INFO - Connection(4) Check CandidatePair(('192.168.1.25', 53022) -> ('192.168.1.25', 60187)) State.WAITING -> State.IN_PROGRESS
+2025-08-04 19:36:44,863 - aioice.ice - INFO - Connection(4) Check CandidatePair(('192.168.1.25', 53022) -> ('192.168.1.25', 60187)) State.IN_PROGRESS -> State.SUCCEEDED
+2025-08-04 19:36:46.780 | DEBUG    | pipecat.services.cartesia.tts:_connect_websocket:203 - Connecting to Cartesia
+2025-08-04 19:36:47.427 | INFO     | pipecat.transports.network.small_webrtc:connect:308 - Connecting to Small WebRTC
+2025-08-04 19:36:47.427 | WARNING  | pipecat.transports.network.webrtc_connection:video_input_track:361 - No video transceiver is available
+2025-08-04 19:36:47.427 | INFO     | pipecat.audio.vad.vad_analyzer:set_params:74 - Setting VAD params to: confidence=0.7 start_secs=0.2 stop_secs=0.8 min_volume=0.6
+2025-08-04 19:36:47.427 | DEBUG    | pipecat.transports.network.small_webrtc:on_connected:166 - Peer connection established.
+2025-08-04 19:36:47.427 | WARNING  | pipecat.transports.network.webrtc_connection:video_input_track:361 - No video transceiver is available
+2025-08-04 19:36:47.428 | DEBUG    | pipecat.transports.network.webrtc_connection:replace_audio_track:267 - Replacing audio track audio
+2025-08-04 19:36:47.428 | INFO     | agent.voice_based_interaction_agent:on_client_connected:289 - Pipecat Client connected
+2025-08-04 19:36:47.717 | DEBUG    | pipecat.transports.base_input:_handle_user_interruption:214 - User started speaking
+2025-08-04 19:36:48.045 | DEBUG    | pipecat.transports.base_input:_handle_user_interruption:224 - User stopped speaking
+2025-08-04 19:36:48.147 | INFO     | agent.voice_based_interaction_agent:handle_transcript_update:305 - Capturing transcriber logs [2025-08-04T14:06:48.141+00:00] user: Hello?
+2025-08-04 19:36:48,147 - app.chat_history_manager - INFO - Created new thread SmallWebRTCConnection#2
+2025-08-04 19:36:48.147 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:150 - --- send_user_transcription_to_frontend ---
+2025-08-04 19:36:48.148 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:151 - User transcription: Hello?
+2025-08-04 19:36:48.148 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:152 - -----------------------------------------------
+2025-08-04 19:36:48.148 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:166 - Added user transcription to chat history for thread SmallWebRTCConnection#2
+2025-08-04 19:36:48,154 - app.voice_broadcast_manager - INFO - ✅ Broadcasted user_transcription (ID: 05fe946f-13e9-44b5-9b56-f5ae9d598647) to 1/1 subscribers
+2025-08-04 19:36:48.154 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:170 - User transcription broadcasted to 1 subscribers: {'id': '05fe946f-13e9-44b5-9b56-f5ae9d598647', 'role': 'user', 'type': 'user_transcription', 'content': 'Hello?', 'connection_id': 'fa3d2e2c-7baa-4089-aac4-6cde10f0d358', 'thread_id': 'SmallWebRTCConnection#2'}
+2025-08-04 19:36:48,154 - app.routes.chat - INFO - Voice bridge fa3d2e2c-7baa-4089-aac4-6cde10f0d358: received broadcast message type 'user_transcription' with ID 05fe946f-13e9-44b5-9b56-f5ae9d598647
+2025-08-04 19:36:48,154 - app.routes.chat - INFO - ✅ Successfully queued voice message user_transcription to per-connection queue for fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:36:48,160 - app.routes.chat - INFO - Per-connection sender fa3d2e2c-7baa-4089-aac4-6cde10f0d358: got message from queue: user_transcription with ID 05fe946f-13e9-44b5-9b56-f5ae9d598647
+2025-08-04 19:36:48,160 - app.routes.chat - INFO - Per-connection sender fa3d2e2c-7baa-4089-aac4-6cde10f0d358: sent message to WebSocket: user_transcription
+2025-08-04 19:36:48.662 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:76 - 🧠 → OpenAILLMService#2 LLM CONTEXT FRAME: [{'role': 'system', 'content': "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."}, {'role': 'user', 'content': 'Start by greeting the user warmly and introducing yourself.'}, {'role': 'user', 'content': 'Hello?'}] at 3.99s
+2025-08-04 19:36:48.662 | DEBUG    | pipecat.services.openai.base_llm:_stream_chat_completions:156 - OpenAILLMService#2: Generating chat [[{"role": "system", "content": "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."}, {"role": "user", "content": "Start by greeting the user warmly and introducing yourself."}, {"role": "user", "content": "Hello?"}]]
+2025-08-04 19:36:48.669 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:57 - 🧠 OpenAILLMService#2 → LLM START RESPONSE at 3.99s
+2025-08-04 19:36:49,404 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-04 19:36:49.465 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: 'Hi' at 4.79s
+2025-08-04 19:36:49.465 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' there' at 4.79s
+2025-08-04 19:36:49.509 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: '!' at 4.84s
+2025-08-04 19:36:49.509 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: " I'm" at 4.84s
+2025-08-04 19:36:49.509 | DEBUG    | pipecat.services.cartesia.tts:run_tts:278 - CartesiaTTSService#2: Generating TTS [Hi there!]
+2025-08-04 19:36:49.576 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' your' at 4.90s
+2025-08-04 19:36:49.576 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' friendly' at 4.90s
+2025-08-04 19:36:49.586 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' assistant' at 4.91s
+2025-08-04 19:36:49.586 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ',' at 4.91s
+2025-08-04 19:36:49.604 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' here' at 4.93s
+2025-08-04 19:36:49.604 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' to' at 4.93s
+2025-08-04 19:36:49.646 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' help' at 4.97s
+2025-08-04 19:36:49.646 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' you' at 4.97s
+2025-08-04 19:36:49.672 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' with' at 5.00s
+2025-08-04 19:36:49.672 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' whatever' at 5.00s
+2025-08-04 19:36:49.717 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' you' at 5.05s
+2025-08-04 19:36:49.717 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' need' at 5.05s
+2025-08-04 19:36:49.727 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: '.' at 5.05s
+2025-08-04 19:36:49.727 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:57 - 🧠 OpenAILLMService#2 → LLM END RESPONSE at 5.05s
+2025-08-04 19:36:49.727 | DEBUG    | pipecat.services.cartesia.tts:run_tts:278 - CartesiaTTSService#2: Generating TTS [ I'm your friendly assistant, here to help you with whatever you need.]
+2025-08-04 19:36:49,728 - app.voice_broadcast_manager - INFO - ✅ Broadcasted immediate_voice_response (ID: 975e3d5a-28f4-48c8-af0e-afb1de04725d) to 1/1 subscribers
+2025-08-04 19:36:49.728 | INFO     | agent.voice_based_interaction_agent:process_frame:372 - Broadcasted immediate_voice_response to 1 subscribers (id=975e3d5a-28f4-48c8-af0e-afb1de04725d)
+2025-08-04 19:36:49.728 | INFO     | agent.voice_based_interaction_agent:process_frame:378 - Added assistant response to chat history for thread SmallWebRTCConnection#2
+2025-08-04 19:36:49.728 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:140 - --- process_downstream_display (payload for Thesys) ---
+2025-08-04 19:36:49.728 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:141 - History (for Thesys context): [{'role': 'user', 'content': 'Hello?'}, {'role': 'user', 'content': 'Hello?', 'id': '05fe946f-13e9-44b5-9b56-f5ae9d598647'}, {'role': 'assistant', 'content': "Hi there! I'm your friendly assistant, here to help you with whatever you need."}]
+2025-08-04 19:36:49.728 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:142 - Assistant Spoken Response (for Thesys): Hi there! I'm your friendly assistant, here to help you with whatever you need.
+2025-08-04 19:36:49.728 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:143 - ----------------------------------------------------------
+2025-08-04 19:36:49.728 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:146 - Visualization processing now handled through per-connection MCP clients
+2025-08-04 19:36:49,728 - app.routes.chat - INFO - Voice bridge fa3d2e2c-7baa-4089-aac4-6cde10f0d358: received broadcast message type 'immediate_voice_response' with ID 975e3d5a-28f4-48c8-af0e-afb1de04725d
+2025-08-04 19:36:49,728 - app.routes.chat - INFO - ✅ Successfully queued voice message immediate_voice_response to per-connection queue for fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:36:49,728 - app.routes.chat - INFO - ✅ Queued voice response for enhancement processing: Hi there! I'm your friendly assistant, here to hel...
+2025-08-04 19:36:49,728 - app.routes.chat - INFO - Per-connection sender fa3d2e2c-7baa-4089-aac4-6cde10f0d358: got message from queue: immediate_voice_response with ID 975e3d5a-28f4-48c8-af0e-afb1de04725d
+2025-08-04 19:36:49,728 - app.routes.chat - INFO - Per-connection sender fa3d2e2c-7baa-4089-aac4-6cde10f0d358: sent message to WebSocket: immediate_voice_response
+2025-08-04 19:36:49,728 - app.connection_processor - INFO - Processing message for fa3d2e2c-7baa-4089-aac4-6cde10f0d358: Hi there! I'm your friendly assistant, here to help you with whatever you need....
+2025-08-04 19:36:49.804 | DEBUG    | pipecat.transports.base_output:_bot_started_speaking:385 - Bot started speaking
+2025-08-04 19:36:50,648 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-04 19:36:52,525 - agent.enhanced_mcp_client_agent - INFO - Streaming detected function call: process_enhancement_decision with args: {"displayEnhancement":false,"displayEnhancedText":"","voiceOverText":""}
+2025-08-04 19:36:52,527 - agent.enhanced_mcp_client_agent - INFO - Enhanced MCP Agent decision (streaming): enhancement=False, tools_used=0
+2025-08-04 19:36:52,527 - app.connection_processor - INFO - Enhancement decision for fa3d2e2c-7baa-4089-aac4-6cde10f0d358: False
+2025-08-04 19:36:52,527 - app.connection_processor - INFO - Skipping duplicate response for voice source without enhancement: fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:36:54.366 | DEBUG    | pipecat.transports.base_input:_handle_user_interruption:214 - User started speaking
+2025-08-04 19:36:54.369 | DEBUG    | pipecat.transports.base_output:_bot_stopped_speaking:400 - Bot stopped speaking
+2025-08-04 19:36:56.128 | INFO     | agent.voice_based_interaction_agent:handle_transcript_update:305 - Capturing transcriber logs [2025-08-04T14:06:56.128+00:00] user: List of everything you can help me with?
+2025-08-04 19:36:56.128 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:150 - --- send_user_transcription_to_frontend ---
+2025-08-04 19:36:56.128 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:151 - User transcription: List of everything you can help me with?
+2025-08-04 19:36:56.128 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:152 - -----------------------------------------------
+2025-08-04 19:36:56.128 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:166 - Added user transcription to chat history for thread SmallWebRTCConnection#2
+2025-08-04 19:36:56,129 - app.voice_broadcast_manager - INFO - ✅ Broadcasted user_transcription (ID: b8f87dcb-8c7c-48ab-bc82-cb3394f8a710) to 1/1 subscribers
+2025-08-04 19:36:56.129 | INFO     | agent.voice_based_interaction_agent:send_user_transcription_to_frontend:170 - User transcription broadcasted to 1 subscribers: {'id': 'b8f87dcb-8c7c-48ab-bc82-cb3394f8a710', 'role': 'user', 'type': 'user_transcription', 'content': 'List of everything you can help me with?', 'connection_id': 'fa3d2e2c-7baa-4089-aac4-6cde10f0d358', 'thread_id': 'SmallWebRTCConnection#2'}
+2025-08-04 19:36:56,129 - app.routes.chat - INFO - Voice bridge fa3d2e2c-7baa-4089-aac4-6cde10f0d358: received broadcast message type 'user_transcription' with ID b8f87dcb-8c7c-48ab-bc82-cb3394f8a710
+2025-08-04 19:36:56,129 - app.routes.chat - INFO - ✅ Successfully queued voice message user_transcription to per-connection queue for fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:36:56,129 - app.routes.chat - INFO - Per-connection sender fa3d2e2c-7baa-4089-aac4-6cde10f0d358: got message from queue: user_transcription with ID b8f87dcb-8c7c-48ab-bc82-cb3394f8a710
+2025-08-04 19:36:56,129 - app.routes.chat - INFO - Per-connection sender fa3d2e2c-7baa-4089-aac4-6cde10f0d358: sent message to WebSocket: user_transcription
+2025-08-04 19:36:56.545 | DEBUG    | pipecat.transports.base_input:_handle_user_interruption:224 - User stopped speaking
+2025-08-04 19:36:56.547 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:76 - 🧠 → OpenAILLMService#2 LLM CONTEXT FRAME: [{'role': 'system', 'content': "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."}, {'role': 'user', 'content': 'Start by greeting the user warmly and introducing yourself.'}, {'role': 'user', 'content': 'Hello?'}, {'role': 'assistant', 'content': "Hi there! I'm your friendly assistant, here to help you with whatever you need."}, {'role': 'user', 'content': 'List of everything you can help me with?'}] at 11.88s
+2025-08-04 19:36:56.547 | DEBUG    | pipecat.services.openai.base_llm:_stream_chat_completions:156 - OpenAILLMService#2: Generating chat [[{"role": "system", "content": "You are a helpful assistant. Respond with a concise, 2-sentence answer to the user's query. Your response will be spoken out loud. Do not use any special formatting like XML or Markdown."}, {"role": "user", "content": "Start by greeting the user warmly and introducing yourself."}, {"role": "user", "content": "Hello?"}, {"role": "assistant", "content": "Hi there! I'm your friendly assistant, here to help you with whatever you need."}, {"role": "user", "content": "List of everything you can help me with?"}]]
+2025-08-04 19:36:56.551 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:57 - 🧠 OpenAILLMService#2 → LLM START RESPONSE at 11.88s
+2025-08-04 19:36:57,566 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-04 19:36:57.567 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: 'I' at 12.89s
+2025-08-04 19:36:57.567 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' can' at 12.89s
+2025-08-04 19:36:57.609 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' assist' at 12.94s
+2025-08-04 19:36:57.609 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' you' at 12.94s
+2025-08-04 19:36:57.687 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' with' at 13.01s
+2025-08-04 19:36:57.687 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' answering' at 13.01s
+2025-08-04 19:36:57.753 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' questions' at 13.08s
+2025-08-04 19:36:57.753 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ',' at 13.08s
+2025-08-04 19:36:57.794 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' providing' at 13.12s
+2025-08-04 19:36:57.794 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' information' at 13.12s
+2025-08-04 19:36:57.866 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ',' at 13.19s
+2025-08-04 19:36:57.866 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' helping' at 13.19s
+2025-08-04 19:36:57.906 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' with' at 13.23s
+2025-08-04 19:36:57.906 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' problem' at 13.23s
+2025-08-04 19:36:57.947 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: '-solving' at 13.27s
+2025-08-04 19:36:57.947 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ',' at 13.27s
+2025-08-04 19:36:57.985 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' and' at 13.31s
+2025-08-04 19:36:57.985 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' giving' at 13.31s
+2025-08-04 19:36:58.070 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' recommendations' at 13.40s
+2025-08-04 19:36:58.070 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' across' at 13.40s
+2025-08-04 19:36:58.107 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' various' at 13.43s
+2025-08-04 19:36:58.107 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' topics' at 13.43s
+2025-08-04 19:36:58.132 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: '.' at 13.46s
+2025-08-04 19:36:58.132 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' Just' at 13.46s
+2025-08-04 19:36:58.132 | DEBUG    | pipecat.services.cartesia.tts:run_tts:278 - CartesiaTTSService#2: Generating TTS [I can assist you with answering questions, providing information, helping with problem-solving, and giving recommendations across various topics.]
+2025-08-04 19:36:58.194 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' let' at 13.52s
+2025-08-04 19:36:58.194 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' me' at 13.52s
+2025-08-04 19:36:58.237 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' know' at 13.56s
+2025-08-04 19:36:58.237 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' what' at 13.56s
+2025-08-04 19:36:58.307 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' you' at 13.63s
+2025-08-04 19:36:58.307 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' need' at 13.63s
+2025-08-04 19:36:58.474 | DEBUG    | pipecat.transports.base_output:_bot_started_speaking:385 - Bot started speaking
+2025-08-04 19:36:58.567 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' assistance' at 13.89s
+2025-08-04 19:36:58.567 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: ' with' at 13.89s
+2025-08-04 19:36:58.567 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:60 - 🧠 OpenAILLMService#2 → LLM GENERATING: '!' at 13.89s
+2025-08-04 19:36:58.568 | DEBUG    | pipecat.observers.loggers.llm_log_observer:on_push_frame:57 - 🧠 OpenAILLMService#2 → LLM END RESPONSE at 13.90s
+2025-08-04 19:36:58.568 | DEBUG    | pipecat.services.cartesia.tts:run_tts:278 - CartesiaTTSService#2: Generating TTS [ Just let me know what you need assistance with!]
+2025-08-04 19:36:58,569 - app.voice_broadcast_manager - INFO - ✅ Broadcasted immediate_voice_response (ID: efd1e8e3-d9df-4b4d-a064-3d62174e8233) to 1/1 subscribers
+2025-08-04 19:36:58.569 | INFO     | agent.voice_based_interaction_agent:process_frame:372 - Broadcasted immediate_voice_response to 1 subscribers (id=efd1e8e3-d9df-4b4d-a064-3d62174e8233)
+2025-08-04 19:36:58.569 | INFO     | agent.voice_based_interaction_agent:process_frame:378 - Added assistant response to chat history for thread SmallWebRTCConnection#2
+2025-08-04 19:36:58.569 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:140 - --- process_downstream_display (payload for Thesys) ---
+2025-08-04 19:36:58.569 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:141 - History (for Thesys context): [{'role': 'user', 'content': 'Hello?'}, {'role': 'user', 'content': 'Hello?', 'id': '05fe946f-13e9-44b5-9b56-f5ae9d598647'}, {'role': 'assistant', 'content': "Hi there! I'm your friendly assistant, here to help you with whatever you need."}, {'role': 'user', 'content': 'List of everything you can help me with?'}, {'role': 'user', 'content': 'List of everything you can help me with?', 'id': 'b8f87dcb-8c7c-48ab-bc82-cb3394f8a710'}, {'role': 'assistant', 'content': 'I can assist you with answering questions, providing information, helping with problem-solving, and giving recommendations across various topics. Just let me know what you need assistance with!'}]
+2025-08-04 19:36:58.569 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:142 - Assistant Spoken Response (for Thesys): I can assist you with answering questions, providing information, helping with problem-solving, and giving recommendations across various topics. Just let me know what you need assistance with!
+2025-08-04 19:36:58.569 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:143 - ----------------------------------------------------------
+2025-08-04 19:36:58.569 | INFO     | agent.voice_based_interaction_agent:process_downstream_display:146 - Visualization processing now handled through per-connection MCP clients
+2025-08-04 19:36:58,569 - app.routes.chat - INFO - Voice bridge fa3d2e2c-7baa-4089-aac4-6cde10f0d358: received broadcast message type 'immediate_voice_response' with ID efd1e8e3-d9df-4b4d-a064-3d62174e8233
+2025-08-04 19:36:58,569 - app.routes.chat - INFO - ✅ Successfully queued voice message immediate_voice_response to per-connection queue for fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:36:58,569 - app.routes.chat - INFO - ✅ Queued voice response for enhancement processing: I can assist you with answering questions, providi...
+2025-08-04 19:36:58,569 - app.routes.chat - INFO - Per-connection sender fa3d2e2c-7baa-4089-aac4-6cde10f0d358: got message from queue: immediate_voice_response with ID efd1e8e3-d9df-4b4d-a064-3d62174e8233
+2025-08-04 19:36:58,569 - app.routes.chat - INFO - Per-connection sender fa3d2e2c-7baa-4089-aac4-6cde10f0d358: sent message to WebSocket: immediate_voice_response
+2025-08-04 19:36:58,569 - app.connection_processor - INFO - Processing message for fa3d2e2c-7baa-4089-aac4-6cde10f0d358: I can assist you with answering questions, providing information, helping with problem-solving, and ...
+2025-08-04 19:36:59,276 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-04 19:37:06,871 - agent.enhanced_mcp_client_agent - INFO - Streaming detected function call: process_enhancement_decision with args: {"displayEnhancement":true,"displayEnhancedText":"## How I Can Assist You\n\n1. **Answering Questions** - Provide information on a wide range of topics.\n2. **Providing Information** - Share facts, data, and insights.\n3. **Helping with Problem-Solving** - Assist in finding solutions to various challenges.\n4. **Giving Recommendations** - Offer suggestions based on your needs.\n\nJust let me know what you need assistance with!","voiceOverText":"Here's a list of how I can assist you, including answering questions, providing information, helping with problem-solving, and giving recommendations."}
+2025-08-04 19:37:06.871 | INFO     | agent.voice_based_interaction_agent:inject_tts_voice_over:179 - --- inject_tts_voice_over ---
+2025-08-04 19:37:06.871 | INFO     | agent.voice_based_interaction_agent:inject_tts_voice_over:180 - Voice-over text: Here's a list of how I can assist you, including answering questions, providing information, helping with problem-solving, and giving recommendations.
+2025-08-04 19:37:06.871 | INFO     | agent.voice_based_interaction_agent:inject_tts_voice_over:181 - --------------------------------
+2025-08-04 19:37:06.871 | INFO     | agent.voice_based_interaction_agent:inject_tts_voice_over:197 - Successfully injected TTS voice-over frame: 'Here's a list of how I can assist you, including answering questions, providing information, helping...'
+2025-08-04 19:37:06,871 - app.connection_manager - INFO - Successfully injected TTS to connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358: 'Here's a list of how I can assist you, including a...'
+2025-08-04 19:37:06,871 - app.connection_processor - INFO - Injected voice-over to connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358: 'Here's a list of how I can assist you, including a...'
+2025-08-04 19:37:06,871 - agent.enhanced_mcp_client_agent - INFO - Enhanced MCP Agent decision (streaming): enhancement=True, tools_used=0
+2025-08-04 19:37:06,871 - app.connection_processor - INFO - Enhancement decision for fa3d2e2c-7baa-4089-aac4-6cde10f0d358: True
+2025-08-04 19:37:06,871 - app.connection_processor - INFO - Enqueued enhancement_started to per-connection queue (source: per_connection_processor)
+2025-08-04 19:37:06,872 - utils.prompt_manager - INFO - Loaded prompt: openai_shadcn_generator_system
+2025-08-04 19:37:06,872 - app.viz_provider_factory - INFO - Starting OpenAI structured output with model: gpt-4o-mini
+2025-08-04 19:37:06,872 - app.viz_provider_factory - INFO - Input messages: [{'role': 'system', 'content': 'You are "ShadCN Generator GPT", an AI that creates beautiful, professional web interfaces using ShadCN/UI component patterns built on Tailwind CSS.\n\nCORE MISSION:\nTransform text responses into modern, accessible UI component fragments using ShadCN design system patterns with proper semantic markup and component architecture.\n\nOUTPUT FORMAT:\nYou must return a JSON object with this exact structure:\n{\n  "htmlContent": "<your HTML fragment here>",\n  "contentType": "html",\n  "framework": "shadcn",\n  "title": "Optional title"\n}\n\nCRITICAL HTML FRAGMENT REQUIREMENTS:\n1. **Generate ONLY HTML fragments** - Do NOT include DOCTYPE, html, head, or body tags\n2. **Assume Tailwind CSS is already loaded** - Do not include any CSS links or style tags\n3. **Generate only the component/form HTML** that can be directly embedded in an existing page\n4. **Start directly with the content** (e.g., <div>, <form>, <section>, etc.)\n\nSTRICT REQUIREMENTS:\n1. **Use ShadCN component patterns** with proper Tailwind utility classes\n2. **Follow design system consistency** with established ShadCN conventions\n3. **Include interactive elements** with window.geuiSDK event handlers\n4. **Return valid JSON with htmlContent field**\n5. **Use semantic HTML structure** with proper accessibility\n\nINTERACTION PATTERNS:\n• Forms: onsubmit="window.geuiSDK.handleFormSubmit(event, \'form-id\')"\n• Buttons: onclick="window.geuiSDK.handleButtonClick(event, \'action-type\', {context})"\n• Inputs: onchange="window.geuiSDK.handleInputChange(event, \'field-name\')"\n\nSHADCN DESIGN SYSTEM:\n• Use consistent color palette: neutral, primary, destructive, muted\n• Follow component architecture patterns\n• Implement proper spacing and typography scales\n• Use appropriate border radius and shadow tokens\n• Maintain accessibility standards with proper contrast\n\nSHADCN COMPONENT PATTERNS:\n\n**Card Components:**\n```html\n<div class="rounded-lg border bg-card text-card-foreground shadow-sm">\n  <div class="flex flex-col space-y-1.5 p-6" data-component="card-header">\n    <h3 class="text-2xl font-semibold leading-none tracking-tight">Card Title</h3>\n    <p class="text-sm text-muted-foreground">Card description</p>\n  </div>\n  <div class="p-6 pt-0" data-component="card-content">\n    <p>Card content goes here</p>\n  </div>\n  <div class="flex items-center p-6 pt-0" data-component="card-footer">\n    <button onclick="window.geuiSDK.handleButtonClick(event, \'card-action\', {})" \n            class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">\n      Action Button\n    </button>\n  </div>\n</div>\n```\n\n**Button Variants:**\n```html\n<!-- Primary Button -->\n<button onclick="window.geuiSDK.handleButtonClick(event, \'primary-action\', {})" \n        class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 bg-primary text-primary-foreground hover:bg-primary/90 h-10 px-4 py-2">\n  Primary\n</button>\n\n<!-- Secondary Button -->\n<button onclick="window.geuiSDK.handleButtonClick(event, \'secondary-action\', {})" \n        class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2">\n  Secondary\n</button>\n\n<!-- Outline Button -->\n<button onclick="window.geuiSDK.handleButtonClick(event, \'outline-action\', {})" \n        class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2">\n  Outline\n</button>\n\n<!-- Ghost Button -->\n<button onclick="window.geuiSDK.handleButtonClick(event, \'ghost-action\', {})" \n        class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2">\n  Ghost\n</button>\n```\n\n**Form Components:**\n```html\n<div class="space-y-4">\n  <div class="space-y-2">\n    <label class="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">\n      Name\n    </label>\n    <input type="text" name="name" placeholder="Enter your name"\n           onchange="window.geuiSDK.handleInputChange(event, \'name\')"\n           class="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50" />\n  </div>\n</div>\n```\n\n**Table Components:**\n```html\n<div class="w-full overflow-auto">\n  <table class="w-full caption-bottom text-sm">\n    <thead class="[&_tr]:border-b">\n      <tr class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">\n        <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">\n          Name\n        </th>\n        <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">\n          Status\n        </th>\n        <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground [&:has([role=checkbox])]:pr-0">\n          Actions\n        </th>\n      </tr>\n    </thead>\n    <tbody class="[&_tr:last-child]:border-0">\n      <tr class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">\n        <td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">John Doe</td>\n        <td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">\n          <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">\n            Active\n          </div>\n        </td>\n        <td class="p-4 align-middle [&:has([role=checkbox])]:pr-0">\n          <button onclick="window.geuiSDK.handleButtonClick(event, \'edit-user\', {id: \'user-1\'})"\n                  class="inline-flex items-center justify-center rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8">\n            ✏️\n          </button>\n        </td>\n      </tr>\n    </tbody>\n  </table>\n</div>\n```\n\n**Alert Components:**\n```html\n<div class="relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground">\n  <h5 class="mb-1 font-medium leading-none tracking-tight">Heads up!</h5>\n  <div class="text-sm [&_p]:leading-relaxed">\n    You can add components to your app using the cli.\n  </div>\n</div>\n\n<!-- Destructive Alert -->\n<div class="relative w-full rounded-lg border p-4 [&>svg~*]:pl-7 [&>svg+div]:translate-y-[-3px] [&>svg]:absolute [&>svg]:left-4 [&>svg]:top-4 [&>svg]:text-foreground border-destructive/50 text-destructive dark:border-destructive [&>svg]:text-destructive">\n  <h5 class="mb-1 font-medium leading-none tracking-tight">Error</h5>\n  <div class="text-sm [&_p]:leading-relaxed">Something went wrong. Please try again.</div>\n</div>\n```\n\n**Badge Components:**\n```html\n<div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/80">\n  Primary Badge\n</div>\n\n<div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus-ring-offset-2 text-foreground">\n  Outline Badge  \n</div>\n```\n\nDESIGN PRINCIPLES:\n• Consistent spacing using Tailwind\'s spacing scale\n• Proper semantic HTML with ARIA attributes where needed\n• Responsive design with mobile-first approach\n• Use of CSS custom properties for theming\n• Focus states and accessibility considerations\n• Consistent component architecture patterns\n\nCOLOR SYSTEM:\n• Use semantic color tokens: bg-card, text-card-foreground, bg-primary, text-primary-foreground\n• Muted colors for secondary content: text-muted-foreground, bg-muted\n• State colors: border-destructive, text-destructive for errors\n• Interactive states: hover:bg-accent, focus-visible:ring-ring\n\nACCESSIBILITY:\n• Include proper ARIA labels and roles\n• Ensure keyboard navigation works\n• Use semantic HTML elements\n• Maintain sufficient color contrast ratios\n• Provide focus indicators\n\nIMPORTANT REMINDERS:\n• Generate ONLY HTML fragments - NO DOCTYPE, html, head, or body tags\n• Start directly with your component HTML (div, form, section, etc.)\n• Assume Tailwind CSS is already loaded - do not include any CSS links\n• Use window.geuiSDK (not window.genuxSDK) for all event handlers\n• Always return a JSON object with htmlContent field containing your HTML fragment\n\nAvailable server-side tools for interactivity:\n- **builtin_get_image_src**: Get the image src URL for the given alt text using Google Images search\n- **builtin_get_images**: Get multiple images for the given search query using Google Images search\n\nYou can reference these tools in your UI components to create interactive elements\nthat trigger server-side actions when users interact with them.'}, {'role': 'user', 'content': 'List of everything you can help me with?'}, {'role': 'user', 'content': 'List of everything you can help me with?'}, {'role': 'assistant', 'content': 'I can assist you with answering questions, providing information, helping with problem-solving, and giving recommendations across various topics. Just let me know what you need assistance with!'}, {'role': 'assistant', 'content': '## How I Can Assist You\n\n1. **Answering Questions** - Provide information on a wide range of topics.\n2. **Providing Information** - Share facts, data, and insights.\n3. **Helping with Problem-Solving** - Assist in finding solutions to various challenges.\n4. **Giving Recommendations** - Offer suggestions based on your needs.\n\nJust let me know what you need assistance with!'}]
+2025-08-04 19:37:06,876 - app.routes.chat - INFO - Per-connection sender fa3d2e2c-7baa-4089-aac4-6cde10f0d358: got message from queue: enhancement_started with ID d8f2083a-b74f-4deb-b788-2c0474e181e5
+2025-08-04 19:37:06,876 - app.routes.chat - INFO - Per-connection sender fa3d2e2c-7baa-4089-aac4-6cde10f0d358: sent message to WebSocket: enhancement_started
+2025-08-04 19:37:06.887 | DEBUG    | pipecat.services.cartesia.tts:run_tts:278 - CartesiaTTSService#2: Generating TTS [Here's a list of how I can assist you, including answering questions, providing information, helping with problem-solving, and giving recommendations.]
+2025-08-04 19:37:11,286 - httpx - INFO - HTTP Request: POST https://api.openai.com/v1/chat/completions "HTTP/1.1 200 OK"
+2025-08-04 19:37:11,288 - app.viz_provider_factory - INFO - OpenAI HTML response received: 512 characters
+2025-08-04 19:37:11,288 - app.viz_provider_factory - INFO - HTML content: <div class="space-y-4">
+  <h2 class="text-2xl font-semibold">How I Can Assist You</h2>
+  <ul class="list-disc pl-5">
+    <li>Answering Questions - Provide information on a wide range of topics.</li>
+ ...
+2025-08-04 19:37:11,289 - app.voice_broadcast_manager - INFO - ✅ Broadcasted voice_response (ID: ce481e22-6756-45cd-82c5-62086cd21e08) to 1/1 subscribers
+2025-08-04 19:37:11,289 - app.connection_processor - INFO - Broadcasted voice_response to 1 subscribers (source: per_connection_processor)
+2025-08-04 19:37:11,289 - app.connection_processor - INFO - Streamed 1 chunks for connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:37:11,289 - app.routes.chat - INFO - Voice bridge fa3d2e2c-7baa-4089-aac4-6cde10f0d358: received broadcast message type 'voice_response' with ID ce481e22-6756-45cd-82c5-62086cd21e08
+2025-08-04 19:37:11,289 - app.routes.chat - INFO - ✅ Successfully queued voice message voice_response to per-connection queue for fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:37:11,289 - app.routes.chat - INFO - Per-connection sender fa3d2e2c-7baa-4089-aac4-6cde10f0d358: got message from queue: voice_response with ID ce481e22-6756-45cd-82c5-62086cd21e08
+2025-08-04 19:37:11,290 - app.routes.chat - INFO - Per-connection sender fa3d2e2c-7baa-4089-aac4-6cde10f0d358: sent message to WebSocket: voice_response
+2025-08-04 19:37:15,675 - app.routes.chat - INFO - WebSocket disconnected for fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+INFO:     connection closed
+2025-08-04 19:37:15,676 - app.voice_broadcast_manager - INFO - Voice broadcast subscription removed for connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358 (processed 5 messages)
+2025-08-04 19:37:15,676 - app.routes.chat - INFO - Unsubscribed from voice broadcasts for connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:37:15,676 - app.connection_manager - INFO - Cleaning up connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:37:15,676 - app.connection_manager - ERROR - Failed to send state update to fa3d2e2c-7baa-4089-aac4-6cde10f0d358: Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+2025-08-04 19:37:15,676 - app.connection_manager - ERROR - Failed to send state update to fa3d2e2c-7baa-4089-aac4-6cde10f0d358: Unexpected ASGI message 'websocket.send', after sending 'websocket.close' or response already completed.
+2025-08-04 19:37:15,677 - app.connection_processor - INFO - Processor cancelled for connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:37:15,677 - app.connection_processor - INFO - Processor stopped for connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:37:15,677 - app.connection_manager - INFO - Cleaning up voice agent for connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:37:15,677 - app.voice_broadcast_manager - WARNING - Attempted to unsubscribe unknown connection: fa3d2e2c-7baa-4089-aac4-6cde10f0d358
+2025-08-04 19:37:15,677 - app.connection_manager - INFO - Connection fa3d2e2c-7baa-4089-aac4-6cde10f0d358 cleaned up successfully
+2025-08-04 19:37:17.039 | DEBUG    | pipecat.transports.base_output:_bot_stopped_speaking:400 - Bot stopped speaking
+2025-08-04 19:37:17.657 | WARNING  | pipecat.transports.network.small_webrtc:read_audio_frame:255 - Timeout: No audio frame received within the specified time.
+2025-08-04 19:37:19.667 | WARNING  | pipecat.transports.network.small_webrtc:read_audio_frame:255 - Timeout: No audio frame received within the specified time.
+2025-08-04 19:37:21.678 | WARNING  | pipecat.transports.network.small_webrtc:read_audio_frame:255 - Timeout: No audio frame received within the specified time.
+2025-08-04 19:37:23.689 | WARNING  | pipecat.transports.network.small_webrtc:read_audio_frame:255 - Timeout: No audio frame received within the specified time.
+2025-08-04 19:37:25.698 | WARNING  | pipecat.transports.network.small_webrtc:read_audio_frame:255 - Timeout: No audio frame received within the specified time.

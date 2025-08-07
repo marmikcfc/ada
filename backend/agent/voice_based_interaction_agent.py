@@ -368,6 +368,15 @@ class ResponseAggregatorProcessor(FrameProcessor):
                     # Broadcast immediate voice response directly
                     from app.voice_broadcast_manager import voice_broadcast_manager
                     delivery_count = await voice_broadcast_manager.broadcast(immediate_msg)
+                    # Store the immediate message ID for later reference
+                    self.immediate_message_id = immediate_msg['id']
+
+
+                    # Store the immediate message ID for later reference
+                    self.immediate_message_id = immediate_msg['id']
+                    
+                    # Broadcast immediate voice response to all relevant connections
+                    delivery_count = await broadcast_voice_message(immediate_msg)
                     logger.info(
                         f"Broadcasted immediate_voice_response to {delivery_count} subscribers (id={immediate_msg['id']})"
                     )
