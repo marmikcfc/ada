@@ -8,6 +8,7 @@ import ThemeShowcaseDemo from './demos/ThemeShowcaseDemo';
 import UIFrameworkDemo from './demos/UIFrameworkDemo';
 import ConfigurableDemo from './demos/ConfigurableDemo';
 import ThreadManagementDemo from './demos/ThreadManagementDemo';
+import ShadcnStaticDemo from './demos/ShadcnStaticDemo';
 
 /**
  * Demo Router Component
@@ -16,7 +17,7 @@ import ThreadManagementDemo from './demos/ThreadManagementDemo';
  * the GenUX SDK's capabilities for different scenarios.
  */
 
-type DemoType = 'saas' | 'chat' | 'standalone' | 'customfullscreen' | 'voiceonly' | 'themes' | 'uiframework' | 'configurable' | 'threadmanagement' | 'package';
+type DemoType = 'saas' | 'chat' | 'standalone' | 'customfullscreen' | 'voiceonly' | 'themes' | 'uiframework' | 'configurable' | 'threadmanagement' | 'package' | 'shadcn';
 
 interface Demo {
   id: DemoType;
@@ -99,6 +100,14 @@ const demos: Demo[] = [
     icon: '🧵',
     status: 'supported',
     component: ThreadManagementDemo
+  },
+  {
+    id: 'shadcn',
+    title: 'shadcn/ui Static Test',
+    description: 'Static test of shadcn/ui components to verify styling is working correctly',
+    icon: '🎨',
+    status: 'supported',
+    component: ShadcnStaticDemo
   }
 ];
 
