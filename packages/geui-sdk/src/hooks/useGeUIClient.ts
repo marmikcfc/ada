@@ -170,7 +170,7 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
       console.log('🔥 MESSAGE_RECEIVED handler called:', message);
       
       // Check if message contains a threadId and update if needed
-      if ('threadId' in message && message.threadId) {
+      if ('threadId' in message && message.threadId && typeof message.threadId === 'string') {
         const currentThreadId = threadId;
         if (!currentThreadId || currentThreadId !== message.threadId) {
           console.log('📝 Updating thread ID from message:', message.threadId);

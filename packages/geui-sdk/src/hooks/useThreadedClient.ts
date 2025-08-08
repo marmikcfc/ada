@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { useThreadListManager, UseThreadListManagerOptions } from './useThreadListManager';
 import { useThreadManager as useThreadManagerNew, UseThreadManagerOptions as UseThreadManagerNewOptions } from './useThreadManager';
-import { useGeUIClient, UseGeUIClientOptions } from './useGeUIClient';
-import type { Message } from '../types';
 
 /**
  * Options for the useThreadedClient hook
@@ -13,9 +11,6 @@ export interface UseThreadedClientOptions {
   
   /** Options for thread content management */
   threadOptions?: Omit<UseThreadManagerNewOptions, 'threadId'>;
-  
-  /** Options for GeUI client */
-  clientOptions?: UseGeUIClientOptions;
 }
 
 /**
@@ -25,8 +20,7 @@ export interface UseThreadedClientOptions {
 export function useThreadedClient(options: UseThreadedClientOptions = {}) {
   const {
     threadListOptions = {},
-    threadOptions = {},
-    clientOptions = {}
+    threadOptions = {}
   } = options;
 
   // Initialize thread list manager

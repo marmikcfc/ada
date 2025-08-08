@@ -73,15 +73,6 @@ export interface UseThreadListManagerResult {
 }
 
 /**
- * Default title generator
- */
-const defaultGenerateTitle = (firstMessage: string): string => {
-  const trimmed = firstMessage.trim();
-  if (trimmed.length <= 30) return trimmed;
-  return trimmed.substring(0, 30).trim() + '...';
-};
-
-/**
  * Hook for managing thread list with localStorage and optional API support
  */
 export function useThreadListManager(options: UseThreadListManagerOptions = {}): UseThreadListManagerResult {
@@ -91,8 +82,6 @@ export function useThreadListManager(options: UseThreadListManagerOptions = {}):
     enableLocalStorage = true,
     storageKey = 'geui-threads',
     maxThreads = 50,
-    autoGenerateTitles = true,
-    generateTitle = defaultGenerateTitle,
   } = options;
 
   // State

@@ -33,7 +33,7 @@ export class MessageStorage {
     
     try {
       // Serialize dates properly
-      const serialized = JSON.stringify(data, (key, value) => {
+      const serialized = JSON.stringify(data, (_, value) => {
         if (value instanceof Date) {
           return value.toISOString();
         }
