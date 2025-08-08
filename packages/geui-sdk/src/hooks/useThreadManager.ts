@@ -259,7 +259,8 @@ export function useThreadManager(options: UseThreadManagerOptions): UseThreadMan
     if (!connectionConfig?.websocketURL || connectionServiceRef.current) return;
 
     const service = new ConnectionService({
-      ...connectionConfig,
+      webrtcURL: connectionConfig.webrtcURL,
+      websocketURL: connectionConfig.websocketURL,
       onWebSocketConnect: (ws) => {
         // Send thread context when connecting
         ws.send(JSON.stringify({
@@ -363,10 +364,7 @@ export function useThreadManager(options: UseThreadManagerOptions): UseThreadMan
       setMessages(prev => [...prev, message]);
 
       // Send via connection service (includes thread_id)
-      connectionServiceRef.current.sendMessage({
-        ...message,
-        type: 'prompt',
-      });
+      connectionServiceRef.current.sendChatMessage(content, threadId);
 
       // Save to localStorage
       if (enableLocalStorage) {

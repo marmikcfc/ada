@@ -365,13 +365,6 @@ class ResponseAggregatorProcessor(FrameProcessor):
                     immediate_msg["connection_id"] = self.agent_instance.connection_id
                     immediate_msg["thread_id"] = self.agent_instance.thread_id
                     
-                    # Broadcast immediate voice response directly
-                    from app.voice_broadcast_manager import voice_broadcast_manager
-                    delivery_count = await voice_broadcast_manager.broadcast(immediate_msg)
-                    # Store the immediate message ID for later reference
-                    self.immediate_message_id = immediate_msg['id']
-
-
                     # Store the immediate message ID for later reference
                     self.immediate_message_id = immediate_msg['id']
                     

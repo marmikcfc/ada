@@ -1,5 +1,5 @@
 import React, { createContext, useContext, ReactNode } from 'react';
-import type { Thread, Message, UseThreadedClientOptions } from '../types';
+import type { Thread, Message } from '../types';
 
 /**
  * Thread context value interface
@@ -21,7 +21,7 @@ interface ThreadContextValue {
   isLoading: boolean;
   isEnhancing: boolean;
   streamingContent: string | null;
-  streamingContentType: 'text' | 'c1' | null;
+  streamingContentType: 'text' | 'c1' | 'html' | null;
   streamingMessageId: string | null;
   isStreamingActive: boolean;
   

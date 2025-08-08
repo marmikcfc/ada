@@ -118,7 +118,7 @@ export function useThreadInterface(options: ThreadInterfaceOptions): ThreadInter
   const [threads, setThreads] = useState<Thread[]>([]);
   const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
   const [isSwitching, setIsSwitching] = useState(false);
   const [isConnecting, setIsConnecting] = useState(false);
   const [connectionState, setConnectionState] = useState<ConnectionState>('disconnected');
@@ -226,7 +226,7 @@ export function useThreadInterface(options: ThreadInterfaceOptions): ThreadInter
       }
     });
     
-    connection.on(ConnectionEvent.STREAMING_STARTED, ({ messageId, isEnhancement }: any) => {
+    connection.on(ConnectionEvent.STREAMING_STARTED, ({ messageId }: any) => {
       setStreamingMessageId(messageId);
       setIsStreamingActive(true);
       setStreamingContent('');
@@ -476,10 +476,7 @@ export function useThreadInterface(options: ThreadInterfaceOptions): ThreadInter
     setMessages(prev => [...prev, message]);
     
     // Send via connection (includes thread_id)
-    connectionRef.current.sendChatMessage({
-      content,
-      id: message.id
-    });
+    connectionRef.current.sendChatMessage(content, activeThreadId || undefined);
     
     // Update storage
     if (enablePersistence) {
@@ -532,7 +529,7 @@ export function useThreadInterface(options: ThreadInterfaceOptions): ThreadInter
   
   const stopVoice = useCallback(() => {
     if (!connectionRef.current) return;
-    connectionRef.current.stopVoice();
+    connectionRef.current.disconnectVoice();
   }, []);
   
   const isReadyForVoice = useCallback(() => {
@@ -541,7 +538,7 @@ export function useThreadInterface(options: ThreadInterfaceOptions): ThreadInter
   
   // Get backend connection ID
   const getBackendConnectionId = useCallback(() => {
-    return connectionRef.current?.getBackendConnectionId();
+    return connectionRef.current?.getBackendConnectionId() ?? undefined;
   }, []);
   
   // Get storage info

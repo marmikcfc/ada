@@ -191,7 +191,10 @@ const GeUI: React.FC<GeUIProps> = ({
     isStreamingActive: client.isStreamingActive,
     
     // Thread actions
-    createThread: client.createThread,
+    createThread: async (initialMessage?: string) => {
+      const thread = await client.createThread(initialMessage);
+      return thread.id;
+    },
     switchThread: client.switchThread,
     deleteThread: client.deleteThread,
     renameThread: client.renameThread,
@@ -201,7 +204,9 @@ const GeUI: React.FC<GeUIProps> = ({
     // Client actions
     sendText: client.sendText,
     sendC1Action: client.sendC1Action,
-    startVoice: client.startVoice,
+    startVoice: async () => {
+      client.startVoice();
+    },
     stopVoice: client.stopVoice,
     clearMessages: client.clearMessages,
     
