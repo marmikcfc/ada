@@ -687,6 +687,15 @@ async def _process_per_connection_chat(context, chat_message: ChatMessage):
         
         logger.info(f"Processing {chat_message.type} for {context.connection_id}: {message[:100]}...")
         
+        # DEBUG ROUTES: Check for debug messages
+        message_lower = message.lower().strip()
+        if message_lower == "shadcn data table":
+            await _handle_shadcn_data_table_debug(context, thread_id)
+            return
+        elif message_lower == "shadcn badge":
+            await _handle_shadcn_badge_debug(context, thread_id)
+            return
+        
         # Get conversation history from connection's storage
         history = await _get_connection_history(context.connection_id, thread_id)
         
@@ -790,3 +799,548 @@ async def _store_connection_c1_action(connection_id: str, thread_id: str, conten
         await chat_history_manager.add_c1_action(prefixed_thread_id, content)
     except Exception as e:
         logger.error(f"Error storing C1 action for {connection_id}:{thread_id}: {e}")
+
+async def _handle_shadcn_data_table_debug(context, thread_id: str):
+    """Handle the debug route for shadcn data table demonstration"""
+    try:
+        logger.info(f"DEBUG: Generating shadcn data table for {context.connection_id}")
+        
+        # First, send the user message to show what they typed
+        user_msg_response = {
+            "id": str(uuid.uuid4()),
+            "role": "user",
+            "type": "text_chat_response",
+            "content": "shadcn data table",
+            "threadId": thread_id
+        }
+        await context.message_queue.put(user_msg_response)
+        
+        # Store user message in history
+        await _store_connection_message(
+            context.connection_id, thread_id, "user", "shadcn data table"
+        )
+        
+        # Generate the shadcn data table HTML
+        shadcn_data_table_html = _generate_shadcn_data_table_html()
+        
+        # Create the response message with the shadcn data table
+        from app.queues import create_text_chat_response
+        response_msg = create_text_chat_response(
+            content=shadcn_data_table_html,
+            content_type="html",
+            framework="shadcn",
+            thread_id=thread_id
+        )
+        response_msg["id"] = str(uuid.uuid4())
+        
+        # Send the response
+        await context.message_queue.put(response_msg)
+        
+        # Store assistant response in history
+        await _store_connection_message(
+            context.connection_id, thread_id, "assistant", 
+            "Here's an interactive shadcn data table with sorting, filtering, and pagination features."
+        )
+        
+        logger.info(f"DEBUG: Successfully sent shadcn data table to {context.connection_id}")
+        
+    except Exception as e:
+        logger.error(f"Error in shadcn data table debug handler: {e}", exc_info=True)
+        
+        # Send error response
+        error_card = {
+            "component": "Callout",
+            "props": {
+                "variant": "error",
+                "title": "Debug Error",
+                "description": f"Failed to generate shadcn data table: {str(e)}"
+            }
+        }
+        
+        from app.queues import create_text_chat_response
+        error_response = create_text_chat_response(
+            content=f'<content>{json.dumps(error_card)}</content>',
+            content_type="c1",
+            framework="c1",
+            thread_id=thread_id
+        )
+        
+        await context.message_queue.put(error_response)
+
+async def _handle_shadcn_badge_debug(context, thread_id: str):
+    """Handle the debug route for shadcn badge demonstration"""
+    try:
+        logger.info(f"DEBUG: Generating shadcn badge demo for {context.connection_id}")
+        
+        # First, send the user message to show what they typed
+        user_msg_response = {
+            "id": str(uuid.uuid4()),
+            "role": "user",
+            "type": "text_chat_response",
+            "content": "shadcn badge",
+            "threadId": thread_id
+        }
+        await context.message_queue.put(user_msg_response)
+        
+        # Store user message in history
+        await _store_connection_message(
+            context.connection_id, thread_id, "user", "shadcn badge"
+        )
+        
+        # Generate the shadcn badge demo HTML
+        shadcn_badge_html = _generate_shadcn_badge_html()
+        
+        # Create the response message with the shadcn badge demo
+        from app.queues import create_text_chat_response
+        response_msg = create_text_chat_response(
+            content=shadcn_badge_html,
+            content_type="html",
+            framework="shadcn",
+            thread_id=thread_id
+        )
+        response_msg["id"] = str(uuid.uuid4())
+        
+        # Send the response
+        await context.message_queue.put(response_msg)
+        
+        # Store assistant response in history
+        await _store_connection_message(
+            context.connection_id, thread_id, "assistant", 
+            "Here's a collection of shadcn badge components with different variants and styles."
+        )
+        
+        logger.info(f"DEBUG: Successfully sent shadcn badge demo to {context.connection_id}")
+        
+    except Exception as e:
+        logger.error(f"Error in shadcn badge debug handler: {e}", exc_info=True)
+        
+        # Send error response
+        error_card = {
+            "component": "Callout",
+            "props": {
+                "variant": "error",
+                "title": "Debug Error",
+                "description": f"Failed to generate shadcn badge demo: {str(e)}"
+            }
+        }
+        
+        from app.queues import create_text_chat_response
+        error_response = create_text_chat_response(
+            content=f'<content>{json.dumps(error_card)}</content>',
+            content_type="c1",
+            framework="c1",
+            thread_id=thread_id
+        )
+        
+        await context.message_queue.put(error_response)
+
+def _generate_shadcn_badge_html() -> str:
+    """Generate the shadcn badge demo HTML"""
+    return '''
+<div class="flex flex-col items-center gap-4 p-6">
+  <div class="rounded-lg border bg-card text-card-foreground shadow-sm w-full max-w-2xl">
+    <div class="flex flex-col space-y-1.5 p-6">
+      <h3 class="text-2xl font-semibold leading-none tracking-tight">Badge Components</h3>
+      <p class="text-sm text-muted-foreground">Various badge styles and variants for your application</p>
+    </div>
+    <div class="p-6 space-y-6">
+      <!-- Basic Badge Variants -->
+      <div>
+        <h4 class="text-sm font-medium mb-3">Basic Variants</h4>
+        <div class="flex flex-wrap gap-2">
+          <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/80">
+            Badge
+          </span>
+          <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
+            Secondary
+          </span>
+          <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80">
+            Destructive
+          </span>
+          <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground">
+            Outline
+          </span>
+        </div>
+      </div>
+
+      <!-- Badges with Icons -->
+      <div>
+        <h4 class="text-sm font-medium mb-3">With Icons</h4>
+        <div class="flex flex-wrap gap-2">
+          <span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-blue-500 text-white hover:bg-blue-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3.85 8.62a4 4 0 0 1 4.78-4.77 4 4 0 0 1 6.74 0 4 4 0 0 1 4.78 4.78 4 4 0 0 1 0 6.74 4 4 0 0 1-4.77 4.78 4 4 0 0 1-6.75 0 4 4 0 0 1-4.78-4.77 4 4 0 0 1 0-6.76Z"/>
+              <path d="m9 12 2 2 4-4"/>
+            </svg>
+            Verified
+          </span>
+          <span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-green-500 text-white hover:bg-green-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="20 6 9 17 4 12"></polyline>
+            </svg>
+            Success
+          </span>
+          <span class="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-yellow-500 text-white hover:bg-yellow-600">
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="10"></circle>
+              <line x1="12" y1="8" x2="12" y2="12"></line>
+              <line x1="12" y1="16" x2="12.01" y2="16"></line>
+            </svg>
+            Warning
+          </span>
+        </div>
+      </div>
+
+      <!-- Counter Badges -->
+      <div>
+        <h4 class="text-sm font-medium mb-3">Counter Badges</h4>
+        <div class="flex flex-wrap gap-2">
+          <span class="inline-flex items-center justify-center h-5 min-w-[20px] rounded-full px-1 text-xs font-mono font-semibold tabular-nums transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/80">
+            8
+          </span>
+          <span class="inline-flex items-center justify-center h-5 min-w-[20px] rounded-full px-1 text-xs font-mono font-semibold tabular-nums transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-destructive text-destructive-foreground hover:bg-destructive/80">
+            99
+          </span>
+          <span class="inline-flex items-center justify-center h-5 min-w-[20px] rounded-full px-1 text-xs font-mono font-semibold tabular-nums transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground border">
+            20+
+          </span>
+          <span class="inline-flex items-center justify-center h-5 min-w-[20px] rounded-full px-1 text-xs font-mono font-semibold tabular-nums transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80">
+            100+
+          </span>
+        </div>
+      </div>
+
+      <!-- Status Badges -->
+      <div>
+        <h4 class="text-sm font-medium mb-3">Status Badges</h4>
+        <div class="flex flex-wrap gap-2">
+          <span class="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-green-100 text-green-800 border-transparent">
+            Active
+          </span>
+          <span class="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-yellow-100 text-yellow-800 border-transparent">
+            Pending
+          </span>
+          <span class="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-red-100 text-red-800 border-transparent">
+            Failed
+          </span>
+          <span class="inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-blue-100 text-blue-800 border-transparent">
+            Processing
+          </span>
+        </div>
+      </div>
+
+      <!-- Interactive Badges -->
+      <div>
+        <h4 class="text-sm font-medium mb-3">Interactive Badges (Click to test)</h4>
+        <div class="flex flex-wrap gap-2">
+          <button 
+            onclick="window.geuiSDK.handleButtonClick(event, 'badge-click', {badge: 'new-feature'})"
+            class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600 cursor-pointer"
+          >
+            New Feature
+          </button>
+          <button 
+            onclick="window.geuiSDK.handleButtonClick(event, 'badge-click', {badge: 'beta'})"
+            class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-gradient-to-r from-blue-500 to-cyan-500 text-white hover:from-blue-600 hover:to-cyan-600 cursor-pointer"
+          >
+            Beta
+          </button>
+          <button 
+            onclick="window.geuiSDK.handleButtonClick(event, 'badge-click', {badge: 'pro'})"
+            class="inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-gradient-to-r from-yellow-500 to-orange-500 text-white hover:from-yellow-600 hover:to-orange-600 cursor-pointer"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="currentColor">
+              <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"></polygon>
+            </svg>
+            Pro
+          </button>
+        </div>
+      </div>
+
+      <!-- Size Variations -->
+      <div>
+        <h4 class="text-sm font-medium mb-3">Size Variations</h4>
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="inline-flex items-center rounded-full border px-2 py-0.5 text-[10px] font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/80">
+            Tiny
+          </span>
+          <span class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/80">
+            Small
+          </span>
+          <span class="inline-flex items-center rounded-full border px-3 py-1 text-sm font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/80">
+            Default
+          </span>
+          <span class="inline-flex items-center rounded-full border px-4 py-1.5 text-base font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 border-transparent bg-primary text-primary-foreground hover:bg-primary/80">
+            Large
+          </span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+'''
+
+def _generate_shadcn_data_table_html() -> str:
+    """Generate the shadcn data table HTML with inline JavaScript"""
+    return '''
+<div class="w-full p-4">
+  <div class="rounded-lg border bg-card text-card-foreground shadow-sm">
+    <div class="flex flex-col space-y-1.5 p-6">
+      <h3 class="text-2xl font-semibold leading-none tracking-tight">Payment Records</h3>
+      <p class="text-sm text-muted-foreground">A comprehensive data table with sorting, filtering, and row selection</p>
+    </div>
+    <div class="p-6">
+      <!-- Search and Filter Controls -->
+      <div class="flex items-center py-4">
+        <input
+          type="text"
+          placeholder="Filter emails..."
+          id="emailFilter"
+          onchange="window.geuiSDK.handleInputChange(event, 'emailFilter')"
+          class="flex h-10 w-full max-w-sm rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        />
+        <div class="ml-auto">
+          <button
+            onclick="window.geuiSDK.handleButtonClick(event, 'toggle-columns', {})"
+            class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
+          >
+            Columns
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <polyline points="6 9 12 15 18 9"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Data Table -->
+      <div class="overflow-hidden rounded-md border">
+        <table class="w-full caption-bottom text-sm">
+          <thead class="[&_tr]:border-b">
+            <tr class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+              <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                <input
+                  type="checkbox"
+                  onclick="window.geuiSDK.handleButtonClick(event, 'select-all', {})"
+                  class="peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </th>
+              <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                Status
+              </th>
+              <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                <button
+                  onclick="window.geuiSDK.handleButtonClick(event, 'sort-email', {})"
+                  class="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-10 px-4 py-2"
+                >
+                  Email
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="18 15 12 9 6 15"></polyline>
+                  </svg>
+                </button>
+              </th>
+              <th class="h-12 px-4 text-right align-middle font-medium text-muted-foreground">
+                Amount
+              </th>
+              <th class="h-12 px-4 text-left align-middle font-medium text-muted-foreground">
+                Actions
+              </th>
+            </tr>
+          </thead>
+          <tbody class="[&_tr:last-child]:border-0">
+            <!-- Row 1 -->
+            <tr class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+              <td class="p-4 align-middle">
+                <input
+                  type="checkbox"
+                  onclick="window.geuiSDK.handleButtonClick(event, 'select-row', {id: 'm5gr84i9'})"
+                  class="peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </td>
+              <td class="p-4 align-middle">
+                <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-green-100 text-green-800 border-transparent">
+                  success
+                </div>
+              </td>
+              <td class="p-4 align-middle lowercase">
+                ken99@example.com
+              </td>
+              <td class="p-4 align-middle text-right font-medium">
+                $316.00
+              </td>
+              <td class="p-4 align-middle">
+                <button
+                  onclick="window.geuiSDK.handleButtonClick(event, 'actions-menu', {paymentId: 'm5gr84i9'})"
+                  class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+            
+            <!-- Row 2 -->
+            <tr class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+              <td class="p-4 align-middle">
+                <input
+                  type="checkbox"
+                  onclick="window.geuiSDK.handleButtonClick(event, 'select-row', {id: '3u1reuv4'})"
+                  class="peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </td>
+              <td class="p-4 align-middle">
+                <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-green-100 text-green-800 border-transparent">
+                  success
+                </div>
+              </td>
+              <td class="p-4 align-middle lowercase">
+                Abe45@example.com
+              </td>
+              <td class="p-4 align-middle text-right font-medium">
+                $242.00
+              </td>
+              <td class="p-4 align-middle">
+                <button
+                  onclick="window.geuiSDK.handleButtonClick(event, 'actions-menu', {paymentId: '3u1reuv4'})"
+                  class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+            
+            <!-- Row 3 -->
+            <tr class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+              <td class="p-4 align-middle">
+                <input
+                  type="checkbox"
+                  onclick="window.geuiSDK.handleButtonClick(event, 'select-row', {id: 'derv1ws0'})"
+                  class="peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </td>
+              <td class="p-4 align-middle">
+                <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-yellow-100 text-yellow-800 border-transparent">
+                  processing
+                </div>
+              </td>
+              <td class="p-4 align-middle lowercase">
+                Monserrat44@example.com
+              </td>
+              <td class="p-4 align-middle text-right font-medium">
+                $837.00
+              </td>
+              <td class="p-4 align-middle">
+                <button
+                  onclick="window.geuiSDK.handleButtonClick(event, 'actions-menu', {paymentId: 'derv1ws0'})"
+                  class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+            
+            <!-- Row 4 -->
+            <tr class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+              <td class="p-4 align-middle">
+                <input
+                  type="checkbox"
+                  onclick="window.geuiSDK.handleButtonClick(event, 'select-row', {id: '5kma53ae'})"
+                  class="peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </td>
+              <td class="p-4 align-middle">
+                <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-green-100 text-green-800 border-transparent">
+                  success
+                </div>
+              </td>
+              <td class="p-4 align-middle lowercase">
+                Silas22@example.com
+              </td>
+              <td class="p-4 align-middle text-right font-medium">
+                $874.00
+              </td>
+              <td class="p-4 align-middle">
+                <button
+                  onclick="window.geuiSDK.handleButtonClick(event, 'actions-menu', {paymentId: '5kma53ae'})"
+                  class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+            
+            <!-- Row 5 -->
+            <tr class="border-b transition-colors hover:bg-muted/50 data-[state=selected]:bg-muted">
+              <td class="p-4 align-middle">
+                <input
+                  type="checkbox"
+                  onclick="window.geuiSDK.handleButtonClick(event, 'select-row', {id: 'bhqecj4p'})"
+                  class="peer h-4 w-4 shrink-0 rounded-sm border border-primary ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                />
+              </td>
+              <td class="p-4 align-middle">
+                <div class="inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 bg-red-100 text-red-800 border-transparent">
+                  failed
+                </div>
+              </td>
+              <td class="p-4 align-middle lowercase">
+                carmella@example.com
+              </td>
+              <td class="p-4 align-middle text-right font-medium">
+                $721.00
+              </td>
+              <td class="p-4 align-middle">
+                <button
+                  onclick="window.geuiSDK.handleButtonClick(event, 'actions-menu', {paymentId: 'bhqecj4p'})"
+                  class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 hover:bg-accent hover:text-accent-foreground h-8 w-8 p-0"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="1"></circle>
+                    <circle cx="12" cy="5" r="1"></circle>
+                    <circle cx="12" cy="19" r="1"></circle>
+                  </svg>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      
+      <!-- Pagination -->
+      <div class="flex items-center justify-end space-x-2 py-4">
+        <div class="text-muted-foreground flex-1 text-sm">
+          2 of 5 row(s) selected.
+        </div>
+        <div class="space-x-2">
+          <button
+            onclick="window.geuiSDK.handleButtonClick(event, 'previous-page', {})"
+            class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
+          >
+            Previous
+          </button>
+          <button
+            onclick="window.geuiSDK.handleButtonClick(event, 'next-page', {})"
+            class="inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-3"
+          >
+            Next
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+'''

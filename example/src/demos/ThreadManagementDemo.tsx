@@ -93,7 +93,7 @@ const AI_PROVIDERS: AIProvider[] = [
   {
     id: 'openai',
     name: 'OpenAI',
-    models: ['gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'],
+    models: ['gpt-4.1', 'gpt-4o', 'gpt-4o-mini', 'gpt-4-turbo', 'gpt-4', 'gpt-3.5-turbo'],
     apiKeyEnv: 'OPENAI_API_KEY'
   },
   {
@@ -123,6 +123,11 @@ const ConfigurationContext = createContext<{
   resetConfig: () => void;
   exportConfig: () => string;
   importConfig: (configString: string) => boolean;
+  applyConfig?: () => void;
+  cancelPendingChanges?: () => void;
+  hasPendingChanges?: boolean;
+  isReconnecting?: boolean;
+  actualConfig?: ConfigurationState;
 }>({
   config: DEFAULT_CONFIG,
   updateConfig: () => {},
@@ -136,7 +141,16 @@ const SettingsModal: React.FC<{
   isOpen: boolean;
   onClose: () => void;
 }> = ({ isOpen, onClose }) => {
-  const { config, updateConfig, resetConfig, exportConfig, importConfig } = useContext(ConfigurationContext);
+  const { 
+    config, 
+    updateConfig, 
+    resetConfig, 
+    exportConfig, 
+    importConfig,
+    applyConfig,
+    cancelPendingChanges,
+    hasPendingChanges 
+  } = useContext(ConfigurationContext);
   const [activeTab, setActiveTab] = useState<'ai' | 'voice' | 'ui' | 'mcp' | 'theme'>('ai');
   const [importText, setImportText] = useState('');
 
@@ -829,13 +843,32 @@ const SettingsModal: React.FC<{
         {/* Header */}
         <div style={headerStyle}>
           <div>
-            <h2 style={{ margin: '0 0 4px 0', fontSize: '20px' }}>⚙️ Settings</h2>
+            <h2 style={{ margin: '0 0 4px 0', fontSize: '20px' }}>
+              ⚙️ Settings {hasPendingChanges && <span style={{ 
+                backgroundColor: '#fbbf24', 
+                color: '#78350f',
+                padding: '2px 8px',
+                borderRadius: '12px',
+                fontSize: '12px',
+                marginLeft: '8px',
+                fontWeight: '500'
+              }}>Unsaved Changes</span>}
+            </h2>
             <p style={{ margin: 0, fontSize: '14px', opacity: 0.9 }}>
               Configure AI models, UI frameworks, and MCP servers
             </p>
           </div>
           <button
-            onClick={onClose}
+            onClick={() => {
+              if (hasPendingChanges) {
+                if (confirm('You have unsaved changes. Discard them?')) {
+                  cancelPendingChanges?.();
+                  onClose();
+                }
+              } else {
+                onClose();
+              }
+            }}
             style={{
               background: 'rgba(255, 255, 255, 0.2)',
               color: 'white',
@@ -934,6 +967,48 @@ const SettingsModal: React.FC<{
           </div>
           
           <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+            {hasPendingChanges && (
+              <>
+                <button
+                  onClick={() => {
+                    cancelPendingChanges?.();
+                    onClose();
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#fee2e2',
+                    color: '#991b1b',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    cursor: 'pointer'
+                  }}
+                >
+                  Cancel Changes
+                </button>
+                <button
+                  onClick={() => {
+                    applyConfig?.();
+                    onClose();
+                  }}
+                  style={{
+                    padding: '8px 16px',
+                    backgroundColor: '#10b981',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '6px',
+                    fontSize: '14px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    animation: 'pulse 2s infinite'
+                  }}
+                  title="This will reconnect with new configuration"
+                >
+                  ✓ Apply Changes
+                </button>
+              </>
+            )}
+            
             <input
               type="text"
               placeholder="Paste config to import"
@@ -951,7 +1026,7 @@ const SettingsModal: React.FC<{
               onClick={() => {
                 if (importConfig(importText)) {
                   setImportText('');
-                  alert('Configuration imported successfully!');
+                  alert('Configuration imported - click Apply Changes to use it');
                 } else {
                   alert('Invalid configuration format');
                 }
@@ -1512,16 +1587,59 @@ const ConfigurationProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   });
 
+  // Track if configuration has pending changes
+  const [pendingConfig, setPendingConfig] = useState<ConfigurationState | null>(null);
+  const [isReconnecting, setIsReconnecting] = useState(false);
+
   useEffect(() => {
     localStorage.setItem('thread-management-demo-config', JSON.stringify(config));
   }, [config]);
 
   const updateConfig = useCallback((updates: Partial<ConfigurationState>) => {
-    setConfig(prev => ({ ...prev, ...updates }));
+    // Update pending config instead of actual config
+    setPendingConfig(prev => {
+      const current = prev || config;
+      return { ...current, ...updates };
+    });
+  }, [config]);
+
+  const applyConfig = useCallback(() => {
+    if (pendingConfig) {
+      console.log('🔄 [ThreadManagementDemo] Applying new configuration...');
+      console.log('📋 [ThreadManagementDemo] Previous config:', config);
+      console.log('✨ [ThreadManagementDemo] New config:', pendingConfig);
+      
+      // Log specific changes
+      if (config.aiProvider.model !== pendingConfig.aiProvider.model) {
+        console.log(`🤖 [ThreadManagementDemo] Model change: ${config.aiProvider.model} → ${pendingConfig.aiProvider.model}`);
+      }
+      if (config.aiProvider.provider !== pendingConfig.aiProvider.provider) {
+        console.log(`🏢 [ThreadManagementDemo] Provider change: ${config.aiProvider.provider} → ${pendingConfig.aiProvider.provider}`);
+      }
+      if (config.voice.enabled !== pendingConfig.voice.enabled) {
+        console.log(`🎤 [ThreadManagementDemo] Voice change: ${config.voice.enabled ? 'enabled' : 'disabled'} → ${pendingConfig.voice.enabled ? 'enabled' : 'disabled'}`);
+      }
+      
+      // Apply the pending config
+      setConfig(pendingConfig);
+      setPendingConfig(null);
+      
+      // Trigger reconnection
+      console.log('🔌 [ThreadManagementDemo] Triggering WebSocket reconnection...');
+      setIsReconnecting(true);
+      setTimeout(() => {
+        setIsReconnecting(false);
+        console.log('✅ [ThreadManagementDemo] Reconnection complete, new configuration active');
+      }, 100);
+    }
+  }, [pendingConfig, config]);
+
+  const cancelPendingChanges = useCallback(() => {
+    setPendingConfig(null);
   }, []);
 
   const resetConfig = useCallback(() => {
-    setConfig(DEFAULT_CONFIG);
+    setPendingConfig(DEFAULT_CONFIG);
   }, []);
 
   const exportConfig = useCallback(() => {
@@ -1532,7 +1650,7 @@ const ConfigurationProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     try {
       const parsed = JSON.parse(configString);
       if (parsed && typeof parsed === 'object' && parsed.aiProvider && parsed.uiFramework) {
-        setConfig(parsed);
+        setPendingConfig(parsed);
         return true;
       }
       return false;
@@ -1541,13 +1659,21 @@ const ConfigurationProvider: React.FC<{ children: React.ReactNode }> = ({ childr
     }
   }, []);
 
+  // Check if there are pending changes
+  const hasPendingChanges = pendingConfig && JSON.stringify(pendingConfig) !== JSON.stringify(config);
+
   return (
     <ConfigurationContext.Provider value={{
-      config,
+      config: pendingConfig || config,  // Show pending config in UI
       updateConfig,
       resetConfig,
       exportConfig,
-      importConfig
+      importConfig,
+      applyConfig,
+      cancelPendingChanges,
+      hasPendingChanges,
+      isReconnecting,
+      actualConfig: config  // The actually applied config
     }}>
       {children}
     </ConfigurationContext.Provider>
@@ -1556,7 +1682,21 @@ const ConfigurationProvider: React.FC<{ children: React.ReactNode }> = ({ childr
 
 // Main Demo Component
 const ThreadManagementDemo: React.FC = () => {
-  const { config } = useContext(ConfigurationContext);
+  const { actualConfig, isReconnecting } = useContext(ConfigurationContext);
+  const config = actualConfig || useContext(ConfigurationContext).config;
+
+  // Log when component re-renders with new config
+  useEffect(() => {
+    if (actualConfig) {
+      console.log('🎯 [ThreadManagementDemo] Component rendered with config:', {
+        model: actualConfig.aiProvider.model,
+        provider: actualConfig.aiProvider.provider,
+        voice: actualConfig.voice.enabled,
+        mcpServers: actualConfig.mcpServers.length,
+        theme: actualConfig.theme.name
+      });
+    }
+  }, [actualConfig]);
 
   // Build connection configuration for ConfigurableGeUIClient
   const connectionConfig = useMemo(() => {
@@ -1569,8 +1709,16 @@ const ThreadManagementDemo: React.FC = () => {
         headers: server.headers || {}
       }));
 
+    const connectionId = `${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+    console.log(`🆔 [ThreadManagementDemo] Creating connection config with ID: ${connectionId}`);
+    console.log(`   Model: ${config.aiProvider.model}`);
+    console.log(`   Provider: ${config.aiProvider.provider}`);
+    console.log(`   Voice: ${config.voice.enabled ? 'enabled' : 'disabled'}`);
+    console.log(`   MCP Servers: ${mcpServers.length}`);
+
     return {
       client_id: 'thread-management-demo',
+      connection_instance_id: connectionId, // Track this specific connection
       mcp_config: {
         model: config.aiProvider.model,
         api_key_env: AI_PROVIDERS.find(p => p.id === config.aiProvider.provider)?.apiKeyEnv || 'OPENAI_API_KEY',
@@ -1615,6 +1763,17 @@ const ThreadManagementDemo: React.FC = () => {
       zIndex: 1000,
       background: config.theme.colors.colors.background
     }}>
+      {/* Add CSS animations */}
+      <style>{`
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.8; }
+        }
+      `}</style>
       {/* Status Bar */}
       <div style={{
         position: 'absolute',
@@ -1642,24 +1801,68 @@ const ThreadManagementDemo: React.FC = () => {
         <span>{config.voice.enabled ? '🎤 Voice' : '🔇 Text Only'}</span>
       </div>
 
+      {/* Reconnecting Overlay */}
+      {isReconnecting && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.8)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 10000,
+          backdropFilter: 'blur(8px)'
+        }}>
+          <div style={{
+            backgroundColor: 'white',
+            borderRadius: '16px',
+            padding: '32px',
+            textAlign: 'center',
+            boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+          }}>
+            <h2 style={{ margin: '0 0 16px 0', fontSize: '20px', color: '#1f2937' }}>
+              🔄 Applying Configuration
+            </h2>
+            <p style={{ margin: '0 0 24px 0', color: '#6b7280' }}>
+              Reconnecting with new settings...
+            </p>
+            <div style={{
+              width: '48px',
+              height: '48px',
+              margin: '0 auto',
+              border: '4px solid #e5e7eb',
+              borderTopColor: '#667eea',
+              borderRadius: '50%',
+              animation: 'spin 1s linear infinite'
+            }} />
+          </div>
+        </div>
+      )}
+
       {/* Main ConfigurableGeUIClient Component */}
-      <ConfigurableGeUIClient
-        clientId="thread-management-demo"
-        connectionConfig={connectionConfig}
-        bubbleEnabled={false}
-        disableVoice={!config.voice.enabled}  // Voice controlled by settings
-        enableThreadManagement={true}  // Enable thread management functionality
-        options={{
-          ...geuiOptions,
-          threadManager: {
-            enablePersistence: true,
-            maxThreads: 20,
-            autoGenerateTitles: true,
-            showCreateButton: true,
-            allowThreadDeletion: true
-          }
-        }}
-      />
+      {!isReconnecting && (
+        <ConfigurableGeUIClient
+          key={JSON.stringify(connectionConfig)} // Force remount on config change
+          clientId="thread-management-demo"
+          connectionConfig={connectionConfig}
+          bubbleEnabled={false}
+          disableVoice={!config.voice.enabled}  // Voice controlled by settings
+          enableThreadManagement={true}  // Enable thread management functionality
+          options={{
+            ...geuiOptions,
+            threadManager: {
+              enablePersistence: true,
+              maxThreads: 20,
+              autoGenerateTitles: true,
+              showCreateButton: true,
+              allowThreadDeletion: true
+            }
+          }}
+        />
+      )}
     </div>
   );
 };
