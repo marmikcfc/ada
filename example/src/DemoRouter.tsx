@@ -2,22 +2,16 @@ import React, { useState } from 'react';
 import SaaSOnboardingDemo from './demos/SaaSOnboardingDemo';
 import ChatOnlyDemo from './demos/ChatOnlyDemo';
 import StandaloneVoiceBotDemo from './demos/StandaloneVoiceBotDemo';
-import CustomFullscreenDemo from './demos/CustomFullscreenDemo';
-import VoiceOnlyDemo from './demos/VoiceOnlyDemo';
-import ThemeShowcaseDemo from './demos/ThemeShowcaseDemo';
-import UIFrameworkDemo from './demos/UIFrameworkDemo';
-import ConfigurableDemo from './demos/ConfigurableDemo';
 import ThreadManagementDemo from './demos/ThreadManagementDemo';
-import ShadcnStaticDemo from './demos/ShadcnStaticDemo';
 
 /**
  * Demo Router Component
  * 
- * Provides navigation between the 8 demo use cases to showcase
- * the GenUX SDK's capabilities for different scenarios.
+ * Provides navigation between demo use cases to showcase
+ * the GeUI SDK's capabilities for different scenarios.
  */
 
-type DemoType = 'saas' | 'chat' | 'standalone' | 'customfullscreen' | 'voiceonly' | 'themes' | 'uiframework' | 'configurable' | 'threadmanagement' | 'package' | 'shadcn';
+type DemoType = 'saas' | 'chat' | 'standalone' | 'threadmanagement';
 
 interface Demo {
   id: DemoType;
@@ -54,60 +48,12 @@ const demos: Demo[] = [
     component: StandaloneVoiceBotDemo
   },
   {
-    id: 'customfullscreen',
-    title: 'Custom Fullscreen Components',
-    description: 'Complete component overrides for ThreadList, VoiceBot, and ChatWindow',
-    icon: '🎨',
-    status: 'supported',
-    component: CustomFullscreenDemo
-  },
-  {
-    id: 'voiceonly',
-    title: 'Voice-Only Interface',
-    description: 'Pure voice interaction without any chat UI - voice-first experience',
-    icon: '🎙️',
-    status: 'supported',
-    component: VoiceOnlyDemo
-  },
-  {
-    id: 'themes',
-    title: 'Theme Showcase',
-    description: 'Comprehensive theme system with light, dark, and custom themes',
-    icon: '🌈',
-    status: 'supported',
-    component: ThemeShowcaseDemo
-  },
-  {
-    id: 'uiframework',
-    title: 'UI Framework Support',
-    description: 'Backend-generated HTML with framework-specific optimization and interaction handling',
-    icon: '🔧',
-    status: 'supported',
-    component: UIFrameworkDemo
-  },
-  {
-    id: 'configurable',
-    title: 'Configurable Multi-Tenant',
-    description: 'Scalable multi-tenant architecture with framework selection, AI models, and MCP tools per connection',
-    icon: '🏢',
-    status: 'supported',
-    component: ConfigurableDemo
-  },
-  {
     id: 'threadmanagement',
     title: 'Thread Management & Settings',
     description: 'ThreadInterface with disconnect/reconnect architecture, single localStorage collection, and comprehensive settings',
     icon: '🧵',
     status: 'supported',
     component: ThreadManagementDemo
-  },
-  {
-    id: 'shadcn',
-    title: 'shadcn/ui Static Test',
-    description: 'Static test of shadcn/ui components to verify styling is working correctly',
-    icon: '🎨',
-    status: 'supported',
-    component: ShadcnStaticDemo
   }
 ];
 

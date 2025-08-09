@@ -33,16 +33,8 @@ export {
   type ThreadOptions 
 } from './hooks/useGeUIClient';
 
-// DEPRECATED: These hooks are deprecated in favor of useGeUIClient with enableThreads option
-// They will be removed in the next major version
-/** @deprecated Use useGeUIClient with enableThreads: true instead */
-export { useThreadListManager } from './hooks/useThreadListManager';
-/** @deprecated Use useGeUIClient with enableThreads: true instead */
-export { useThreadManager } from './hooks/useThreadManager';
-/** @deprecated Use useGeUIClient with enableThreads: true instead */
-export { useThreadedClient } from './hooks/useThreadedClient';
-/** @deprecated Use useGeUIClient with enableThreads: true instead */
-export { useThreadInterface } from './hooks/useThreadInterface';
+// Thread management hooks have been removed in favor of useGeUIClient with enableThreads option
+// Use useGeUIClient with enableThreads: true for thread management functionality
 
 // Contexts for thread management
 export { ThreadProvider, useThreadContext, useOptionalThreadContext } from './contexts/ThreadContext';
@@ -143,27 +135,5 @@ export type {
 
 // Note: FullscreenModalProps has been replaced by FullscreenLayoutProps
 
-// Export thread list manager hook types
-export type {
-  UseThreadListManagerOptions,
-  UseThreadListManagerResult,
-} from './hooks/useThreadListManager';
-
-// Export thread manager hook types
-export type {
-  UseThreadManagerOptions,
-  UseThreadManagerResult,
-} from './hooks/useThreadManager';
-
-// Export threaded client hook types
-export type {
-  UseThreadedClientOptions,
-} from './hooks/useThreadedClient';
-
-// Export thread interface hook types
-/** @deprecated Use ThreadedGeUIClient type instead */
-export type {
-  ThreadInterfaceOptions,
-  ThreadInterface,
-  StorageInfo as ThreadInterfaceStorageInfo,
-} from './hooks/useThreadInterface';
+// Thread management types are now exported from useGeUIClient
+// Use ThreadedGeUIClient and ThreadOptions types instead
