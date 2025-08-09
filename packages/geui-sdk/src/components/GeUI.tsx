@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { GeUIProps, ChatButtonProps } from '../types';
+import { GeUIProps, ChatButtonProps, Thread } from '../types';
 import { useGeUIClient } from '../hooks/useGeUIClient';
-import { useThreadInterfaceWrapper } from '../hooks/useThreadInterfaceWrapper';
 import { ThreadProvider } from '../contexts/ThreadContext';
 import BubbleWidget from './core/BubbleWidget';
 import { MinimizableChatWindow, MinimizableChatWindowProps } from './composite/MinimizableChatWindow';
@@ -62,30 +61,33 @@ const GeUI: React.FC<GeUIProps> = ({
       onInputChange: options.onInputChange,
       onLinkClick: options.onLinkClick,
       onWebSocketConnect: options.onWebSocketConnect,
+      // Enable threads if thread management is requested
+      enableThreads: enableThreadManagement,
+      threadOptions: enableThreadManagement ? {
+        enablePersistence: options.threadManager?.enablePersistence ?? true,
+        storageKey: options.threadManager?.storageKey,
+        maxThreads: options.threadManager?.maxThreads,
+        autoGenerateTitles: options.threadManager?.autoGenerateTitles,
+        generateTitle: options.threadManager?.generateTitle,
+      } : undefined,
     }),
-    [webrtcURL, websocketURL, options.mcpEndpoints, options.uiFramework, options.onFormSubmit, options.onButtonClick, options.onInputChange, options.onLinkClick, options.onWebSocketConnect, disableVoice]
+    [webrtcURL, websocketURL, options.mcpEndpoints, options.uiFramework, options.onFormSubmit, options.onButtonClick, options.onInputChange, options.onLinkClick, options.onWebSocketConnect, disableVoice, enableThreadManagement, options.threadManager]
   );
 
-  // Use a single client - either with thread management or without
-  const client = enableThreadManagement 
-    ? useThreadInterfaceWrapper({
-        ...clientOptions,
-        threadOptions: {
-          enablePersistence: options.threadManager?.enablePersistence ?? true,
-          storageKey: options.threadManager?.storageKey,
-          maxThreads: options.threadManager?.maxThreads,
-          autoGenerateTitles: options.threadManager?.autoGenerateTitles,
-          generateTitle: options.threadManager?.generateTitle,
-        }
-      })
-    : useGeUIClient(clientOptions);
+  // Use enhanced client with optional thread management
+  const client = useGeUIClient(clientOptions);
+  
+  // Type assertion to help TypeScript understand the client type based on enableThreadManagement
+  const typedClient = client as typeof enableThreadManagement extends true 
+    ? import('../hooks/useGeUIClient').ThreadedGeUIClient 
+    : import('../hooks/useGeUIClient').BaseGeUIClient;
   
   // Apply audio stream to audio element when available
   useEffect(() => {
-    if (audioRef.current && client.audioStream && !disableVoice) {
-      audioRef.current.srcObject = client.audioStream;
+    if (audioRef.current && typedClient.audioStream && !disableVoice) {
+      audioRef.current.srcObject = typedClient.audioStream;
     }
-  }, [client.audioStream, disableVoice]);
+  }, [typedClient.audioStream, disableVoice]);
   
   // Get theme from options or use default
   const theme = options.theme ? createTheme(options.theme) : undefined;
@@ -107,10 +109,10 @@ const GeUI: React.FC<GeUIProps> = ({
   const handleToggleVoice = () => {
     if (disableVoice) return;
     
-    if (client.voiceState === 'connected') {
-      client.stopVoice();
-    } else if (client.voiceState === 'disconnected') {
-      client.startVoice();
+    if (typedClient.voiceState === 'connected') {
+      typedClient.stopVoice();
+    } else if (typedClient.voiceState === 'disconnected') {
+      typedClient.startVoice();
     }
   };
 
@@ -163,56 +165,59 @@ const GeUI: React.FC<GeUIProps> = ({
       // Handle C1 actions - can add custom logic here if needed
       console.log('C1Action from chat window:', action);
     },
-    sendC1Action: client.sendC1Action,
+    sendC1Action: typedClient.sendC1Action,
     theme,
     crayonTheme: options.crayonTheme,
   };
   
   // Prepare thread context value if thread management is enabled
-  const threadContextValue = enableThreadManagement && 'threads' in client ? {
+  // When enableThreads is true, the client will have thread methods
+  const hasThreadSupport = enableThreadManagement;
+  const threadedClient = typedClient as any; // Type cast for thread properties
+  const threadContextValue = hasThreadSupport ? {
     // Thread state
-    threads: client.threads,
-    activeThreadId: client.activeThreadId,
-    currentThread: client.activeThread,
+    threads: threadedClient.threads || [],
+    activeThreadId: threadedClient.activeThreadId || null,
+    currentThread: threadedClient.activeThread || null,
     isCreatingThread: false, // ThreadInterface doesn't have this specific state
-    isLoadingThreads: 'isLoadingThreads' in client ? client.isLoadingThreads : false,
-    isSwitchingThread: client.isSwitching,
+    isLoadingThreads: threadedClient.isLoadingThreads || false,
+    isSwitchingThread: threadedClient.isSwitchingThread || false,
     threadError: null, // ThreadInterface doesn't expose errors directly
     
     // Client state
-    messages: client.messages,
-    connectionState: client.connectionState,
-    voiceState: client.voiceState,
-    isLoading: client.isLoading,
-    isEnhancing: client.isEnhancing,
-    streamingContent: client.streamingContent,
-    streamingContentType: client.streamingContentType,
-    streamingMessageId: client.streamingMessageId,
-    isStreamingActive: client.isStreamingActive,
+    messages: typedClient.messages,
+    connectionState: typedClient.connectionState,
+    voiceState: typedClient.voiceState,
+    isLoading: typedClient.isLoading,
+    isEnhancing: typedClient.isEnhancing,
+    streamingContent: typedClient.streamingContent,
+    streamingContentType: typedClient.streamingContentType,
+    streamingMessageId: typedClient.streamingMessageId,
+    isStreamingActive: typedClient.isStreamingActive,
     
     // Thread actions
     createThread: async (initialMessage?: string) => {
-      const thread = await client.createThread(initialMessage);
+      const thread = await threadedClient.createThread(initialMessage);
       return thread.id;
     },
-    switchThread: client.switchThread,
-    deleteThread: client.deleteThread,
-    renameThread: client.renameThread,
-    clearAllThreads: client.clearAllThreads,
+    switchThread: threadedClient.switchThread || (() => {}),
+    deleteThread: threadedClient.deleteThread || (() => {}),
+    renameThread: threadedClient.renameThread || (() => {}),
+    clearAllThreads: threadedClient.clearAllThreads || (() => {}),
     refreshThreads: () => {}, // ThreadInterface doesn't have refresh
     
     // Client actions
-    sendText: client.sendText,
-    sendC1Action: client.sendC1Action,
+    sendText: typedClient.sendText,
+    sendC1Action: typedClient.sendC1Action,
     startVoice: async () => {
-      client.startVoice();
+      typedClient.startVoice();
     },
-    stopVoice: client.stopVoice,
-    clearMessages: client.clearMessages,
+    stopVoice: typedClient.stopVoice,
+    clearMessages: typedClient.clearMessages,
     
     // Utility methods
-    getThread: (id: string) => client.threads.find(t => t.id === id),
-    isReadyForVoice: client.isReadyForVoice,
+    getThread: (id: string) => (threadedClient.threads || []).find((t: Thread) => t.id === id),
+    isReadyForVoice: typedClient.isReadyForVoice,
   } : null;
 
   const content = (
@@ -283,23 +288,23 @@ const GeUI: React.FC<GeUIProps> = ({
           onClose={handleFullscreenClose}
         >
           <VoiceBotFullscreenLayout
-            isVoiceConnected={client.voiceState === 'connected'}
-            isVoiceLoading={client.voiceState === 'connecting'}
+            isVoiceConnected={typedClient.voiceState === 'connected'}
+            isVoiceLoading={typedClient.voiceState === 'connecting'}
             onToggleVoice={handleToggleVoice}
-            onSendMessage={client.sendText}
-            messages={client.messages}
+            onSendMessage={typedClient.sendText}
+            messages={typedClient.messages}
             onC1Action={(action: any) => {
               // Handle C1 actions - for now just send the human-friendly message
               if (action.humanFriendlyMessage) {
-                client.sendText(action.humanFriendlyMessage);
+                typedClient.sendText(action.humanFriendlyMessage);
               }
             }}
-            sendC1Action={client.sendC1Action}
-            isLoading={client.isLoading}
-            isEnhancing={client.isEnhancing}
-            streamingContent={client.streamingContent}
-            streamingMessageId={client.streamingMessageId}
-            isStreamingActive={client.isStreamingActive}
+            sendC1Action={typedClient.sendC1Action}
+            isLoading={typedClient.isLoading}
+            isEnhancing={typedClient.isEnhancing}
+            streamingContent={typedClient.streamingContent}
+            streamingMessageId={typedClient.streamingMessageId}
+            isStreamingActive={typedClient.isStreamingActive}
             config={{
               agentName: options.agentName || "Ada",
               agentSubtitle: options.agentSubtitle || "How can I help you today?",
@@ -326,7 +331,7 @@ const GeUI: React.FC<GeUIProps> = ({
   );
 
   // Wrap with ThreadProvider if thread management is enabled
-  if (enableThreadManagement && threadContextValue) {
+  if (hasThreadSupport && threadContextValue) {
     return (
       <ThreadProvider value={threadContextValue}>
         {content}

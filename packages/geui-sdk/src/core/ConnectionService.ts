@@ -290,8 +290,15 @@ export class ConnectionService extends EventEmitter {
    * Wait for backend connection ID from WebSocket connection_established message
    */
   private async waitForBackendConnectionId(): Promise<string> {
+    // If we already have a backend connection ID, return it immediately
+    if (this.backendConnectionId) {
+      console.log(`[WS:${this.connectionLogId}] Already have backend connection ID: ${this.backendConnectionId}`);
+      return this.backendConnectionId;
+    }
+    
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
+        console.error(`[WS:${this.connectionLogId}] Timeout waiting for backend connection ID after 30 seconds`);
         reject(new Error('Timeout waiting for backend connection ID'));
       }, 30000); // 30 second timeout
       
@@ -312,11 +319,14 @@ export class ConnectionService extends EventEmitter {
         }
       };
       
-      if (this.webSocket) {
+      if (this.webSocket && this.webSocket.readyState === WebSocket.OPEN) {
+        console.log(`[WS:${this.connectionLogId}] WebSocket is open, waiting for connection_established message`);
         this.webSocket.addEventListener('message', handleMessage);
       } else {
         clearTimeout(timeout);
-        reject(new Error('WebSocket not connected'));
+        const state = this.webSocket ? `state=${this.webSocket.readyState}` : 'null';
+        console.error(`[WS:${this.connectionLogId}] WebSocket not connected (${state}), cannot wait for backend ID`);
+        reject(new Error(`WebSocket not connected (${state})`));
       }
     });
   }
@@ -899,7 +909,11 @@ export class ConnectionService extends EventEmitter {
 
     try {
       // 1. Disconnect current thread completely
-      await this.disconnectCurrentThread();
+      if (this.webSocket && this.webSocket.readyState === WebSocket.OPEN) {
+        await this.disconnectCurrentThread();
+        // Add a small delay to ensure clean disconnection
+        await new Promise(resolve => setTimeout(resolve, 100));
+      }
 
       // 2. Set new active thread
       this.setActiveThreadId(threadId);
@@ -909,7 +923,13 @@ export class ConnectionService extends EventEmitter {
       await this.connectWebSocket(threadId);
 
       // 4. Wait for connection to be established and get backend ID
-      await this.waitForBackendConnectionId();
+      // The connectWebSocket promise resolves when the socket is open, so we should be safe to wait
+      try {
+        await this.waitForBackendConnectionId();
+      } catch (idError) {
+        console.warn(`[WS:${this.connectionLogId}] Could not get backend connection ID:`, idError);
+        // Continue anyway - the connection might still work
+      }
 
       // 5. Update thread connection info
       this.setThreadConnectionInfo(threadId, {
@@ -938,6 +958,15 @@ export class ConnectionService extends EventEmitter {
       console.log(`[WS:${this.connectionLogId}] Thread switch to ${threadId} completed successfully`);
     } catch (error) {
       console.error(`[WS:${this.connectionLogId}] Error switching to thread ${threadId}:`, error);
+      
+      // Try to recover by reconnecting
+      try {
+        console.log(`[WS:${this.connectionLogId}] Attempting recovery connection for thread ${threadId}`);
+        this.setActiveThreadId(threadId);
+        await this.connectWebSocket(threadId);
+      } catch (recoveryError) {
+        console.error(`[WS:${this.connectionLogId}] Recovery failed:`, recoveryError);
+      }
       
       // Emit thread switch error event
       this.emit(ConnectionEvent.THREAD_SWITCH_ERROR, {

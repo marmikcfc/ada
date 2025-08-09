@@ -26,10 +26,22 @@ export {
 } from './components/defaults';
 
 // Hooks for headless usage
-export { useGeUIClient } from './hooks/useGeUIClient';
+export { 
+  useGeUIClient,
+  type BaseGeUIClient,
+  type ThreadedGeUIClient,
+  type ThreadOptions 
+} from './hooks/useGeUIClient';
+
+// DEPRECATED: These hooks are deprecated in favor of useGeUIClient with enableThreads option
+// They will be removed in the next major version
+/** @deprecated Use useGeUIClient with enableThreads: true instead */
 export { useThreadListManager } from './hooks/useThreadListManager';
+/** @deprecated Use useGeUIClient with enableThreads: true instead */
 export { useThreadManager } from './hooks/useThreadManager';
+/** @deprecated Use useGeUIClient with enableThreads: true instead */
 export { useThreadedClient } from './hooks/useThreadedClient';
+/** @deprecated Use useGeUIClient with enableThreads: true instead */
 export { useThreadInterface } from './hooks/useThreadInterface';
 
 // Contexts for thread management
@@ -149,6 +161,7 @@ export type {
 } from './hooks/useThreadedClient';
 
 // Export thread interface hook types
+/** @deprecated Use ThreadedGeUIClient type instead */
 export type {
   ThreadInterfaceOptions,
   ThreadInterface,

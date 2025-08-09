@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import Genux from '../components/Genux';
+import GeUI from '../components/GeUI';
 import { Message } from '../types';
 
 /**
@@ -9,14 +9,15 @@ export const FlexibleContentDemo = () => {
   const [messages] = useState<Message[]>([
     {
       id: '1',
-      role: 'assistant',
+      role: 'assistant' as const,
       content: 'Hello! I can render content in multiple formats. Here are some examples:',
+      contentType: 'text' as const,
       timestamp: new Date(),
     },
     {
       id: '2',
-      role: 'assistant',
-      c1Content: `<content>
+      role: 'assistant' as const,
+      content: `<content>
         <h2>C1Component Example</h2>
         <p>This is a C1Component with rich formatting:</p>
         <table>
@@ -42,12 +43,13 @@ export const FlexibleContentDemo = () => {
           </tbody>
         </table>
       </content>`,
+      contentType: 'c1' as const,
       timestamp: new Date(),
     },
     {
       id: '3',
-      role: 'assistant',
-      htmlContent: `
+      role: 'assistant' as const,
+      content: `
         <div style="padding: 16px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; border-radius: 12px;">
           <h3>HTML Content Example</h3>
           <p>This is directly rendered HTML with custom styling!</p>
@@ -56,12 +58,13 @@ export const FlexibleContentDemo = () => {
           </button>
         </div>
       `,
-      contentType: 'html',
+      contentType: 'html' as const,
       timestamp: new Date(),
     },
     {
       id: '4',
-      role: 'assistant',
+      role: 'assistant' as const,
+      content: '',
       reactContent: (
         <div style={{ 
           padding: '16px', 
@@ -86,21 +89,23 @@ export const FlexibleContentDemo = () => {
           </button>
         </div>
       ),
-      contentType: 'react',
+      contentType: 'react' as const,
       timestamp: new Date(),
     },
     {
       id: '5',
-      role: 'assistant',
+      role: 'assistant' as const,
       content: 'I can also auto-detect content types. Here\'s some HTML that will be automatically detected:',
+      contentType: 'text' as const,
       timestamp: new Date(),
     },
     {
       id: '6',
-      role: 'assistant',
+      role: 'assistant' as const,
       content: `<div style="padding: 12px; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px;">
         <strong>Auto-detected HTML!</strong> The renderer automatically detected this as HTML content.
       </div>`,
+      contentType: 'html' as const,
       timestamp: new Date(),
     },
   ]);
@@ -170,9 +175,9 @@ export const FlexibleContentDemo = () => {
         </div>
       </div>
 
-      {/* Genux component with mock data */}
+      {/* GeUI component with mock data */}
       <div style={{ position: 'fixed', bottom: '20px', right: '20px' }}>
-        <Genux
+        <GeUI
           webrtcURL={mockWebrtcURL}
           websocketURL={mockWebsocketURL}
           bubbleEnabled={true}
