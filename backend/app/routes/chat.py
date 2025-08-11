@@ -688,13 +688,13 @@ async def _process_per_connection_chat(context, chat_message: ChatMessage):
         logger.info(f"Processing {chat_message.type} for {context.connection_id}: {message[:100]}...")
         
         # DEBUG ROUTES: Check for debug messages
-        message_lower = message.lower().strip()
-        if message_lower == "shadcn data table":
-            await _handle_shadcn_data_table_debug(context, thread_id)
-            return
-        elif message_lower == "shadcn badge":
-            await _handle_shadcn_badge_debug(context, thread_id)
-            return
+        # message_lower = message.lower().strip()
+        # if message_lower == "shadcn data table":
+        #     await _handle_shadcn_data_table_debug(context, thread_id)
+        #     return
+        # elif message_lower == "shadcn badge":
+        #     await _handle_shadcn_badge_debug(context, thread_id)
+        #     return
         
         # Get conversation history from connection's storage
         history = await _get_connection_history(context.connection_id, thread_id)

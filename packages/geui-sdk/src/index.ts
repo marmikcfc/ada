@@ -26,11 +26,15 @@ export {
 } from './components/defaults';
 
 // Hooks for headless usage
-export { useGeUIClient } from './hooks/useGeUIClient';
-export { useThreadListManager } from './hooks/useThreadListManager';
-export { useThreadManager } from './hooks/useThreadManager';
-export { useThreadedClient } from './hooks/useThreadedClient';
-export { useThreadInterface } from './hooks/useThreadInterface';
+export { 
+  useGeUIClient,
+  type BaseGeUIClient,
+  type ThreadedGeUIClient,
+  type ThreadOptions 
+} from './hooks/useGeUIClient';
+
+// Thread management hooks have been removed in favor of useGeUIClient with enableThreads option
+// Use useGeUIClient with enableThreads: true for thread management functionality
 
 // Contexts for thread management
 export { ThreadProvider, useThreadContext, useOptionalThreadContext } from './contexts/ThreadContext';
@@ -131,26 +135,5 @@ export type {
 
 // Note: FullscreenModalProps has been replaced by FullscreenLayoutProps
 
-// Export thread list manager hook types
-export type {
-  UseThreadListManagerOptions,
-  UseThreadListManagerResult,
-} from './hooks/useThreadListManager';
-
-// Export thread manager hook types
-export type {
-  UseThreadManagerOptions,
-  UseThreadManagerResult,
-} from './hooks/useThreadManager';
-
-// Export threaded client hook types
-export type {
-  UseThreadedClientOptions,
-} from './hooks/useThreadedClient';
-
-// Export thread interface hook types
-export type {
-  ThreadInterfaceOptions,
-  ThreadInterface,
-  StorageInfo as ThreadInterfaceStorageInfo,
-} from './hooks/useThreadInterface';
+// Thread management types are now exported from useGeUIClient
+// Use ThreadedGeUIClient and ThreadOptions types instead

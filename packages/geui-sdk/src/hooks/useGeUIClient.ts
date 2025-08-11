@@ -6,8 +6,20 @@ import {
   VoiceConnectionState,
   GeUIClient,
   InteractionType,
-  InteractionProcessingState
+  InteractionProcessingState,
+  Thread
 } from '../types';
+
+/**
+ * Thread management options
+ */
+export interface ThreadOptions {
+  enablePersistence?: boolean;
+  storageKey?: string;
+  maxThreads?: number;
+  autoGenerateTitles?: boolean;
+  generateTitle?: (firstMessage: string) => string;
+}
 
 /**
  * Options for the useGeUIClient hook
@@ -32,12 +44,22 @@ export interface UseGeUIClientOptions extends ConnectionServiceOptions {
    * Callback when a new thread is created
    */
   onThreadCreated?: (threadId: string) => void;
+  
+  /**
+   * Enable thread management features
+   */
+  enableThreads?: boolean;
+  
+  /**
+   * Thread management options (only used when enableThreads=true)
+   */
+  threadOptions?: ThreadOptions;
 }
 
 /**
- * Hook that provides a headless interface to the GeUI SDK
+ * Base client interface returned by useGeUIClient
  */
-export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
+export interface BaseGeUIClient extends GeUIClient {
   // Additional properties beyond the GeUIClient interface
   threadId: string | undefined;
   setThreadId: (threadId: string) => void;
@@ -54,7 +76,31 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
   setMessages: (messages: Message[]) => void;
   getBackendConnectionId: () => string | null;
   isReadyForVoice: () => boolean;
-} {
+}
+
+/**
+ * Client with thread management
+ */
+export interface ThreadedGeUIClient extends BaseGeUIClient {
+  // Thread management
+  threads: Thread[];
+  activeThreadId: string | null;
+  activeThread: Thread | null;
+  isSwitchingThread: boolean;
+  createThread: (title?: string) => Promise<Thread>;
+  switchThread: (threadId: string) => Promise<void>;
+  selectThread: (threadId: string) => Promise<void>; // Alias for switchThread
+  deleteThread: (threadId: string) => Promise<void>;
+  renameThread: (threadId: string, title: string) => Promise<void>;
+  clearAllThreads: () => Promise<void>;
+}
+
+/**
+ * Hook that provides a headless interface to the GeUI SDK
+ */
+export function useGeUIClient<T extends UseGeUIClientOptions>(
+  options: T
+): T['enableThreads'] extends true ? ThreadedGeUIClient : BaseGeUIClient {
   // Connection service instance stored in a ref to persist across renders
   const connectionServiceRef = useRef<ConnectionService | null>(null);
   
@@ -385,7 +431,363 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
     return connectionServiceRef.current?.isReadyForVoice() || false;
   }, []);
 
-  return {
+  // Thread management state (only when enableThreads=true)
+  const [threads, setThreads] = useState<Thread[]>([]);
+  const [activeThreadId, setActiveThreadId] = useState<string | null>(null);
+  const [threadMessages, setThreadMessages] = useState<Record<string, Message[]>>({});
+  const [isSwitchingThread, setIsSwitchingThread] = useState(false);
+  const switchingRef = useRef(false);
+  const messagesRef = useRef<Message[]>([]);
+  
+  // Thread storage functions
+  const loadThreadsFromStorage = useCallback(() => {
+    if (!options.enableThreads || !options.threadOptions?.enablePersistence) return null;
+    
+    const storageKey = options.threadOptions?.storageKey || 'geui-threads';
+    try {
+      const data = localStorage.getItem(storageKey);
+      if (!data) return null;
+      
+      const parsed = JSON.parse(data);
+      // Convert timestamps
+      if (parsed.threads) {
+        Object.values(parsed.threads).forEach((thread: any) => {
+          if (thread.messages) {
+            thread.messages = thread.messages.map((msg: any) => ({
+              ...msg,
+              timestamp: new Date(msg.timestamp)
+            }));
+          }
+        });
+      }
+      return parsed;
+    } catch (error) {
+      console.error('Failed to load threads from storage:', error);
+      return null;
+    }
+  }, [options.enableThreads, options.threadOptions]);
+  
+  const saveThreadsToStorage = useCallback((data: any) => {
+    if (!options.enableThreads || !options.threadOptions?.enablePersistence) return;
+    
+    const storageKey = options.threadOptions?.storageKey || 'geui-threads';
+    try {
+      localStorage.setItem(storageKey, JSON.stringify(data));
+    } catch (error) {
+      console.error('Failed to save threads to storage:', error);
+    }
+  }, [options.enableThreads, options.threadOptions]);
+  
+  // Thread management functions
+  const createThread = useCallback(async (title?: string): Promise<Thread> => {
+    if (!options.enableThreads) {
+      throw new Error('Thread management is not enabled');
+    }
+    
+    const threadId = `thread-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    const now = new Date();
+    
+    const newThread: Thread = {
+      id: threadId,
+      title: title || `Thread ${threads.length + 1}`,
+      createdAt: now,
+      updatedAt: now,
+      messageCount: 0
+    };
+    
+    // Save current thread messages before switching
+    if (activeThreadId && options.threadOptions?.enablePersistence) {
+      const storage = loadThreadsFromStorage() || {
+        version: 1,
+        threads: {},
+        activeThreadId: null,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      if (storage.threads[activeThreadId]) {
+        storage.threads[activeThreadId].messages = messagesRef.current;
+        saveThreadsToStorage(storage);
+      }
+    }
+    
+    // Update state
+    setThreads(prev => [...prev, newThread]);
+    setThreadMessages(prev => ({ ...prev, [threadId]: [] }));
+    setActiveThreadId(threadId);
+    setThreadIdInternal(threadId);
+    
+    // Clear messages for new thread
+    messagesRef.current = [];
+    clearMessages();
+    
+    // Save new thread to storage
+    if (options.threadOptions?.enablePersistence) {
+      const storage = loadThreadsFromStorage() || {
+        version: 1,
+        threads: {},
+        activeThreadId: null,
+        lastUpdated: new Date().toISOString()
+      };
+      
+      storage.threads[threadId] = {
+        id: threadId,
+        title: newThread.title,
+        createdAt: now.toISOString(),
+        updatedAt: now.toISOString(),
+        messageCount: 0,
+        messages: []
+      };
+      
+      storage.activeThreadId = threadId;
+      saveThreadsToStorage(storage);
+    }
+    
+    // Switch WebSocket connection to new thread
+    if (connectionServiceRef.current) {
+      try {
+        // Switch to new thread - this will handle reconnection if needed
+        await connectionServiceRef.current.switchToThread(threadId);
+      } catch (error) {
+        console.error('Error switching connection to new thread:', error);
+        // Continue even if connection switch fails - thread is still created
+      }
+    }
+    
+    return newThread;
+  }, [options.enableThreads, options.threadOptions, threads.length, activeThreadId, clearMessages, loadThreadsFromStorage, saveThreadsToStorage]);
+  
+  const switchThread = useCallback(async (newThreadId: string) => {
+    if (!options.enableThreads || newThreadId === activeThreadId || switchingRef.current) return;
+    
+    switchingRef.current = true;
+    setIsSwitchingThread(true);
+    
+    try {
+      // Save current thread messages
+      if (activeThreadId && options.threadOptions?.enablePersistence) {
+        const storage = loadThreadsFromStorage() || {
+          version: 1,
+          threads: {},
+          activeThreadId: null,
+          lastUpdated: new Date().toISOString()
+        };
+        
+        if (storage.threads[activeThreadId]) {
+          storage.threads[activeThreadId].messages = messagesRef.current;
+          saveThreadsToStorage(storage);
+        }
+      }
+      
+      // Clear messages
+      clearMessages();
+      
+      // Update active thread
+      setActiveThreadId(newThreadId);
+      setThreadIdInternal(newThreadId);
+      
+      // Switch thread in connection service if it exists
+      if (connectionServiceRef.current) {
+        try {
+          await connectionServiceRef.current.switchToThread(newThreadId);
+        } catch (error) {
+          console.error('Error switching connection to thread:', error);
+          // Continue even if connection switch fails - we can retry later
+        }
+      }
+      
+      // Load new thread messages
+      const newMessages = threadMessages[newThreadId] || [];
+      messagesRef.current = newMessages;
+      setMessagesDirectly(newMessages);
+      
+      // Save active thread
+      if (options.threadOptions?.enablePersistence) {
+        const storage = loadThreadsFromStorage();
+        if (storage) {
+          storage.activeThreadId = newThreadId;
+          saveThreadsToStorage(storage);
+        }
+      }
+    } finally {
+      switchingRef.current = false;
+      setIsSwitchingThread(false);
+    }
+  }, [options.enableThreads, options.threadOptions, activeThreadId, threadMessages, clearMessages, setMessagesDirectly, loadThreadsFromStorage, saveThreadsToStorage]);
+  
+  const deleteThread = useCallback(async (threadIdToDelete: string) => {
+    if (!options.enableThreads) return;
+    
+    setThreads(prev => prev.filter(t => t.id !== threadIdToDelete));
+    setThreadMessages(prev => {
+      const updated = { ...prev };
+      delete updated[threadIdToDelete];
+      return updated;
+    });
+    
+    if (threadIdToDelete === activeThreadId) {
+      clearMessages();
+      setActiveThreadId(null);
+    }
+    
+    // Update storage
+    if (options.threadOptions?.enablePersistence) {
+      const storage = loadThreadsFromStorage();
+      if (storage) {
+        delete storage.threads[threadIdToDelete];
+        if (storage.activeThreadId === threadIdToDelete) {
+          storage.activeThreadId = null;
+        }
+        saveThreadsToStorage(storage);
+      }
+    }
+  }, [options.enableThreads, options.threadOptions, activeThreadId, clearMessages, loadThreadsFromStorage, saveThreadsToStorage]);
+  
+  const renameThread = useCallback(async (threadIdToRename: string, newTitle: string) => {
+    if (!options.enableThreads) return;
+    
+    setThreads(prev => prev.map(t => 
+      t.id === threadIdToRename ? { ...t, title: newTitle, updatedAt: new Date() } : t
+    ));
+    
+    // Update storage
+    if (options.threadOptions?.enablePersistence) {
+      const storage = loadThreadsFromStorage();
+      if (storage?.threads[threadIdToRename]) {
+        storage.threads[threadIdToRename].title = newTitle;
+        storage.threads[threadIdToRename].updatedAt = new Date().toISOString();
+        saveThreadsToStorage(storage);
+      }
+    }
+  }, [options.enableThreads, options.threadOptions, loadThreadsFromStorage, saveThreadsToStorage]);
+  
+  const clearAllThreads = useCallback(async () => {
+    if (!options.enableThreads) return;
+    
+    setThreads([]);
+    setActiveThreadId(null);
+    setThreadMessages({});
+    clearMessages();
+    
+    // Clear storage
+    if (options.threadOptions?.enablePersistence) {
+      const storageKey = options.threadOptions?.storageKey || 'geui-threads';
+      localStorage.removeItem(storageKey);
+    }
+  }, [options.enableThreads, options.threadOptions, clearMessages]);
+  
+  // Load threads on mount if enabled
+  useEffect(() => {
+    if (!options.enableThreads) return;
+    
+    const storage = loadThreadsFromStorage();
+    if (storage && Object.keys(storage.threads).length > 0) {
+      const threadList = Object.values(storage.threads).map((threadData: any) => ({
+        id: threadData.id,
+        title: threadData.title,
+        createdAt: new Date(threadData.createdAt),
+        updatedAt: new Date(threadData.updatedAt),
+        lastMessage: threadData.lastMessage,
+        messageCount: threadData.messageCount
+      }));
+      
+      setThreads(threadList);
+      setActiveThreadId(storage.activeThreadId);
+      
+      // Load all thread messages
+      const allMessages: Record<string, Message[]> = {};
+      Object.entries(storage.threads).forEach(([id, thread]: [string, any]) => {
+        allMessages[id] = thread.messages || [];
+      });
+      setThreadMessages(allMessages);
+      
+      // Set active thread messages
+      if (storage.activeThreadId && storage.threads[storage.activeThreadId]) {
+        messagesRef.current = storage.threads[storage.activeThreadId].messages;
+        setMessagesDirectly(storage.threads[storage.activeThreadId].messages);
+        setThreadIdInternal(storage.activeThreadId);
+      }
+    } else {
+      // Create default thread if none exist
+      const threadId = `thread-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      const now = new Date();
+      
+      const newThread: Thread = {
+        id: threadId,
+        title: 'New Conversation',
+        createdAt: now,
+        updatedAt: now,
+        messageCount: 0
+      };
+      
+      setThreads([newThread]);
+      setThreadMessages({ [threadId]: [] });
+      setActiveThreadId(threadId);
+      setThreadIdInternal(threadId);
+      
+      // Save to storage
+      if (options.threadOptions?.enablePersistence) {
+        const newStorage = {
+          version: 1,
+          threads: {
+            [threadId]: {
+              id: threadId,
+              title: newThread.title,
+              createdAt: now.toISOString(),
+              updatedAt: now.toISOString(),
+              messageCount: 0,
+              messages: []
+            }
+          },
+          activeThreadId: threadId,
+          lastUpdated: new Date().toISOString()
+        };
+        saveThreadsToStorage(newStorage);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run on mount - dependencies intentionally excluded
+  
+  // Save messages when they change (if threads enabled)
+  useEffect(() => {
+    if (!options.enableThreads || !activeThreadId || switchingRef.current) return;
+    
+    messagesRef.current = messages;
+    setThreadMessages(prev => ({
+      ...prev,
+      [activeThreadId]: messages
+    }));
+    
+    // Save to storage with debounce
+    const timeoutId = setTimeout(() => {
+      if (options.threadOptions?.enablePersistence) {
+        const storage = loadThreadsFromStorage();
+        if (storage && storage.threads && storage.threads[activeThreadId]) {
+          storage.threads[activeThreadId].messages = messages;
+          storage.threads[activeThreadId].messageCount = messages.length;
+          storage.threads[activeThreadId].lastMessage = messages[messages.length - 1]?.content;
+          storage.threads[activeThreadId].updatedAt = new Date().toISOString();
+          saveThreadsToStorage(storage);
+          
+          // Update thread in state
+          setThreads(prev => prev.map(t => 
+            t.id === activeThreadId 
+              ? {
+                  ...t,
+                  messageCount: messages.length,
+                  lastMessage: messages[messages.length - 1]?.content,
+                  updatedAt: new Date()
+                }
+              : t
+          ));
+        }
+      }
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [messages, activeThreadId, options.enableThreads, options.threadOptions]);
+  
+  // Build the base client
+  const baseClient = {
     // GenuxClient interface
     sendText,
     startVoice,
@@ -422,4 +824,25 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
     getBackendConnectionId,
     isReadyForVoice,
   };
+  
+  // If threads are enabled, add thread management methods
+  if (options.enableThreads) {
+    return {
+      ...baseClient,
+      // Thread management
+      threads,
+      activeThreadId,
+      activeThread: threads.find(t => t.id === activeThreadId) || null,
+      isSwitchingThread,
+      createThread,
+      switchThread,
+      deleteThread,
+      renameThread,
+      clearAllThreads,
+      // For compatibility with existing code
+      selectThread: switchThread,
+    } as any; // Type assertion needed for conditional return type
+  }
+  
+  return baseClient as any; // Type assertion needed for conditional return type
 }
