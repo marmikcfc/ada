@@ -224,7 +224,8 @@ class PerConnectionProcessor:
             
             # Stream visualization response with metadata for proper voice response creation
             await self._stream_visualization_response(
-                messages_for_viz, message_id, thread_id, metadata
+                messages_for_viz, message_id, thread_id, metadata,
+                original_response=decision.displayEnhancedText
             )
             
         except Exception as e:
@@ -301,7 +302,8 @@ class PerConnectionProcessor:
         messages: List[Dict[str, Any]], 
         message_id: str, 
         thread_id: Optional[str],
-        metadata: Optional[Dict[str, Any]] = None
+        metadata: Optional[Dict[str, Any]] = None,
+        original_response: str = ""
     ):
         """Stream visualization response to frontend"""
         try:
@@ -387,25 +389,29 @@ class PerConnectionProcessor:
                     
                     # For HTML providers (OpenAI, Anthropic), store the HTML
                     # For C1 providers (TheSys, Tomorrow), store the C1 JSON
+                    # Use the original_response parameter passed from above
+                    
                     if content_type == "html":
-                        # Store HTML content with metadata
+                        # Store HTML content with metadata and original response
                         enhanced_message = {
                             "type": "enhanced_response",
                             "provider": provider_type,
                             "framework": framework if 'framework' in locals() else "unknown",
                             "content_type": "html",
-                            "content": enhanced_content
+                            "content": enhanced_content,
+                            "original_response": original_response  # Include LLM's original text
                         }
                     else:
-                        # Store C1 content
+                        # Store C1 content with original response
                         enhanced_message = {
                             "type": "enhanced_response", 
                             "provider": provider_type,
                             "content_type": "c1",
-                            "content": enhanced_content
+                            "content": enhanced_content,
+                            "original_response": original_response  # Include LLM's original text
                         }
                     
-                    # Store as assistant message with the enhanced content
+                    # Store as assistant message with the enhanced content and original response
                     import json
                     await chat_history_manager.add_assistant_message(
                         thread_id,

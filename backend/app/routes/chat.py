@@ -720,12 +720,10 @@ async def _process_per_connection_chat(context, chat_message: ChatMessage):
         
         logger.info(f"MCP response for {context.connection_id}: {response[:100]}...")
         
-        # Add assistant response to history
-        await _store_connection_message(
-            context.connection_id, thread_id, "assistant", response
-        )
+        # Don't store assistant response here - it will be stored after enhancement
+        # This avoids duplicate storage of the same message
         
-        # Get updated history for processor
+        # Get updated history for processor (with user message)
         updated_history = await _get_connection_history(context.connection_id, thread_id)
         
         # Queue for enhancement processing
