@@ -35,7 +35,7 @@ async def send_message_to_frontend(message: dict, connection_context, source: st
     else:
         # Use per-connection queue for non-voice messages
         await connection_context.message_queue.put(message)
-        logger.info(f"Enqueued {message.get('type')} to per-connection queue (source: {source})")
+        logger.debug(f"Enqueued {message.get('type')} to per-connection queue (source: {source})")
 
 class PerConnectionProcessor:
     """
@@ -371,6 +371,51 @@ class PerConnectionProcessor:
                 await self._send_to_frontend(done_msg)
             
             logger.info(f"Streamed {chunk_count} chunks for connection {self.connection_id}")
+            
+            # Persist the enhanced response to chat history
+            if full_content:
+                try:
+                    from app.chat_history_manager import chat_history_manager
+                    
+                    # Use thread_id directly without connection prefix
+                    if not thread_id:
+                        logger.warning(f"No thread_id available for persisting enhanced response")
+                        return
+                    
+                    # Combine all chunks into final enhanced content
+                    enhanced_content = ''.join(full_content)
+                    
+                    # For HTML providers (OpenAI, Anthropic), store the HTML
+                    # For C1 providers (TheSys, Tomorrow), store the C1 JSON
+                    if content_type == "html":
+                        # Store HTML content with metadata
+                        enhanced_message = {
+                            "type": "enhanced_response",
+                            "provider": provider_type,
+                            "framework": framework if 'framework' in locals() else "unknown",
+                            "content_type": "html",
+                            "content": enhanced_content
+                        }
+                    else:
+                        # Store C1 content
+                        enhanced_message = {
+                            "type": "enhanced_response", 
+                            "provider": provider_type,
+                            "content_type": "c1",
+                            "content": enhanced_content
+                        }
+                    
+                    # Store as assistant message with the enhanced content
+                    import json
+                    await chat_history_manager.add_assistant_message(
+                        thread_id,
+                        json.dumps(enhanced_message),
+                        enhanced_message_id
+                    )
+                    
+                    logger.info(f"Persisted enhanced {content_type} response for thread {thread_id} ({provider_type} provider, {len(enhanced_content)} chars)")
+                except Exception as e:
+                    logger.error(f"Failed to persist enhanced response: {e}")
             
         except Exception as e:
             logger.error(f"Visualization streaming failed for {self.connection_id}: {e}")

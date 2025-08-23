@@ -33,6 +33,7 @@ from app.queues import initialize_queues
 # Import route modules
 # from app.routes.chat import router as chat_router, ws_router
 from app.routes.chat import router as per_connection_router
+from app.routes.threads import router as threads_router
 from app.webrtc import router as webrtc_router, close_all_connections, get_prebuilt_ui
 
 # Import MCP client
@@ -149,6 +150,7 @@ def create_application() -> FastAPI:
     # app.include_router(chat_router)
     # app.include_router(ws_router)
     app.include_router(per_connection_router)
+    app.include_router(threads_router)
     app.include_router(webrtc_router)
     
     # Mount prebuilt UI if available

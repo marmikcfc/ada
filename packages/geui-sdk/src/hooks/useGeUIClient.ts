@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { v4 as uuidv4 } from 'uuid';
 import { ConnectionService, ConnectionEvent, ConnectionServiceOptions } from '../core/ConnectionService';
 import { 
   Message, 
@@ -7,8 +8,10 @@ import {
   GeUIClient,
   InteractionType,
   InteractionProcessingState,
-  Thread
+  Thread,
+  ThreadBackendConfig
 } from '../types';
+import { ThreadBackendService } from '../services/ThreadBackendService';
 
 /**
  * Thread management options
@@ -54,6 +57,12 @@ export interface UseGeUIClientOptions extends ConnectionServiceOptions {
    * Thread management options (only used when enableThreads=true)
    */
   threadOptions?: ThreadOptions;
+  
+  /**
+   * Backend configuration for thread persistence
+   * When provided, thread operations will use the backend API instead of localStorage
+   */
+  threadBackendConfig?: ThreadBackendConfig;
 }
 
 /**
@@ -439,6 +448,24 @@ export function useGeUIClient<T extends UseGeUIClientOptions>(
   const switchingRef = useRef(false);
   const messagesRef = useRef<Message[]>([]);
   
+  // Thread backend service instance
+  const threadBackendServiceRef = useRef<ThreadBackendService | null>(null);
+  
+  // Initialize thread backend service if config provided
+  useEffect(() => {
+    if (options.threadBackendConfig && !threadBackendServiceRef.current) {
+      threadBackendServiceRef.current = new ThreadBackendService(options.threadBackendConfig);
+      console.log('Thread backend service initialized');
+    }
+    
+    return () => {
+      if (threadBackendServiceRef.current) {
+        threadBackendServiceRef.current.destroy();
+        threadBackendServiceRef.current = null;
+      }
+    };
+  }, [options.threadBackendConfig]);
+  
   // Thread storage functions
   const loadThreadsFromStorage = useCallback(() => {
     if (!options.enableThreads || !options.threadOptions?.enablePersistence) return null;
@@ -478,15 +505,54 @@ export function useGeUIClient<T extends UseGeUIClientOptions>(
     }
   }, [options.enableThreads, options.threadOptions]);
   
+
   // Thread management functions
   const createThread = useCallback(async (title?: string): Promise<Thread> => {
     if (!options.enableThreads) {
       throw new Error('Thread management is not enabled');
     }
     
-    const threadId = `thread-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    // Generate a consistent UUID for the thread
+    const threadId = uuidv4();
     const now = new Date();
     
+    // Use backend service if available
+    if (threadBackendServiceRef.current) {
+      try {
+        console.log('Creating thread via backend with ID:', threadId);
+        const newThread = await threadBackendServiceRef.current.createThread(
+          title || `Thread ${threads.length + 1}`,
+          { thread_id: threadId }, // Pass the pre-generated UUID
+          connectionServiceRef.current?.getBackendConnectionId() || undefined
+        );
+        
+        // Update state
+        setThreads(prev => [...prev, newThread]);
+        setThreadMessages(prev => ({ ...prev, [newThread.id]: [] }));
+        setActiveThreadId(newThread.id);
+        setThreadIdInternal(newThread.id);
+        
+        // Clear messages for new thread
+        messagesRef.current = [];
+        clearMessages();
+        
+        // Switch WebSocket connection to new thread
+        if (connectionServiceRef.current) {
+          try {
+            await connectionServiceRef.current.switchToThread(newThread.id);
+          } catch (error) {
+            console.error('Error switching connection to new thread:', error);
+          }
+        }
+        
+        return newThread;
+      } catch (error) {
+        console.error('Failed to create thread via backend:', error);
+        // Fall through to local creation with same UUID
+      }
+    }
+    
+    // Local thread creation (fallback or when no backend) - use same UUID
     const newThread: Thread = {
       id: threadId,
       title: title || `Thread ${threads.length + 1}`,
@@ -559,12 +625,29 @@ export function useGeUIClient<T extends UseGeUIClientOptions>(
   const switchThread = useCallback(async (newThreadId: string) => {
     if (!options.enableThreads || newThreadId === activeThreadId || switchingRef.current) return;
     
+    // Validate thread ID to prevent loops
+    if (!newThreadId || newThreadId === 'undefined' || newThreadId === 'null') {
+      console.error('Invalid thread ID for switch:', newThreadId);
+      return;
+    }
+    
     switchingRef.current = true;
     setIsSwitchingThread(true);
     
     try {
-      // Save current thread messages
-      if (activeThreadId && options.threadOptions?.enablePersistence) {
+      // If using backend, save current thread messages to backend
+      if (threadBackendServiceRef.current && activeThreadId && messagesRef.current.length > 0) {
+        try {
+          // Update thread with latest messages via backend
+          await threadBackendServiceRef.current.updateThread(activeThreadId, {
+            messageCount: messagesRef.current.length,
+            lastMessage: messagesRef.current[messagesRef.current.length - 1]?.content
+          });
+        } catch (error) {
+          console.error('Failed to save thread to backend:', error);
+        }
+      } else if (activeThreadId && options.threadOptions?.enablePersistence) {
+        // Save to localStorage
         const storage = loadThreadsFromStorage() || {
           version: 1,
           threads: {},
@@ -596,9 +679,31 @@ export function useGeUIClient<T extends UseGeUIClientOptions>(
       }
       
       // Load new thread messages
-      const newMessages = threadMessages[newThreadId] || [];
-      messagesRef.current = newMessages;
-      setMessagesDirectly(newMessages);
+      if (threadBackendServiceRef.current) {
+        try {
+          console.log('Loading thread messages from backend for:', newThreadId);
+          const threadDetail = await threadBackendServiceRef.current.getThread(newThreadId);
+          if (threadDetail && threadDetail.messages) {
+            messagesRef.current = threadDetail.messages;
+            setMessagesDirectly(threadDetail.messages);
+            setThreadMessages(prev => ({ ...prev, [newThreadId]: threadDetail.messages }));
+          } else {
+            messagesRef.current = [];
+            setMessagesDirectly([]);
+          }
+        } catch (error) {
+          console.error('Failed to load thread from backend:', error);
+          // Fall back to local messages
+          const newMessages = threadMessages[newThreadId] || [];
+          messagesRef.current = newMessages;
+          setMessagesDirectly(newMessages);
+        }
+      } else {
+        // Load from local storage
+        const newMessages = threadMessages[newThreadId] || [];
+        messagesRef.current = newMessages;
+        setMessagesDirectly(newMessages);
+      }
       
       // Save active thread
       if (options.threadOptions?.enablePersistence) {
@@ -616,6 +721,17 @@ export function useGeUIClient<T extends UseGeUIClientOptions>(
   
   const deleteThread = useCallback(async (threadIdToDelete: string) => {
     if (!options.enableThreads) return;
+    
+    // Delete from backend if available
+    if (threadBackendServiceRef.current) {
+      try {
+        console.log('Deleting thread from backend:', threadIdToDelete);
+        await threadBackendServiceRef.current.deleteThread(threadIdToDelete);
+      } catch (error) {
+        console.error('Failed to delete thread from backend:', error);
+        // Continue with local deletion even if backend fails
+      }
+    }
     
     setThreads(prev => prev.filter(t => t.id !== threadIdToDelete));
     setThreadMessages(prev => {
@@ -679,71 +795,169 @@ export function useGeUIClient<T extends UseGeUIClientOptions>(
   useEffect(() => {
     if (!options.enableThreads) return;
     
-    const storage = loadThreadsFromStorage();
-    if (storage && Object.keys(storage.threads).length > 0) {
-      const threadList = Object.values(storage.threads).map((threadData: any) => ({
-        id: threadData.id,
-        title: threadData.title,
-        createdAt: new Date(threadData.createdAt),
-        updatedAt: new Date(threadData.updatedAt),
-        lastMessage: threadData.lastMessage,
-        messageCount: threadData.messageCount
-      }));
-      
-      setThreads(threadList);
-      setActiveThreadId(storage.activeThreadId);
-      
-      // Load all thread messages
-      const allMessages: Record<string, Message[]> = {};
-      Object.entries(storage.threads).forEach(([id, thread]: [string, any]) => {
-        allMessages[id] = thread.messages || [];
-      });
-      setThreadMessages(allMessages);
-      
-      // Set active thread messages
-      if (storage.activeThreadId && storage.threads[storage.activeThreadId]) {
-        messagesRef.current = storage.threads[storage.activeThreadId].messages;
-        setMessagesDirectly(storage.threads[storage.activeThreadId].messages);
-        setThreadIdInternal(storage.activeThreadId);
-      }
-    } else {
-      // Create default thread if none exist
-      const threadId = `thread-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-      const now = new Date();
-      
-      const newThread: Thread = {
-        id: threadId,
-        title: 'New Conversation',
-        createdAt: now,
-        updatedAt: now,
-        messageCount: 0
-      };
-      
-      setThreads([newThread]);
-      setThreadMessages({ [threadId]: [] });
-      setActiveThreadId(threadId);
-      setThreadIdInternal(threadId);
-      
-      // Save to storage
-      if (options.threadOptions?.enablePersistence) {
-        const newStorage = {
-          version: 1,
-          threads: {
-            [threadId]: {
-              id: threadId,
-              title: newThread.title,
-              createdAt: now.toISOString(),
-              updatedAt: now.toISOString(),
-              messageCount: 0,
-              messages: []
+    const loadThreads = async () => {
+      // If backend service is available, use it
+      if (threadBackendServiceRef.current) {
+        try {
+          console.log('Loading threads from backend...');
+          const backendThreads = await threadBackendServiceRef.current.getThreads(1, 50);
+          
+          if (backendThreads && backendThreads.length > 0) {
+            console.log(`Loaded ${backendThreads.length} threads from backend`);
+            setThreads(backendThreads);
+            
+            // Set the first thread as active if no active thread
+            if (!activeThreadId && backendThreads.length > 0) {
+              const firstThread = backendThreads[0];
+              setActiveThreadId(firstThread.id);
+              setThreadIdInternal(firstThread.id);
+              
+              // Load messages for the active thread
+              try {
+                const threadDetail = await threadBackendServiceRef.current.getThread(firstThread.id);
+                if (threadDetail && threadDetail.messages) {
+                  messagesRef.current = threadDetail.messages;
+                  setMessagesDirectly(threadDetail.messages);
+                  setThreadMessages({ [firstThread.id]: threadDetail.messages });
+                }
+              } catch (error) {
+                console.error('Failed to load thread messages:', error);
+              }
             }
-          },
-          activeThreadId: threadId,
-          lastUpdated: new Date().toISOString()
-        };
-        saveThreadsToStorage(newStorage);
+          } else {
+            console.log('No threads found in backend, creating default thread');
+            // Create default thread via backend
+            // Check if we already have a thread ID from the connection
+            const currentThreadId = connectionServiceRef.current?.getThreadId();
+            if (currentThreadId && currentThreadId !== 'default-thread') {
+              console.log('Using existing thread from connection:', currentThreadId);
+              // Try to load this thread instead of creating a new one
+              try {
+                const existingThread = await threadBackendServiceRef.current.getThread(currentThreadId);
+                if (existingThread && existingThread.id) {
+                  setThreads([existingThread]);
+                  setThreadMessages({ [existingThread.id]: existingThread.messages || [] });
+                  setActiveThreadId(existingThread.id);
+                  setThreadIdInternal(existingThread.id);
+                  return; // Exit early, don't create a new thread
+                }
+              } catch (error) {
+                console.log('Could not load existing thread, will create new one');
+              }
+            }
+            
+            try {
+              const newThread = await threadBackendServiceRef.current.createThread(
+                'New Conversation',
+                undefined,
+                connectionServiceRef.current?.getBackendConnectionId() || undefined
+              );
+              if (!newThread.id) {
+                console.error('Created thread has no ID, skipping state update');
+                return;
+              }
+              setThreads([newThread]);
+              setThreadMessages({ [newThread.id]: [] });
+              setActiveThreadId(newThread.id);
+              setThreadIdInternal(newThread.id);
+            } catch (error) {
+              console.error('Failed to create default thread via backend:', error);
+              // Fall back to local thread creation with UUID
+              const threadId = uuidv4();
+              const now = new Date();
+              const newThread: Thread = {
+                id: threadId,
+                title: 'New Conversation',
+                createdAt: now,
+                updatedAt: now,
+                messageCount: 0
+              };
+              setThreads([newThread]);
+              setThreadMessages({ [threadId]: [] });
+              setActiveThreadId(threadId);
+              setThreadIdInternal(threadId);
+            }
+          }
+        } catch (error) {
+          console.error('Failed to load threads from backend, falling back to localStorage:', error);
+          // Fall back to localStorage
+          loadFromLocalStorage();
+        }
+      } else {
+        // Use localStorage if no backend service
+        loadFromLocalStorage();
       }
-    }
+    };
+    
+    const loadFromLocalStorage = () => {
+      const storage = loadThreadsFromStorage();
+      if (storage && Object.keys(storage.threads).length > 0) {
+        const threadList = Object.values(storage.threads).map((threadData: any) => ({
+          id: threadData.id,
+          title: threadData.title,
+          createdAt: new Date(threadData.createdAt),
+          updatedAt: new Date(threadData.updatedAt),
+          lastMessage: threadData.lastMessage,
+          messageCount: threadData.messageCount
+        }));
+        
+        setThreads(threadList);
+        setActiveThreadId(storage.activeThreadId);
+        
+        // Load all thread messages
+        const allMessages: Record<string, Message[]> = {};
+        Object.entries(storage.threads).forEach(([id, thread]: [string, any]) => {
+          allMessages[id] = thread.messages || [];
+        });
+        setThreadMessages(allMessages);
+        
+        // Set active thread messages
+        if (storage.activeThreadId && storage.threads[storage.activeThreadId]) {
+          messagesRef.current = storage.threads[storage.activeThreadId].messages;
+          setMessagesDirectly(storage.threads[storage.activeThreadId].messages);
+          setThreadIdInternal(storage.activeThreadId);
+        }
+      } else {
+        // Create default thread if none exist
+        const threadId = uuidv4();
+        const now = new Date();
+        
+        const newThread: Thread = {
+          id: threadId,
+          title: 'New Conversation',
+          createdAt: now,
+          updatedAt: now,
+          messageCount: 0
+        };
+        
+        setThreads([newThread]);
+        setThreadMessages({ [threadId]: [] });
+        setActiveThreadId(threadId);
+        setThreadIdInternal(threadId);
+        
+        // Save to storage
+        if (options.threadOptions?.enablePersistence) {
+          const newStorage = {
+            version: 1,
+            threads: {
+              [threadId]: {
+                id: threadId,
+                title: newThread.title,
+                createdAt: now.toISOString(),
+                updatedAt: now.toISOString(),
+                messageCount: 0,
+                messages: []
+              }
+            },
+            activeThreadId: threadId,
+            lastUpdated: new Date().toISOString()
+          };
+          saveThreadsToStorage(newStorage);
+        }
+      }
+    };
+    
+    loadThreads();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Only run on mount - dependencies intentionally excluded
   

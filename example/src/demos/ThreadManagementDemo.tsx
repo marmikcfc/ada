@@ -58,6 +58,12 @@ interface ConfigurationState {
     name: string;
     colors: any;
   };
+  threadPersistence: {
+    enabled: boolean;
+    backend: 'localStorage' | 'api';
+    apiUrl?: string;
+    authToken?: string;
+  };
 }
 
 // Default configuration
@@ -85,6 +91,12 @@ const DEFAULT_CONFIG: ConfigurationState = {
   theme: {
     name: 'default',
     colors: defaultTheme
+  },
+  threadPersistence: {
+    enabled: true,
+    backend: 'api',  // Use API by default
+    apiUrl: 'http://localhost:8000',
+    authToken: ''
   }
 };
 
@@ -151,7 +163,7 @@ const SettingsModal: React.FC<{
     cancelPendingChanges,
     hasPendingChanges 
   } = useContext(ConfigurationContext);
-  const [activeTab, setActiveTab] = useState<'ai' | 'voice' | 'ui' | 'mcp' | 'theme'>('ai');
+  const [activeTab, setActiveTab] = useState<'ai' | 'voice' | 'ui' | 'mcp' | 'theme' | 'persistence'>('ai');
   const [importText, setImportText] = useState('');
 
   if (!isOpen) return null;
@@ -826,6 +838,173 @@ const SettingsModal: React.FC<{
     );
   };
 
+  const renderPersistenceTab = () => {
+    return (
+      <div style={{ padding: '24px' }}>
+        <h3 style={{ marginTop: 0, marginBottom: '20px', color: '#1f2937' }}>Thread Persistence</h3>
+        
+        <div style={{ marginBottom: '24px' }}>
+          <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>
+            Storage Backend
+          </label>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '12px',
+              border: '2px solid',
+              borderColor: config.threadPersistence.backend === 'localStorage' ? '#667eea' : '#e5e7eb',
+              borderRadius: '8px',
+              backgroundColor: config.threadPersistence.backend === 'localStorage' ? '#667eea10' : 'white',
+              cursor: 'pointer'
+            }}>
+              <input
+                type="radio"
+                value="localStorage"
+                checked={config.threadPersistence.backend === 'localStorage'}
+                onChange={(e) => updateConfig({
+                  threadPersistence: { ...config.threadPersistence, backend: 'localStorage' as const }
+                })}
+                style={{ marginRight: '12px' }}
+              />
+              <div>
+                <div style={{ fontWeight: '600', marginBottom: '4px' }}>Browser Storage</div>
+                <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                  Store threads locally in your browser (default)
+                </div>
+              </div>
+            </label>
+            
+            <label style={{
+              display: 'flex',
+              alignItems: 'center',
+              padding: '12px',
+              border: '2px solid',
+              borderColor: config.threadPersistence.backend === 'api' ? '#667eea' : '#e5e7eb',
+              borderRadius: '8px',
+              backgroundColor: config.threadPersistence.backend === 'api' ? '#667eea10' : 'white',
+              cursor: 'pointer'
+            }}>
+              <input
+                type="radio"
+                value="api"
+                checked={config.threadPersistence.backend === 'api'}
+                onChange={(e) => updateConfig({
+                  threadPersistence: { ...config.threadPersistence, backend: 'api' as const }
+                })}
+                style={{ marginRight: '12px' }}
+              />
+              <div>
+                <div style={{ fontWeight: '600', marginBottom: '4px' }}>Backend API</div>
+                <div style={{ fontSize: '12px', color: '#6b7280' }}>
+                  Store threads on server for persistence across devices
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+
+        {config.threadPersistence.backend === 'api' && (
+          <>
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>
+                API URL
+              </label>
+              <input
+                type="text"
+                value={config.threadPersistence.apiUrl || ''}
+                onChange={(e) => updateConfig({
+                  threadPersistence: { ...config.threadPersistence, apiUrl: e.target.value }
+                })}
+                placeholder="http://localhost:8000"
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '14px'
+                }}
+              />
+              <div style={{ marginTop: '4px', fontSize: '12px', color: '#6b7280' }}>
+                Base URL for the thread persistence API
+              </div>
+            </div>
+
+            <div style={{ marginBottom: '20px' }}>
+              <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '600' }}>
+                Authentication Token (Optional)
+              </label>
+              <input
+                type="password"
+                value={config.threadPersistence.authToken || ''}
+                onChange={(e) => updateConfig({
+                  threadPersistence: { ...config.threadPersistence, authToken: e.target.value }
+                })}
+                placeholder="Bearer token..."
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  border: '1px solid #d1d5db',
+                  borderRadius: '6px',
+                  fontSize: '14px'
+                }}
+              />
+              <div style={{ marginTop: '4px', fontSize: '12px', color: '#6b7280' }}>
+                Optional authentication token for API requests
+              </div>
+            </div>
+
+            <div style={{
+              padding: '16px',
+              backgroundColor: '#fef3c7',
+              border: '1px solid #fbbf24',
+              borderRadius: '8px'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                <span style={{ fontSize: '16px' }}>⚠️</span>
+                <div>
+                  <div style={{ fontWeight: '600', marginBottom: '4px', color: '#92400e' }}>
+                    Backend API Requirements
+                  </div>
+                  <div style={{ fontSize: '12px', color: '#78350f' }}>
+                    Ensure your backend server is running and has the thread management endpoints available at:
+                    <ul style={{ margin: '8px 0 0 0', paddingLeft: '20px' }}>
+                      <li>/api/threads/list - List threads</li>
+                      <li>/api/threads/create - Create thread</li>
+                      <li>/api/threads/{'<id>'} - Get/Update/Delete thread</li>
+                      <li>/api/threads/{'<id>'}/messages - Get thread messages</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+        
+        <div style={{ marginTop: '24px' }}>
+          <label style={{
+            display: 'flex',
+            alignItems: 'center',
+            cursor: 'pointer'
+          }}>
+            <input
+              type="checkbox"
+              checked={config.threadPersistence.enabled}
+              onChange={(e) => updateConfig({
+                threadPersistence: { ...config.threadPersistence, enabled: e.target.checked }
+              })}
+              style={{ marginRight: '8px' }}
+            />
+            <span style={{ fontSize: '14px' }}>Enable thread persistence</span>
+          </label>
+          <div style={{ marginTop: '4px', fontSize: '12px', color: '#6b7280', marginLeft: '24px' }}>
+            When disabled, threads will not be saved between sessions
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderContent = () => {
     switch (activeTab) {
       case 'ai': return renderAITab();
@@ -833,6 +1012,7 @@ const SettingsModal: React.FC<{
       case 'ui': return renderUITab();
       case 'mcp': return renderMCPTab();
       case 'theme': return renderThemeTab();
+      case 'persistence': return renderPersistenceTab();
       default: return renderAITab();
     }
   };
@@ -914,6 +1094,12 @@ const SettingsModal: React.FC<{
             onClick={() => setActiveTab('theme')}
           >
             🌈 Theme
+          </button>
+          <button
+            style={tabButtonStyle(activeTab === 'persistence')}
+            onClick={() => setActiveTab('persistence')}
+          >
+            💾 Persistence
           </button>
         </div>
 
@@ -1418,7 +1604,11 @@ const CustomThreadedChatWindowWithSettings: React.FC<any> = (props) => {
     try {
       if (threadContext?.createThread) {
         const thread = await threadContext.createThread('New conversation started');
-        console.log('Created thread with ID:', thread.id);
+        if (thread && thread.id) {
+          console.log('Created thread with ID:', thread.id);
+        } else {
+          console.error('Thread creation returned invalid thread:', thread);
+        }
       } else {
         console.error('No createThread method available');
       }
@@ -1581,7 +1771,17 @@ const ConfigurationProvider: React.FC<{ children: React.ReactNode }> = ({ childr
   const [config, setConfig] = useState<ConfigurationState>(() => {
     try {
       const saved = localStorage.getItem('thread-management-demo-config');
-      return saved ? JSON.parse(saved) : DEFAULT_CONFIG;
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // Merge with defaults to ensure all fields exist (for backward compatibility)
+        return {
+          ...DEFAULT_CONFIG,
+          ...parsed,
+          // Ensure threadPersistence exists even if not in saved config
+          threadPersistence: parsed.threadPersistence || DEFAULT_CONFIG.threadPersistence
+        };
+      }
+      return DEFAULT_CONFIG;
     } catch {
       return DEFAULT_CONFIG;
     }
@@ -1851,14 +2051,43 @@ const ThreadManagementDemo: React.FC = () => {
           bubbleEnabled={false}
           disableVoice={!config.voice.enabled}  // Voice controlled by settings
           enableThreadManagement={true}  // Enable thread management functionality
+          threadBackendConfig={
+            config.threadPersistence.enabled && config.threadPersistence.backend === 'api' 
+              ? {
+                  baseUrl: config.threadPersistence.apiUrl || 'http://localhost:8000',
+                  headers: config.threadPersistence.authToken 
+                    ? { 'Authorization': `Bearer ${config.threadPersistence.authToken}` }
+                    : {},
+                  endpoints: {
+                    threads: '/api/threads/list',
+                    threadDetail: '/api/threads/{id}',
+                    create: '/api/threads/create',
+                    update: '/api/threads/{id}',
+                    delete: '/api/threads/{id}',
+                    messages: '/api/threads/{id}/messages',
+                    search: '/api/threads/search'
+                  },
+                  cache: {
+                    enabled: true,
+                    ttlMs: 30000
+                  },
+                  retry: {
+                    maxAttempts: 3,
+                    backoffMs: 1000,
+                    exponential: true
+                  }
+                }
+              : undefined
+          }
           options={{
             ...geuiOptions,
             threadManager: {
-              enablePersistence: true,
+              enablePersistence: config.threadPersistence.enabled && config.threadPersistence.backend === 'localStorage',
               maxThreads: 20,
               autoGenerateTitles: true,
               showCreateButton: true,
-              allowThreadDeletion: true
+              allowThreadDeletion: true,
+              storageKey: 'thread-management-demo-threads'
             }
           }}
         />

@@ -243,12 +243,12 @@ async def _per_connection_sender(context):
                 timeout=1.0
             )
             
-            logger.info(f"Per-connection sender {context.connection_id}: got message from queue: {message.get('type', 'unknown')} with ID {message.get('id', 'no-id')}")
+            logger.debug(f"Per-connection sender {context.connection_id}: got message from queue: {message.get('type', 'unknown')} with ID {message.get('id', 'no-id')}")
             
             # Send to WebSocket
             serialized = message if isinstance(message, str) else json.dumps(message)
             await context.websocket.send_text(serialized)
-            logger.info(f"Per-connection sender {context.connection_id}: sent message to WebSocket: {message.get('type', 'unknown')}")
+            logger.debug(f"Per-connection sender {context.connection_id}: sent message to WebSocket: {message.get('type', 'unknown')}")
             
             # Mark task as done
             context.message_queue.task_done()
@@ -419,8 +419,8 @@ async def _process_user_interaction(context, interaction_message: UserInteractio
         logger.info(f"User message will be: {user_message_content}")
         
         # Use existing thread if available, otherwise create new one
-        # For now, just create a consistent thread per interaction type to avoid fragmentation
-        thread_id = f"{context.connection_id}:main_thread"
+        # Use a UUID for the main thread
+        thread_id = str(uuid.uuid4())
         
         # Send the user interaction as a user message first
         # Create a proper user message structure
@@ -768,37 +768,33 @@ async def _process_per_connection_chat(context, chat_message: ChatMessage):
 async def _get_connection_history(connection_id: str, thread_id: str) -> list:
     """Get conversation history for a specific connection and thread"""
     try:
-        # Use the global chat history manager with connection prefix
-        prefixed_thread_id = f"{connection_id}:{thread_id}"
-        return await chat_history_manager.get_recent_history(prefixed_thread_id)
+        # Use thread_id directly without connection prefix
+        return await chat_history_manager.get_recent_history(thread_id)
     except Exception as e:
-        logger.error(f"Error getting history for {connection_id}:{thread_id}: {e}")
+        logger.error(f"Error getting history for thread {thread_id}: {e}")
         return []
 
 async def _store_connection_message(connection_id: str, thread_id: str, role: str, content: str):
     """Store a message in the connection's conversation history"""
     try:
-        # Use the global chat history manager with connection prefix
-        prefixed_thread_id = f"{connection_id}:{thread_id}"
-        
+        # Use thread_id directly without connection prefix
         if role == "user":
-            await chat_history_manager.add_user_message(prefixed_thread_id, content)
+            await chat_history_manager.add_user_message(thread_id, content)
         elif role == "assistant":
-            await chat_history_manager.add_assistant_message(prefixed_thread_id, content)
+            await chat_history_manager.add_assistant_message(thread_id, content)
         else:
             logger.warning(f"Unknown message role: {role}")
             
     except Exception as e:
-        logger.error(f"Error storing message for {connection_id}:{thread_id}: {e}")
+        logger.error(f"Error storing message for thread {thread_id}: {e}")
 
 async def _store_connection_c1_action(connection_id: str, thread_id: str, content: str):
     """Store a C1 action in the connection's conversation history"""
     try:
-        # Use the global chat history manager with connection prefix
-        prefixed_thread_id = f"{connection_id}:{thread_id}"
-        await chat_history_manager.add_c1_action(prefixed_thread_id, content)
+        # Use thread_id directly without connection prefix
+        await chat_history_manager.add_c1_action(thread_id, content)
     except Exception as e:
-        logger.error(f"Error storing C1 action for {connection_id}:{thread_id}: {e}")
+        logger.error(f"Error storing C1 action for thread {thread_id}: {e}")
 
 async def _handle_shadcn_data_table_debug(context, thread_id: str):
     """Handle the debug route for shadcn data table demonstration"""

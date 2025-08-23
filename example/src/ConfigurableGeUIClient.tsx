@@ -29,6 +29,7 @@ interface ConfigurableGeUIClientProps extends Omit<GeUIProps, 'websocketURL' | '
   connectionConfig: ConnectionConfig;
   onConnectionStateChange?: (state: string) => void;
   onError?: (error: any) => void;
+  threadBackendConfig?: any; // Pass through thread backend config
 }
 
 export const ConfigurableGeUIClient: React.FC<ConfigurableGeUIClientProps> = ({
@@ -36,6 +37,7 @@ export const ConfigurableGeUIClient: React.FC<ConfigurableGeUIClientProps> = ({
   connectionConfig,
   onConnectionStateChange,
   onError,
+  threadBackendConfig,
   ...geuiProps
 }) => {
   const [isReady, setIsReady] = useState(false);
@@ -133,6 +135,7 @@ export const ConfigurableGeUIClient: React.FC<ConfigurableGeUIClientProps> = ({
       {...geuiProps}
       websocketURL={websocketURL}
       webrtcURL={webrtcURL}
+      threadBackendConfig={threadBackendConfig}
       options={{
         ...geuiProps.options,
         // Pass our WebSocket connection handler

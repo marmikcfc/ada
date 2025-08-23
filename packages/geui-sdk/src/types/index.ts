@@ -45,6 +45,8 @@ export interface GeUIProps {
   disableVoice?: boolean;
   /** Whether to enable thread management functionality */
   enableThreadManagement?: boolean;
+  /** Backend API configuration for thread persistence */
+  threadBackendConfig?: ThreadBackendConfig;
   /** Additional configuration options */
   options?: GeUIOptions;
 }
@@ -638,6 +640,8 @@ export interface Thread {
   voiceEnabled?: boolean;
   // Storage reference
   messagesStorageKey?: string;
+  // Messages array for when thread is loaded with messages
+  messages?: Message[];
 }
 
 /**
@@ -743,4 +747,125 @@ export interface ThreadAPI {
   
   /** Clear all messages in a thread */
   clearMessages: (threadId: string) => Promise<void>;
+}
+
+/**
+ * Backend configuration for thread management
+ */
+export interface ThreadBackendConfig {
+  /** Base URL for the backend API */
+  baseUrl: string;
+  /** Additional headers to include in requests */
+  headers?: Record<string, string>;
+  /** API endpoints configuration */
+  endpoints?: {
+    /** Thread list endpoint (default: /api/threads/list) */
+    threads?: string;
+    /** Thread detail endpoint (default: /api/threads/{id}) */
+    threadDetail?: string;
+    /** Create thread endpoint (default: /api/threads/create) */
+    create?: string;
+    /** Update thread endpoint (default: /api/threads/{id}) */
+    update?: string;
+    /** Delete thread endpoint (default: /api/threads/{id}) */
+    delete?: string;
+    /** Thread messages endpoint (default: /api/threads/{id}/messages) */
+    messages?: string;
+    /** Search threads endpoint (default: /api/threads/search) */
+    search?: string;
+    /** Import threads endpoint (default: /api/threads/import) */
+    import?: string;
+  };
+  /** Retry configuration */
+  retry?: {
+    /** Maximum number of retry attempts */
+    maxAttempts?: number;
+    /** Base backoff delay in ms */
+    backoffMs?: number;
+    /** Whether to use exponential backoff */
+    exponential?: boolean;
+  };
+  /** Cache configuration */
+  cache?: {
+    /** Whether to enable caching */
+    enabled?: boolean;
+    /** Cache TTL in milliseconds */
+    ttlMs?: number;
+  };
+  /** Polling configuration (deprecated) */
+  polling?: {
+    /** Whether polling is enabled */
+    enabled?: boolean;
+    /** Polling interval in ms */
+    intervalMs?: number;
+  };
+}
+
+/**
+ * Thread API response from backend
+ */
+export interface ThreadApiResponse {
+  thread_id: string;
+  title?: string;
+  created_at: string;
+  last_activity: string;
+  message_count: number;
+  archived?: boolean;
+  tags?: string[];
+  last_message?: string;
+  connection_id?: string;
+  session_id?: string;
+  messages?: MessageApiResponse[];
+}
+
+/**
+ * Message API response from backend
+ */
+export interface MessageApiResponse {
+  role: string;
+  content: string;
+  message_id?: string;
+  timestamp?: number;
+  content_type?: string;
+}
+
+/**
+ * Paginated response wrapper
+ */
+export interface PaginatedResponse<T> {
+  data: T[];
+  total_count: number;
+  has_more: boolean;
+  next_offset?: number;
+}
+
+/**
+ * API error response
+ */
+export interface ApiErrorResponse {
+  error?: {
+    message: string;
+    code?: string;
+    details?: any;
+  };
+}
+
+/**
+ * Thread export data for migration
+ */
+export interface ThreadExportData {
+  threadId: string;
+  title: string;
+  messages: Message[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+/**
+ * Migration result
+ */
+export interface MigrationResult {
+  imported: number;
+  failed: number;
+  errors?: string[];
 }

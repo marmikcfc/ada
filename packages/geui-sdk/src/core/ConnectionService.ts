@@ -1,4 +1,5 @@
 import EventEmitter from 'eventemitter3';
+import { v4 as uuidv4 } from 'uuid';
 import { 
   ConnectionState, 
   VoiceConnectionState, 
@@ -553,8 +554,8 @@ export class ConnectionService extends EventEmitter {
     let targetThreadId = threadId || this.activeThreadId;
     
     if (!targetThreadId) {
-      // Generate a new thread ID if none exists
-      targetThreadId = `thread-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      // Generate a new UUID thread ID if none exists
+      targetThreadId = uuidv4();
       console.log(`[WS:${this.connectionLogId}] Generated new thread ID: ${targetThreadId}`);
       
       // Set as active thread
@@ -608,8 +609,8 @@ export class ConnectionService extends EventEmitter {
     let targetThreadId = threadId || this.activeThreadId;
     
     if (!targetThreadId) {
-      // Generate a new thread ID if none exists
-      targetThreadId = `thread-${Date.now()}-${Math.random().toString(36).substring(2, 11)}`;
+      // Generate a new UUID thread ID if none exists
+      targetThreadId = uuidv4();
       console.log(`[WS:${this.connectionLogId}] Generated new thread ID for C1 action: ${targetThreadId}`);
       
       // Set as active thread

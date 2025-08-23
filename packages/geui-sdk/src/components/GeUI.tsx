@@ -36,6 +36,7 @@ const GeUI: React.FC<GeUIProps> = ({
   allowFullScreen = false,
   disableVoice = false,
   enableThreadManagement = false,
+  threadBackendConfig,
   options = {}
 }) => {
   // State for chat window visibility
@@ -70,8 +71,10 @@ const GeUI: React.FC<GeUIProps> = ({
         autoGenerateTitles: options.threadManager?.autoGenerateTitles,
         generateTitle: options.threadManager?.generateTitle,
       } : undefined,
+      // Pass backend configuration if provided
+      threadBackendConfig: threadBackendConfig,
     }),
-    [webrtcURL, websocketURL, options.mcpEndpoints, options.uiFramework, options.onFormSubmit, options.onButtonClick, options.onInputChange, options.onLinkClick, options.onWebSocketConnect, disableVoice, enableThreadManagement, options.threadManager]
+    [webrtcURL, websocketURL, options.mcpEndpoints, options.uiFramework, options.onFormSubmit, options.onButtonClick, options.onInputChange, options.onLinkClick, options.onWebSocketConnect, disableVoice, enableThreadManagement, options.threadManager, threadBackendConfig]
   );
 
   // Use enhanced client with optional thread management
