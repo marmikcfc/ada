@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import re
+from pathlib import Path
 from typing import Awaitable, Callable, Dict, List, Any, Optional, Tuple
 from dataclasses import dataclass
 import logging
@@ -39,6 +40,8 @@ class MCPClientConfig:
     model: str
     openai_api_key: str
     servers: List[MCPServerConfig]
+    prompt_id: Optional[str] = None
+    prompt_version: Optional[str] = None
 
 class EnhancedMCPClient:
     """Enhanced MCP client that supports HTTP servers and external configuration."""
@@ -51,7 +54,10 @@ class EnhancedMCPClient:
         self.available_tools: Dict[str, Any] = {}
         # Store connection resources for proper cleanup
         self._connection_resources: Dict[str, Tuple[Any, Any, Any]] = {}
-        
+
+        # Container ID for code interpreter
+        self.container_id: Optional[str] = None
+
         # Add built-in tools to available tools
         self._add_builtin_tools()
         
@@ -66,9 +72,12 @@ class EnhancedMCPClient:
             
             # Connect to all MCP servers
             await self._connect_to_servers()
-            
+
+            # Initialize container for code interpreter
+            await self._initialize_container()
+
             logger.info(f"Enhanced MCP client initialized with {len(self.sessions)} servers")
-            
+
         except Exception as e:
             logger.error(f"Failed to initialize Enhanced MCP client: {e}")
             raise
@@ -113,7 +122,9 @@ class EnhancedMCPClient:
             return MCPClientConfig(
                 model=config_section.get('model', 'gpt-4o-mini'),
                 openai_api_key=openai_api_key,
-                servers=servers
+                servers=servers,
+                prompt_id=config_section.get('prompt_id'),
+                prompt_version=config_section.get('prompt_version', '1')
             )
             
         except Exception as e:
@@ -321,99 +332,280 @@ class EnhancedMCPClient:
         # This would use the existing WebSocket connection logic
         # For now, we'll log that it's not implemented in this enhanced version
         logger.warning(f"WebSocket transport not yet implemented in enhanced client for: {server.name}")
+
+    async def _initialize_container(self):
+        """Initialize a container for code interpreter and upload data files."""
+        try:
+            logger.info("Creating container for code interpreter...")
+
+            # Create a new container with a unique name
+            import time
+            container_name = f"dealership-data-{int(time.time())}"
+            container = await self.openai_client.containers.create(name=container_name)
+            self.container_id = container.id
+
+            logger.info(f"Container created with ID: {self.container_id} (name: {container_name})")
+
+            # Find and upload all CSV files from backend/data/
+            data_dir = Path(__file__).parent.parent / "data"
+
+            if not data_dir.exists():
+                logger.warning(f"Data directory not found: {data_dir}")
+                return
+
+            # Get all CSV files
+            csv_files = list(data_dir.glob("*.csv"))
+
+            if not csv_files:
+                logger.warning(f"No CSV files found in {data_dir}")
+                return
+
+            logger.info(f"Uploading {len(csv_files)} files to container...")
+
+            # Upload each file
+            for csv_file in csv_files:
+                try:
+                    with open(csv_file, 'rb') as f:
+                        await self.openai_client.containers.files.create(
+                            container_id=self.container_id,
+                            file=f
+                        )
+                    logger.info(f"Uploaded: {csv_file.name}")
+                except Exception as e:
+                    logger.error(f"Failed to upload {csv_file.name}: {e}")
+
+            logger.info(f"Container initialization complete. {len(csv_files)} files uploaded.")
+
+        except Exception as e:
+            logger.error(f"Failed to initialize container: {e}")
+            # Don't raise - code interpreter will be unavailable but client can still work
+            self.container_id = None
     
     async def chat_with_tools(self, user_message: str, conversation_history: Optional[List[Dict[str, Any]]] = None) -> str:
         """
-        Chat with the assistant using available MCP tools.
-        
+        Chat with the assistant using available MCP tools via OpenAI Responses API.
+
         Args:
             user_message: The user's message
             conversation_history: Optional conversation history
-            
+
         Returns:
             The assistant's response
         """
         if not self.openai_client:
             raise RuntimeError("MCP client not initialized")
-        
-        # Prepare messages
-        messages = conversation_history or []
-        messages.append({"role": "user", "content": user_message})
-        
-        # Prepare function definitions from available tools
-        functions = []
-        for tool_key, tool_info in self.available_tools.items():
-            tool = tool_info['tool']
-            description = tool.description or f"Tool from {tool_info['server']}"
-            if tool_info.get("headers"):
-                description += f" Note: The following headers are sent with this tool call. If you need any of these headers in payload, use them. For create a contact locationId is needed in body: {json.dumps(tool_info['headers'])}"
-            
-            functions.append({
-                "name": tool_key,  # Use server_tool format (OpenAI compatible)
-                "description": description,
-                "parameters": tool.inputSchema
-            })
-        
+
+        # Prepare input for Responses API
+        input_items = []
+
+        # Add conversation history as input items
+        if conversation_history:
+            for msg in conversation_history:
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                input_items.append({
+                    "type": "message",
+                    "role": role,
+                    "content": [{"type": "input_text", "text": content}]
+                })
+
+        # Add current user message
+        input_items.append({
+            "type": "message",
+            "role": "user",
+            "content": [{"type": "input_text", "text": user_message}]
+        })
+
         try:
-            # Initial model call with tool definitions
-            if functions:
-                logger.info(f"Messages: {messages}")
-                response = await self.openai_client.chat.completions.create(
-                    model=self.config.model,
-                    messages=messages,
-                    functions=functions,
-                    function_call="auto"
-                )
-            else:
-                # No tools → call without the functions parameter
-                response = await self.openai_client.chat.completions.create(
-                    model=self.config.model,
-                    messages=messages
-                )
-            
-            reply = response.choices[0].message
-            
-            # Check if the model chose to call a function
-            if hasattr(reply, 'function_call') and reply.function_call:
-                func_call = reply.function_call
-                func_name = func_call.name
-                args = json.loads(func_call.arguments or "{}")
-                
-                logger.info(f"Model requested tool: {func_name} with args {args}")
-                
-                # Call the MCP tool
-                tool_result = await self._call_tool(func_name, args)
-                
-                # Append the assistant's function call message
-                messages.append({
-                    "role": "assistant",
-                    "content": None,
-                    "function_call": {
-                        "name": func_name,
-                        "arguments": json.dumps(args)
-                    }
-                })
-                
-                # Append the function's response
-                messages.append({
-                    "role": "function",
-                    "name": func_name,
-                    "content": tool_result
-                })
-                
-                # Second model call with the function result
-                final_resp = await self.openai_client.chat.completions.create(
-                    model=self.config.model,
-                    messages=messages
-                )
-                
-                return final_resp.choices[0].message.content
-            else:
-                # Model answered directly without tool use
-                return reply.content
-                
+            # Prepare request parameters
+            request_params = {
+                "model": self.config.model,
+                "input": input_items,
+            }
+
+            # Use stored prompt if configured
+            if self.config.prompt_id:
+                request_params["prompt"] = {
+                    "id": self.config.prompt_id,
+                    "version": self.config.prompt_version or "1",
+                    "include": [
+                    "code_interpreter_call.outputs",
+                    "reasoning.encrypted_content",
+                    "web_search_call.action.sources"
+                    ]
+                }
+                logger.info(f"Using stored prompt: {self.config.prompt_id} v{self.config.prompt_version}")
+
+            # Add code interpreter tool with container if available
+            if self.container_id:
+                request_params["tools"] = [{
+                    "type": "code_interpreter",
+                    "container": self.container_id
+                }]
+                logger.info(f"Code interpreter enabled with container: {self.container_id}")
+
+            logger.info(f"Calling Responses API with input: {len(input_items)} messages")
+
+            # Call Responses API
+            response = await self.openai_client.responses.create(**request_params)
+
+            # Return the response text directly
+            return self._extract_response_text(response)
+
         except Exception as e:
             logger.error(f"Error in chat_with_tools: {e}")
+            return f"Error processing request: {str(e)}"
+
+    def _extract_response_text(self, response) -> str:
+        """Extract text content from Responses API response."""
+        try:
+            # Check for output_text attribute (direct text output)
+            if hasattr(response, 'output_text') and response.output_text:
+                return response.output_text
+
+            # Check for output items
+            if hasattr(response, 'output') and response.output:
+                text_parts = []
+                for item in response.output:
+                    if item.type == "message":
+                        for content_part in item.content:
+                            if content_part.type == "text":
+                                text_parts.append(content_part.text)
+
+                if text_parts:
+                    return "\n".join(text_parts)
+
+            # Fallback: return status or empty
+            return f"Response completed with status: {response.status}"
+        except Exception as e:
+            logger.error(f"Error extracting response text: {e}")
+            return "Error extracting response"
+
+    async def chat_with_tools_streaming(
+        self,
+        user_message: str,
+        conversation_history: Optional[List[Dict[str, Any]]] = None,
+        text_callback: Optional[Callable[[str], Awaitable[None]]] = None
+    ) -> str:
+        """
+        Chat with the assistant using available MCP tools via OpenAI Responses API with streaming.
+
+        Args:
+            user_message: The user's message
+            conversation_history: Optional conversation history
+            text_callback: Callback function for streaming text chunks
+
+        Returns:
+            The complete assistant's response
+        """
+        if not self.openai_client:
+            raise RuntimeError("MCP client not initialized")
+
+        # Prepare input for Responses API
+        input_items = []
+
+        # Add conversation history as input items
+        if conversation_history:
+            for msg in conversation_history:
+                role = msg.get("role", "user")
+                content = msg.get("content", "")
+                input_items.append({
+                    "type": "message",
+                    "role": role,
+                    "content": [{"type": "input_text", "text": content}]
+                })
+
+        # Add current user message
+        input_items.append({
+            "type": "message",
+            "role": "user",
+            "content": [{"type": "input_text", "text": user_message}]
+        })
+
+        try:
+            # Prepare request parameters
+            request_params = {
+                "model": self.config.model,
+                "input": input_items,
+                "stream": True,  # Enable streaming
+            }
+
+            # Use stored prompt if configured
+            if self.config.prompt_id:
+                request_params["prompt"] = {
+                    "id": self.config.prompt_id,
+                    "version": self.config.prompt_version or "1"
+                }
+                logger.info(f"Using stored prompt: {self.config.prompt_id} v{self.config.prompt_version}")
+
+            # Add code interpreter tool with container if available
+            if self.container_id:
+                request_params["tools"] = [{
+                    "type": "code_interpreter",
+                    "container": self.container_id
+                }]
+                logger.info(f"Code interpreter enabled with container: {self.container_id}")
+
+            logger.info(f"Calling Responses API (streaming) with input: {len(input_items)} messages")
+
+            # Call Responses API with streaming
+            stream = await self.openai_client.responses.create(**request_params)
+
+            # Process stream events
+            accumulated_text = ""
+            code_output = ""
+
+            async for event in stream:
+                # Handle text delta events
+                if event.type == "response.output_text.delta":
+                    if hasattr(event, 'delta') and event.delta:
+                        accumulated_text += event.delta
+                        if text_callback:
+                            await text_callback(event.delta)
+
+                # Handle text done event
+                elif event.type == "response.output_text.done":
+                    logger.info("Text output completed")
+
+                # Handle code interpreter events
+                elif event.type == "response.code_interpreter_call.in_progress":
+                    logger.info("Code interpreter executing...")
+                    if text_callback:
+                        await text_callback("\n[Code Interpreter executing...]\n")
+
+                elif event.type == "response.code_interpreter_call.interpreting":
+                    logger.info("Code interpreter interpreting results...")
+
+                elif event.type == "response.code_interpreter_call.code.delta":
+                    if hasattr(event, 'delta') and event.delta:
+                        code_output += event.delta
+                        logger.debug(f"Code delta: {event.delta}")
+
+                elif event.type == "response.code_interpreter_call.code.done":
+                    logger.info(f"Code execution complete: {code_output}")
+                    if text_callback and code_output:
+                        await text_callback(f"\n```python\n{code_output}\n```\n")
+                    code_output = ""  # Reset for next code block
+
+                elif event.type == "response.code_interpreter_call.completed":
+                    logger.info("Code interpreter call completed")
+                    if text_callback:
+                        await text_callback("[Code execution completed]\n")
+
+                # Handle response done event
+                elif event.type == "response.done":
+                    logger.info(f"Response completed with status: {event.response.status}")
+
+                # Handle error events
+                elif event.type == "error":
+                    error_msg = event.error.message if hasattr(event, 'error') else "Unknown error"
+                    logger.error(f"Stream error: {error_msg}")
+                    return f"Error: {error_msg}"
+
+            return accumulated_text
+
+        except Exception as e:
+            logger.error(f"Error in chat_with_tools_streaming: {e}")
             return f"Error processing request: {str(e)}"
     
     async def _call_tool(self, tool_key: str, args: Dict[str, Any]) -> str:
@@ -534,14 +726,14 @@ class EnhancedMCPClient:
         return tools
         
     async def close(self):
-        """Close all MCP sessions."""
+        """Close all MCP sessions and cleanup container."""
         # Close all sessions
         for session in self.sessions.values():
             try:
                 await session.close()
             except Exception as e:
                 logger.error(f"Error closing session: {e}")
-        
+
         # Close all connection resources
         for server_name, (_, _, close_func) in self._connection_resources.items():
             try:
@@ -550,10 +742,20 @@ class EnhancedMCPClient:
                     logger.debug(f"Closed connection resources for {server_name}")
             except Exception as e:
                 logger.error(f"Error closing connection resources for {server_name}: {e}")
-        
+
+        # Delete container if it exists
+        if self.container_id:
+            try:
+                logger.info(f"Deleting container: {self.container_id}")
+                await self.openai_client.containers.delete(self.container_id)
+                logger.info("Container deleted successfully")
+            except Exception as e:
+                logger.error(f"Error deleting container: {e}")
+
         self.sessions.clear()
         self.available_tools.clear()
         self._connection_resources.clear()
+        self.container_id = None
 
     async def make_enhancement_decision_streaming(
         self,
