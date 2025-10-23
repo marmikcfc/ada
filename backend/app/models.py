@@ -87,12 +87,36 @@ class VisualizationProviderConfig(BaseModel):
             raise ValueError(f'Provider type must be one of: {", ".join(allowed_providers)}')
         return v
 
+class VoiceIdleSettings(BaseModel):
+    """Per-connection voice idle timeout settings"""
+    enabled: bool = Field(default=True, description="Whether idle timeout is enabled")
+    timeout_seconds: int = Field(default=60, description="Seconds before disconnect")
+    warning_seconds: int = Field(default=50, description="When to show warning")
+    
+    @validator('timeout_seconds')
+    def validate_timeout(cls, v):
+        if v < 0:
+            raise ValueError('Timeout must be non-negative')
+        if v > 0 and v < 10:
+            raise ValueError('Timeout must be at least 10 seconds or 0 to disable')
+        return v
+    
+    @validator('warning_seconds')
+    def validate_warning(cls, v, values):
+        timeout = values.get('timeout_seconds', 60)
+        if timeout > 0 and v >= timeout:
+            raise ValueError('Warning time must be less than timeout')
+        if v < 0:
+            raise ValueError('Warning time must be non-negative')
+        return v
+
 class ConnectionConfig(BaseModel):
     """Complete configuration for a WebSocket connection"""
     client_id: str = Field(..., description="Unique identifier for the client")
     auth_token: Optional[str] = Field(None, description="Authentication token")
     mcp_config: MCPClientConfig = Field(..., description="MCP client configuration")
     visualization_provider: VisualizationProviderConfig = Field(..., description="Visualization provider config")
+    voice_idle_settings: Optional[VoiceIdleSettings] = Field(None, description="Voice idle timeout settings")
     preferences: Dict[str, Any] = Field(default_factory=dict, description="Client preferences")
     
     @validator('client_id')
