@@ -248,6 +248,11 @@
   resolved "https://registry.npmjs.org/@babel/runtime/-/runtime-7.28.2.tgz"
   integrity sha512-KHp2IflsnGywDjBWDkR9iEqiWSpc8GIi0lgTT3mOElT0PP1tG26P4tmFI2YvAdzgq9RGyoHZQEIEdZy6Ec5xCA==
 
+"@babel/standalone@^7.28.2":
+  version "7.28.2"
+  resolved "https://registry.npmjs.org/@babel/standalone/-/standalone-7.28.2.tgz"
+  integrity sha512-1kjA8XzBRN68HoDDYKP38bucHtxYWCIX8XdYwe1drRNUOjOVNt8EMy9jiE6UwaGFfU7NOHCG+C8KgBc9CR08nA==
+
 "@babel/template@^7.27.2", "@babel/template@^7.3.3":
   version "7.27.2"
   resolved "https://registry.npmjs.org/@babel/template/-/template-7.27.2.tgz"
@@ -1222,6 +1227,11 @@
   integrity sha512-V4BG07kuYSUkTCSBHG8G8TNhM+F19jXFWnQtzj+we8DrkpSBCee9Z3Ms8yiGer/dlmhe35/Xdgyo3/0rQKg7YA==
   dependencies:
     "@sinonjs/commons" "^3.0.0"
+
+"@swc/wasm-web@^1.13.3":
+  version "1.13.3"
+  resolved "https://registry.npmjs.org/@swc/wasm-web/-/wasm-web-1.13.3.tgz"
+  integrity sha512-9TfQ/xHb0Z3Zw6TqFbk6heV8P7WUWcl4wMR8S1xVEeSA/0aZl4dAqGa1IBDf7sPh52ELR8kg8bg2sa4UiyG2vA==
 
 "@thesysai/genui-sdk@0.6.15":
   version "0.6.15"

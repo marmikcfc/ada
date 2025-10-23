@@ -35,12 +35,14 @@ class C1Token(TypedDict):
     id: str
     type: str  # "c1_token"
     content: str
+    framework: Optional[str]  # Framework used for content (e.g., "c1")
 
 class HTMLToken(TypedDict):
     """Incremental HTML token for streaming HTML responses"""
     id: str
     type: str  # "html_token"
     content: str
+    framework: Optional[str]  # Framework used for HTML content (e.g., "tailwind", "shadcn")
 
 class ChatDone(TypedDict):
     """Marker for completed text response"""
@@ -250,20 +252,22 @@ def create_chat_token(id: str, content: str) -> ChatToken:
         "content": content
     }
 
-def create_c1_token(id: str, content: str) -> C1Token:
+def create_c1_token(id: str, content: str, framework: Optional[str] = "c1") -> C1Token:
     """Create a C1 token message"""
     return {
         "id": id,
         "type": "c1_token",
-        "content": content
+        "content": content,
+        "framework": framework
     }
 
-def create_html_token(id: str, content: str) -> HTMLToken:
+def create_html_token(id: str, content: str, framework: Optional[str] = None) -> HTMLToken:
     """Create an HTML token message"""
     return {
         "id": id,
         "type": "html_token",
-        "content": content
+        "content": content,
+        "framework": framework
     }
 
 def create_chat_done(id: str, content: Optional[str] = None) -> ChatDone:

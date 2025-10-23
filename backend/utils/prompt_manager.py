@@ -100,6 +100,10 @@ Include window.genuxSDK event handlers and return JSON with htmlContent field.""
 Use ShadCN/UI component patterns with Tailwind CSS and proper design system conventions.
 Include window.genuxSDK event handlers and return JSON with htmlContent field.""",
             
+            "openai_jsx_generator_system": """You are a JSX component generator that creates React components using shadcn/ui patterns.
+Generate functional React JSX components with proper event handlers and modern React patterns.
+Return JSON with jsxContent field and use shadcn component names like Card, Button, Input, etc.""",
+            
             "visualization_system_prompt": """You are a UI generation assistant. 
 Convert text responses into appropriate visual components for display.""",
             
@@ -135,7 +139,7 @@ def get_html_generator_prompt(framework: str = "inline") -> str:
     Get appropriate HTML generator prompt based on framework
     
     Args:
-        framework: Target framework ("tailwind", "shadcn", "inline", etc.)
+        framework: Target framework ("tailwind", "shadcn", "jsx", "inline", etc.)
         
     Returns:
         System prompt for the specified framework
@@ -145,6 +149,8 @@ def get_html_generator_prompt(framework: str = "inline") -> str:
         return load_prompt("openai_tailwind_generator_system")
     elif framework_lower == "shadcn":
         return load_prompt("openai_shadcn_generator_system")
+    elif framework_lower == "jsx":
+        return load_prompt("openai_jsx_generator_system")
     elif framework_lower in ["c1", "thesys"]:
         # TheSys provider uses C1 components, not HTML generation
         return load_prompt("visualization_system_prompt")

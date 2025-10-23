@@ -355,10 +355,16 @@ class ConnectionManager:
         config_data = {
             "config": {
                 "model": mcp_config.model,
-                "openai_api_key_env": mcp_config.api_key_env
+                "openai_api_key_env": mcp_config.api_key_env,
+                "timeout": mcp_config.timeout
             },
             "servers": {}
         }
+
+        # Add prompt_id and prompt_version if configured
+        if mcp_config.prompt_id:
+            config_data["config"]["prompt_id"] = mcp_config.prompt_id
+            config_data["config"]["prompt_version"] = mcp_config.prompt_version or "1"
         
         for server in mcp_config.servers:
             config_data["servers"][server.name] = {
@@ -392,20 +398,23 @@ class ConnectionManager:
         )
         
         try:
-            client = EnhancedMCPClient(temp_path, max_tool_calls=mcp_config.max_tool_calls)
-            await asyncio.wait_for(client.initialize(), timeout=mcp_config.timeout)
-            
+            client = EnhancedMCPClient(temp_path)
+            # Use at least 120 seconds for initialization to allow time for container creation and file uploads
+            init_timeout = max(mcp_config.timeout, 120)
+            logger.info(f"Initializing MCP client with timeout: {init_timeout}s (config timeout: {mcp_config.timeout}s)")
+            await asyncio.wait_for(client.initialize(), timeout=init_timeout)
+
             await self.update_state(
-                connection_id, 
+                connection_id,
                 ConnectionState.MCP_INITIALIZING,
-                f"Connected to {len(client.sessions)} MCP servers", 
+                f"Connected to {len(client.sessions)} MCP servers",
                 45
             )
-            
+
             return client
-            
+
         except asyncio.TimeoutError:
-            raise Exception(f"MCP client initialization timed out after {mcp_config.timeout}s")
+            raise Exception(f"MCP client initialization timed out after {init_timeout}s")
         except Exception as e:
             raise Exception(f"MCP client initialization failed: {str(e)}")
     
