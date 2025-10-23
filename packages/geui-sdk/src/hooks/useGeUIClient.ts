@@ -4,7 +4,9 @@ import {
   Message, 
   ConnectionState, 
   VoiceConnectionState,
-  GeUIClient
+  GeUIClient,
+  InteractionType,
+  InteractionProcessingState
 } from '../types';
 
 /**
@@ -103,6 +105,7 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
       onFormSubmit: options.onFormSubmit,
       onButtonClick: options.onButtonClick,
       onInputChange: options.onInputChange,
+      onLinkClick: options.onLinkClick,
       onWebSocketConnect: options.onWebSocketConnect,
     });
     connectionServiceRef.current = newService;
@@ -137,8 +140,16 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
         console.log('🔥 New messages:', newMessages);
         return newMessages;
       });
-      setIsLoading(false);
-      setIsEnhancing(false);
+      
+      // Only clear loading state for assistant messages, not user messages
+      // This allows "thinking" message to persist during interactions
+      if (message.role === 'assistant') {
+        console.log('🔄 Assistant message received, clearing loading state');
+        setIsLoading(false);
+        setIsEnhancing(false);
+      } else {
+        console.log('👤 User message received, preserving loading state');
+      }
     };
     const handleTranscription = (_transcript: { text: string, final?: boolean, id?: string }) => {
       // MESSAGE_RECEIVED is already emitted by ConnectionService for the
@@ -171,6 +182,10 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
       setStreamingContentType('c1'); // Reset to default
     };
     const handleEnhancementStarted = () => setIsEnhancing(true);
+    const handleInteractionLoading = () => {
+      console.log('🎯 useGeUIClient: Received INTERACTION_LOADING event, setting isLoading=true');
+      setIsLoading(true);
+    };
     const handleAudioStream = (stream: MediaStream) => setAudioStream(stream);
     const handleError = (error: Error) => {
       console.error('Connection service error:', error);
@@ -187,6 +202,7 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
     newService.on(ConnectionEvent.STREAMING_CHUNK, handleStreamingChunk);
     newService.on(ConnectionEvent.STREAMING_DONE, handleStreamingDone);
     newService.on(ConnectionEvent.ENHANCEMENT_STARTED, handleEnhancementStarted);
+    newService.on(ConnectionEvent.INTERACTION_LOADING, handleInteractionLoading);
     newService.on(ConnectionEvent.AUDIO_STREAM, handleAudioStream);
     newService.on(ConnectionEvent.ERROR, handleError);
     
@@ -313,6 +329,15 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
     messages,
     connectionState,
     voiceState,
+    
+    // Interaction processing methods
+    isInteractionProcessing: useCallback((type: InteractionType, identifier: string) => {
+      return connectionServiceRef.current?.checkInteractionProcessing?.(type, identifier) || false;
+    }, []),
+    
+    getProcessingInteractions: useCallback((): InteractionProcessingState[] => {
+      return connectionServiceRef.current?.getProcessingInteractions?.() || [];
+    }, []),
     
     // Additional properties
     threadId,

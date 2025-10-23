@@ -159,6 +159,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       id: 'loading',
       role: 'assistant',
       content: `💭 ${agentName} is thinking...`,
+      contentType: 'text',
       timestamp: new Date(),
       isLoading: true,
     };
@@ -170,6 +171,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       id: 'enhancing',
       role: 'assistant',
       content: '✨ Generating enhanced display...',
+      contentType: 'text',
       timestamp: new Date(),
       isLoading: true,
     };

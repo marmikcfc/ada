@@ -26,6 +26,7 @@ from app.models import (
 )
 from app.viz_provider_factory import VisualizationProviderFactory, VisualizationProvider
 from agent.enhanced_mcp_client_agent import EnhancedMCPClient
+from app.config import config as config_module
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,14 @@ class ConnectionContext:
     voice_agent: Optional[Any] = None  # Will be VoiceInterfaceAgent when connected
     webrtc_connection: Optional[Any] = None  # Will be SmallWebRTCConnection when active
     voice_thread_id: Optional[str] = None  # Thread ID for voice conversations
+    # Voice activity tracking for idle timeout
+    last_user_speech_time: Optional[float] = None  # When user last spoke
+    last_bot_speech_end_time: Optional[float] = None  # When bot last finished speaking
+    voice_idle_timer_active: bool = False  # Whether idle timer is currently active
+    # Voice idle configuration (from frontend)
+    voice_idle_enabled: bool = True  # Default from backend config
+    voice_idle_timeout: int = 60  # Default from backend config
+    voice_idle_warning_time: int = 10  # Default from backend config
     
     def __post_init__(self):
         """Initialize metrics after dataclass creation"""
@@ -179,6 +188,26 @@ class ConnectionManager:
                 "Configuration validated, initializing MCP client...", 
                 25
             )
+            
+            # Apply voice idle settings from frontend if provided
+            if config.voice_idle_settings:
+                context.voice_idle_enabled = config.voice_idle_settings.enabled
+                context.voice_idle_timeout = config.voice_idle_settings.timeout_seconds
+                # Calculate warning time from the difference
+                context.voice_idle_warning_time = (
+                    config.voice_idle_settings.timeout_seconds - 
+                    config.voice_idle_settings.warning_seconds
+                )
+                logger.info(f"Voice idle settings for {connection_id}: "
+                           f"enabled={context.voice_idle_enabled}, "
+                           f"timeout={context.voice_idle_timeout}s, "
+                           f"warning_time={context.voice_idle_warning_time}s")
+            else:
+                # Use backend defaults from config
+                context.voice_idle_enabled = config_module.voice.voice_idle_timeout > 0
+                context.voice_idle_timeout = config_module.voice.voice_idle_timeout
+                context.voice_idle_warning_time = config_module.voice.voice_idle_warning_time
+                logger.info(f"Using backend default voice idle settings for {connection_id}")
             
             # Initialize MCP client
             try:
@@ -570,6 +599,50 @@ class ConnectionManager:
         except Exception as e:
             logger.error(f"Failed to inject TTS to connection {connection_id}: {e}")
             return False
+    
+    async def update_user_speech_time(self, connection_id: str) -> None:
+        """Update the last user speech time for idle timeout tracking"""
+        if connection_id not in self.connections:
+            return
+        
+        context = self.connections[connection_id]
+        context.last_user_speech_time = time.time()
+        context.voice_idle_timer_active = False  # Reset timer when user speaks
+        logger.debug(f"Updated user speech time for {connection_id}")
+    
+    async def update_bot_speech_end_time(self, connection_id: str) -> None:
+        """Update the bot speech end time and activate idle timer"""
+        if connection_id not in self.connections:
+            return
+        
+        context = self.connections[connection_id]
+        context.last_bot_speech_end_time = time.time()
+        context.voice_idle_timer_active = True  # Start timer when bot stops speaking
+        logger.debug(f"Updated bot speech end time for {connection_id}, idle timer active")
+    
+    async def get_voice_idle_status(self, connection_id: str) -> Optional[Dict[str, Any]]:
+        """Get voice idle status for a connection"""
+        if connection_id not in self.connections:
+            return None
+        
+        context = self.connections[connection_id]
+        if not context.voice_agent:
+            return None
+        
+        current_time = time.time()
+        idle_status = {
+            "has_voice": True,
+            "idle_timer_active": context.voice_idle_timer_active,
+            "last_user_speech": context.last_user_speech_time,
+            "last_bot_speech_end": context.last_bot_speech_end_time,
+            "seconds_since_last_activity": None
+        }
+        
+        # Calculate idle time if timer is active
+        if context.voice_idle_timer_active and context.last_bot_speech_end_time:
+            idle_status["seconds_since_last_activity"] = current_time - context.last_bot_speech_end_time
+        
+        return idle_status
     
 
     async def get_connection_metrics(self) -> Dict[str, Any]:

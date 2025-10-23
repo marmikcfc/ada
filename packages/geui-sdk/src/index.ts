@@ -6,7 +6,7 @@
  */
 
 // Export official styles for consumers who need them
-import '@crayonai/react-ui/styles/index.css';
+//import '@crayonai/react-ui/styles/index.css';
 
 // Main component
 export { default as GeUI } from './components/GeUI';

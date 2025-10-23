@@ -306,6 +306,14 @@ class VoiceInterfaceAgent:
                 
                 # Add to chat history based on role
                 if message.role == "user":
+                    # Update user speech time for idle tracking
+                    if self.connection_id:
+                        try:
+                            from app.connection_manager import connection_manager
+                            await connection_manager.update_user_speech_time(self.connection_id)
+                        except Exception as e:
+                            logger.error(f"Error updating user speech time: {e}")
+                    
                     # Add user message to chat history
                     await chat_history_manager.add_user_message(self.thread_id, message.content)
                     # Send to frontend
@@ -348,6 +356,14 @@ class ResponseAggregatorProcessor(FrameProcessor):
                     self.agent_instance.thread_id,
                     assistant_response
                 )
+                
+                # Update bot speech end time for idle tracking
+                if self.agent_instance.connection_id:
+                    try:
+                        from app.connection_manager import connection_manager
+                        await connection_manager.update_bot_speech_end_time(self.agent_instance.connection_id)
+                    except Exception as e:
+                        logger.error(f"Error updating bot speech end time: {e}")
 
                 # ------------------------------------------------------------------
                 # FAST-PATH UI UPDATE: push a simple Card to the frontend **now**
@@ -363,6 +379,9 @@ class ResponseAggregatorProcessor(FrameProcessor):
                     # Add connection and thread metadata for proper routing
                     immediate_msg["connection_id"] = self.agent_instance.connection_id
                     immediate_msg["thread_id"] = self.agent_instance.thread_id
+                    
+                    # Store the immediate message ID for later reference
+                    self.immediate_message_id = immediate_msg['id']
                     
                     # Broadcast immediate voice response to all relevant connections
                     delivery_count = await broadcast_voice_message(immediate_msg)

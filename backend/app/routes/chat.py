@@ -23,8 +23,61 @@ from app.chat_history_manager import chat_history_manager
 
 logger = logging.getLogger(__name__)
 
+# Global interaction deduplication tracking
+# Format: {connection_id: {interaction_hash: timestamp}}
+interaction_dedup_cache: Dict[str, Dict[str, float]] = {}
+DEDUP_WINDOW_SECONDS = 5.0  # Time window to consider interactions as duplicates
+
 # Router for per-connection chat endpoints
 router = APIRouter(tags=["per-connection-chat"])
+
+def _generate_interaction_hash(interaction_type: str, interaction_context: Dict[str, Any]) -> str:
+    """Generate a unique hash for an interaction to detect duplicates"""
+    import hashlib
+    import time
+    
+    # Create a deterministic string from the interaction
+    interaction_str = f"{interaction_type}:{json.dumps(interaction_context, sort_keys=True)}"
+    return hashlib.md5(interaction_str.encode()).hexdigest()
+
+def _is_duplicate_interaction(connection_id: str, interaction_hash: str) -> bool:
+    """Check if this interaction is a duplicate within the deduplication window"""
+    import time
+    current_time = time.time()
+    
+    # Clean up old entries first
+    _cleanup_old_interactions(connection_id, current_time)
+    
+    # Check if this interaction exists in the cache
+    if connection_id in interaction_dedup_cache:
+        if interaction_hash in interaction_dedup_cache[connection_id]:
+            last_time = interaction_dedup_cache[connection_id][interaction_hash]
+            if current_time - last_time < DEDUP_WINDOW_SECONDS:
+                return True
+    
+    # Mark this interaction as processed
+    if connection_id not in interaction_dedup_cache:
+        interaction_dedup_cache[connection_id] = {}
+    
+    interaction_dedup_cache[connection_id][interaction_hash] = current_time
+    return False
+
+def _cleanup_old_interactions(connection_id: str, current_time: float):
+    """Remove old interaction entries outside the deduplication window"""
+    if connection_id not in interaction_dedup_cache:
+        return
+    
+    expired_hashes = []
+    for interaction_hash, timestamp in interaction_dedup_cache[connection_id].items():
+        if current_time - timestamp > DEDUP_WINDOW_SECONDS:
+            expired_hashes.append(interaction_hash)
+    
+    for hash_to_remove in expired_hashes:
+        del interaction_dedup_cache[connection_id][hash_to_remove]
+    
+    # Remove connection entry if empty
+    if not interaction_dedup_cache[connection_id]:
+        del interaction_dedup_cache[connection_id]
 
 @router.websocket("/ws/per-connection-messages")
 async def websocket_per_connection_messages(websocket: WebSocket):
@@ -251,6 +304,37 @@ async def _per_connection_voice_bridge(context):
                     await context.message_queue.put(message)
                     logger.info(f"✅ Successfully queued voice message {message.get('type')} to per-connection queue for {context.connection_id}")
                     
+                    # If this is an immediate_voice_response, also queue for enhancement processing
+                    if message.get('type') == 'immediate_voice_response':
+                        try:
+                            # Extract the raw text from the C1 content
+                            content = message.get('content', '')
+                            assistant_response = _extract_text_from_voice_content(content)
+                            
+                            # Get thread ID from message
+                            thread_id = message.get('thread_id') or message.get('threadId')
+                            
+                            # Get conversation history for this thread
+                            conversation_history = []
+                            if thread_id:
+                                conversation_history = await chat_history_manager.get_recent_history(thread_id)
+                            
+                            # Queue for enhancement processing
+                            await context.raw_output_queue.put({
+                                "assistant_response": assistant_response,
+                                "history": conversation_history,
+                                "metadata": {
+                                    "connection_id": context.connection_id,
+                                    "thread_id": thread_id,
+                                    "message_id": message.get('id'),  # This is the immediate_voice_response ID
+                                    "source": "voice-agent"
+                                }
+                            })
+                            logger.info(f"✅ Queued voice response for enhancement processing: {assistant_response[:50]}...")
+                            
+                        except Exception as e:
+                            logger.error(f"Error queuing voice response for enhancement: {e}")
+                    
                     # Mark task as done in broadcast queue
                     voice_queue.task_done()
                     
@@ -287,6 +371,16 @@ async def _process_user_interaction(context, interaction_message: UserInteractio
         interaction_context = interaction_message.context
         
         logger.info(f"Processing {interaction_type} for {context.connection_id}: {interaction_context}")
+        
+        # Generate interaction hash for deduplication
+        interaction_hash = _generate_interaction_hash(interaction_type, interaction_context)
+        
+        # Check if this is a duplicate interaction
+        if _is_duplicate_interaction(context.connection_id, interaction_hash):
+            logger.info(f"Duplicate {interaction_type} interaction detected for {context.connection_id}, skipping processing")
+            return
+        
+        logger.info(f"Processing new {interaction_type} interaction for {context.connection_id} (hash: {interaction_hash[:8]})")
         
         # Detect framework from interaction context
         detected_framework = _detect_framework_from_interaction(interaction_context)
@@ -517,6 +611,37 @@ def _convert_interaction_to_chat(interaction_type: str, context: Dict[str, Any])
     """Convert user interaction data into a human-readable chat message (legacy function)"""
     # Keep this for backward compatibility, but redirect to user message version
     return _convert_interaction_to_user_message(interaction_type, context)
+
+def _extract_text_from_voice_content(content: str) -> str:
+    """Extract the raw text from a voice response C1 content payload"""
+    try:
+        # Voice responses use create_simple_card_content which wraps text in <content>{json}</content>
+        if content.startswith("<content>") and content.endswith("</content>"):
+            # Extract JSON between tags
+            json_str = content[9:-10]  # Remove <content> and </content>
+            data = json.loads(json_str)
+            
+            # Navigate the C1 structure to get textMarkdown
+            if (isinstance(data, dict) and 
+                "component" in data and 
+                isinstance(data["component"], dict) and
+                "props" in data["component"] and
+                "children" in data["component"]["props"] and
+                isinstance(data["component"]["props"]["children"], list) and
+                len(data["component"]["props"]["children"]) > 0):
+                
+                first_child = data["component"]["props"]["children"][0]
+                if (isinstance(first_child, dict) and 
+                    "props" in first_child and
+                    "textMarkdown" in first_child["props"]):
+                    return first_child["props"]["textMarkdown"]
+        
+        # If not in expected format, return the raw content
+        return content
+        
+    except Exception as e:
+        logger.error(f"Error extracting text from voice content: {e}")
+        return content  # Return raw content as fallback
 
 async def _process_per_connection_chat(context, chat_message: ChatMessage):
     """Process a chat message using connection's resources"""

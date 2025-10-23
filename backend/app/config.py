@@ -119,6 +119,24 @@ class LoggingSettings(SettingsBase):
         alias="LOG_FORMAT"
     )
     
+class VoiceSettings(SettingsBase):
+    """Voice connection configurations"""
+    voice_idle_timeout: int = Field(
+        default=60,
+        alias="VOICE_IDLE_TIMEOUT",
+        description="Seconds of silence before disconnecting voice (0 to disable)"
+    )
+    voice_idle_check_interval: int = Field(
+        default=5,
+        alias="VOICE_IDLE_CHECK_INTERVAL", 
+        description="How often to check for idle voice connections (seconds)"
+    )
+    voice_idle_warning_time: int = Field(
+        default=10,
+        alias="VOICE_IDLE_WARNING_TIME",
+        description="Seconds of warning before disconnecting idle voice"
+    )
+    
 # --------------------------------------------------------------------------- #
 # Streaming-related settings (C1Component chunk streaming)                   #
 # --------------------------------------------------------------------------- #
@@ -150,6 +168,7 @@ class AppConfig:
     fastapi: FastAPISettings
     queue: QueueSettings
     logging: LoggingSettings
+    voice: "VoiceSettings"  # quotes for forward reference
     streaming: "StreamingSettings"  # quotes for forward reference
 
 
@@ -168,6 +187,7 @@ def load_config() -> AppConfig:
         fastapi_settings = FastAPISettings()
         queue_settings = QueueSettings()
         logging_settings = LoggingSettings()
+        voice_settings = VoiceSettings()
         streaming_settings = StreamingSettings()
         
         # Configure logging based on settings
@@ -194,6 +214,7 @@ def load_config() -> AppConfig:
             fastapi=fastapi_settings,
             queue=queue_settings,
             logging=logging_settings,
+            voice=voice_settings,
             streaming=streaming_settings
         )
         

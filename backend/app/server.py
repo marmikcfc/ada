@@ -40,6 +40,10 @@ from agent.enhanced_mcp_client_agent import EnhancedMCPClient
 
 # Import chat history manager (shared across the whole backend)
 from app.chat_history_manager import chat_history_manager
+# Import connection manager
+from app.connection_manager import connection_manager
+# Import voice idle monitor
+from app.voice_idle_monitor import voice_idle_monitor
 logger = logging.getLogger(__name__)
 
 # Removed global MCP client - now using per-connection MCP clients only
@@ -67,6 +71,14 @@ async def lifespan(app: FastAPI):
     
     # Initialize queues
     initialize_queues()
+    
+    # Start connection manager
+    await connection_manager.start()
+    logger.info("Connection manager started")
+    
+    # Start voice idle monitor
+    await voice_idle_monitor.start()
+    logger.info("Voice idle monitor started")
     
     # Initialize Thesys Client if API key is available
     if config.api.thesys_api_key:
@@ -103,6 +115,14 @@ async def lifespan(app: FastAPI):
     yield
     
     # Cleanup on shutdown
+    
+    # Stop voice idle monitor
+    await voice_idle_monitor.stop()
+    logger.info("Voice idle monitor stopped")
+    
+    # Stop connection manager
+    await connection_manager.stop()
+    logger.info("Connection manager stopped")
     
     # Visualization processor removed - using per-connection processing only
     

@@ -1,994 +1,623 @@
-import asyncio
-import json
+"""
+Ada Interaction Engine - Connection Manager
+
+This module manages per-connection resources including MCP clients,
+visualization providers, queues, and state management for multi-tenant
+WebSocket connections.
+"""
+
 import os
-import re
-from pathlib import Path
-from typing import Awaitable, Callable, Dict, List, Any, Optional, Tuple
-from dataclasses import dataclass
+import json
+import time
+import uuid
+import asyncio
 import logging
-# Third-party / MCP imports
-from openai import AsyncOpenAI
-from mcp import ClientSession
-from mcp.client.streamable_http import streamablehttp_client
+import tempfile
+from typing import Dict, Optional, List, Any
+from dataclasses import dataclass, field
+from urllib.parse import urlparse
+from weakref import WeakSet
 
-# Shared data models
-from schemas import EnhancementDecision
+from fastapi import WebSocket
 
-# Streaming utilities
-from streaming_parser import (
-    StreamingEnhancementGenerator,
-    EnhancementStreamingParser,  # <-- NEW: correct low-level parser
+from app.models import (
+    ConnectionConfig, ConnectionState, ConnectionStateMessage,
+    ConnectionMetrics, VisualizationProviderConfig, MCPClientConfig
 )
-
-# Built-in tools
-from tools import get_image_src, get_images
+from app.viz_provider_factory import VisualizationProviderFactory, VisualizationProvider
+from agent.enhanced_mcp_client_agent import EnhancedMCPClient
 
 logger = logging.getLogger(__name__)
 
 @dataclass
-class MCPServerConfig:
-    name: str
-    url: str
-    transport: str
-    description: Optional[str] = None
-    command: Optional[str] = None
-    args: Optional[List[str]] = None
-    headers: Optional[Dict[str, str]] = None  # HTTP headers for this server
-
-@dataclass
-class MCPClientConfig:
-    model: str
-    openai_api_key: str
-    servers: List[MCPServerConfig]
-    prompt_id: Optional[str] = None
-    prompt_version: Optional[str] = None
-
-class EnhancedMCPClient:
-    """Enhanced MCP client that supports HTTP servers and external configuration."""
+class ConnectionContext:
+    """Context for a single WebSocket connection"""
+    connection_id: str
+    websocket: WebSocket
+    config: Optional[ConnectionConfig] = None
+    state: ConnectionState = ConnectionState.CONNECTING
+    mcp_client: Optional[EnhancedMCPClient] = None
+    visualization_provider: Optional[VisualizationProvider] = None
+    message_queue: Optional[asyncio.Queue] = None
+    raw_output_queue: Optional[asyncio.Queue] = None
+    processor_task: Optional[asyncio.Task] = None
+    temp_mcp_config_path: Optional[str] = None
+    created_at: float = field(default_factory=time.time)
+    last_activity: float = field(default_factory=time.time)
+    metrics: ConnectionMetrics = field(init=False)
+    conversation_histories: Dict[str, List[Dict[str, Any]]] = field(default_factory=dict)
+    # Voice-related fields
+    voice_agent: Optional[Any] = None  # Will be VoiceInterfaceAgent when connected
+    webrtc_connection: Optional[Any] = None  # Will be SmallWebRTCConnection when active
+    voice_thread_id: Optional[str] = None  # Thread ID for voice conversations
     
-    def __init__(self, config_path: str):
-        self.config_path = config_path
-        self.config: Optional[MCPClientConfig] = None
-        self.openai_client: Optional[AsyncOpenAI] = None
-        self.sessions: Dict[str, ClientSession] = {}
-        self.available_tools: Dict[str, Any] = {}
-        # Store connection resources for proper cleanup
-        self._connection_resources: Dict[str, Tuple[Any, Any, Any]] = {}
+    def __post_init__(self):
+        """Initialize metrics after dataclass creation"""
+        self.metrics = ConnectionMetrics(
+            connection_id=self.connection_id,
+            client_id=self.config.client_id if self.config else "unknown",
+            state=self.state,
+            created_at=self.created_at,
+            last_activity=self.last_activity
+        )
 
-        # Container ID for code interpreter
-        self.container_id: Optional[str] = None
-
-        # Add built-in tools to available tools
-        self._add_builtin_tools()
+class ConnectionManager:
+    """Manager for all WebSocket connections and their resources"""
+    
+    def __init__(self):
+        self.connections: Dict[str, ConnectionContext] = {}
+        self.viz_factory = VisualizationProviderFactory()
+        self._cleanup_task: Optional[asyncio.Task] = None
+        self._authorized_clients: WeakSet = WeakSet()
         
-    async def initialize(self):
-        """Initialize the MCP client with configuration from JSON file."""
-        try:
-            # Load configuration
-            self.config = await self._load_config()
-            
-            # Initialize OpenAI client
-            self.openai_client = AsyncOpenAI(api_key=self.config.openai_api_key)
-            
-            # Connect to all MCP servers
-            await self._connect_to_servers()
-
-            # Initialize container for code interpreter
-            await self._initialize_container()
-
-            logger.info(f"Enhanced MCP client initialized with {len(self.sessions)} servers")
-
-        except Exception as e:
-            logger.error(f"Failed to initialize Enhanced MCP client: {e}")
-            raise
+    async def start(self):
+        """Start the connection manager"""
+        # Start periodic cleanup task
+        self._cleanup_task = asyncio.create_task(self._periodic_cleanup())
+        logger.info("Connection manager started")
     
-    async def _load_config(self) -> MCPClientConfig:
-        """Load configuration from JSON file."""
-        try:
-            with open(self.config_path, 'r') as f:
-                data = json.load(f)
-            
-            config_section = data.get('config', {})
-            servers_section = data.get('servers', {})
-            
-            # Get OpenAI API key from environment
-            openai_api_key_env = config_section.get('openai_api_key_env', 'OPENAI_API_KEY')
-            openai_api_key = os.getenv(openai_api_key_env)
-            if not openai_api_key:
-                raise ValueError(f"OpenAI API key not found in environment variable: {openai_api_key_env}")
-            
-            # Parse server configurations
-            servers = []
-            for name, server_config in servers_section.items():
-                # Substitute environment variables in URL
-                url = server_config.get('url', '') or ''
-                url = self._substitute_env_vars(url)
-                # Parse optional headers, with env var substitution
-                raw_headers = server_config.get('headers') or {}
-                headers = None
-                if isinstance(raw_headers, dict):
-                    headers = {k: self._substitute_env_vars(str(v)) for k, v in raw_headers.items()}
-                
-                servers.append(MCPServerConfig(
-                    name=name,
-                    url=url,
-                    transport=server_config.get('transport', 'http'),
-                    description=server_config.get('description'),
-                    command=server_config.get('command'),
-                    args=server_config.get('args', []),
-                    headers=headers
-                ))
-            
-            return MCPClientConfig(
-                model=config_section.get('model', 'gpt-4o-mini'),
-                openai_api_key=openai_api_key,
-                servers=servers,
-                prompt_id=config_section.get('prompt_id'),
-                prompt_version=config_section.get('prompt_version', '1')
-            )
-            
-        except Exception as e:
-            logger.error(f"Failed to load MCP configuration: {e}")
-            raise
-    
-    def _substitute_env_vars(self, text: str) -> str:
-        """Substitute environment variables in text using {VAR_NAME} format."""
-        def replace_var(match):
-            var_name = match.group(1)
-            env_value = os.getenv(var_name)
-            if env_value is None:
-                logger.warning(f"Environment variable {var_name} not found, keeping placeholder")
-                return match.group(0)  # Return original placeholder if env var not found
-            return env_value
-        
-        # Replace {VAR_NAME} with environment variable values
-        return re.sub(r'\{([A-Z_][A-Z0-9_]*)\}', replace_var, text)
-    
-    def _add_builtin_tools(self):
-        """Add built-in Python tools to the available tools."""
-        try:
-            # Add image search tools
-            self.available_tools["builtin_get_image_src"] = {
-                'server': 'builtin',
-                'tool': type('Tool', (), {
-                    'name': 'get_image_src',
-                    'description': 'Get the image src URL for the given alt text using Google Images search',
-                    'inputSchema': {
-                        "type": "object",
-                        "properties": {
-                            "altText": {
-                                "type": "string",
-                                "description": "The alt text/search query for the image"
-                            },
-                            "size": {
-                                "type": "string",
-                                "description": "Image size filter",
-                                "enum": ["small", "medium", "large", "xlarge"],
-                                "default": "medium"
-                            }
-                        },
-                        "required": ["altText"]
-                    }
-                })(),
-                'handler': get_image_src,
-                'session': None
-            }
-            
-            self.available_tools["builtin_get_images"] = {
-                'server': 'builtin',
-                'tool': type('Tool', (), {
-                    'name': 'get_images',
-                    'description': 'Get multiple images for the given search query using Google Images search',
-                    'inputSchema': {
-                        "type": "object",
-                        "properties": {
-                            "altText": {
-                                "type": "string",
-                                "description": "The search query for images"
-                            },
-                            "size": {
-                                "type": "string",
-                                "description": "Image size filter",
-                                "enum": ["small", "medium", "large", "xlarge"],
-                                "default": "medium"
-                            },
-                            "numResults": {
-                                "type": "integer",
-                                "description": "Number of results to return (1-10)",
-                                "minimum": 1,
-                                "maximum": 10,
-                                "default": 5
-                            }
-                        },
-                        "required": ["altText"]
-                    }
-                })(),
-                'handler': get_images,
-                'session': None
-            }
-            
-            logger.info("Built-in tools added successfully")
-            
-        except Exception as e:
-            logger.error(f"Failed to add built-in tools: {e}")
-    
-    async def _connect_to_servers(self):
-        """Connect to all configured MCP servers."""
-        for server in self.config.servers:
+    async def stop(self):
+        """Stop the connection manager and cleanup all connections"""
+        if self._cleanup_task:
+            self._cleanup_task.cancel()
             try:
-                if server.transport == 'http':
-                    await self._connect_http_server(server)
-                elif server.transport == 'websocket':
-                    await self._connect_websocket_server(server)
-                elif server.transport == 'stdio':
-                    await self._connect_stdio_server(server)
-                else:
-                    logger.warning(f"Unknown transport type: {server.transport} for server: {server.name}")
-                    
-            except Exception as e:
-                logger.error(f"Failed to connect to server {server.name}: {e}")
-                # Continue with other servers even if one fails
-                continue
+                await self._cleanup_task
+            except asyncio.CancelledError:
+                pass
+        
+        # Cleanup all connections
+        connection_ids = list(self.connections.keys())
+        for connection_id in connection_ids:
+            await self.cleanup_connection(connection_id)
+        
+        logger.info("Connection manager stopped")
     
-    async def _connect_http_server(self, server: MCPServerConfig):
-        """Connect to an HTTP-based MCP server and discover tools."""
+    async def register_connection(self, websocket: WebSocket) -> str:
+        """Register a new WebSocket connection"""
+        connection_id = str(uuid.uuid4())
+        
+        context = ConnectionContext(
+            connection_id=connection_id,
+            websocket=websocket,
+            message_queue=asyncio.Queue(maxsize=100),
+            raw_output_queue=asyncio.Queue(maxsize=100)
+        )
+        
+        self.connections[connection_id] = context
+        logger.info(f"Registered connection {connection_id} from {websocket.client.host}")
+        return connection_id
+    
+    async def update_state(
+        self, 
+        connection_id: str, 
+        state: ConnectionState, 
+        message: str, 
+        progress: Optional[int] = None,
+        metadata: Optional[Dict[str, Any]] = None
+    ) -> bool:
+        """Update connection state and notify frontend"""
+        if connection_id not in self.connections:
+            logger.warning(f"Attempted to update state for unknown connection: {connection_id}")
+            return False
+        
+        context = self.connections[connection_id]
+        old_state = context.state
+        context.state = state
+        context.last_activity = time.time()
+        context.metrics.state = state
+        context.metrics.last_activity = context.last_activity
+        
+        # Create state message
+        state_message = ConnectionStateMessage(
+            state=state,
+            message=message,
+            progress=progress,
+            connection_id=connection_id,
+            metadata=metadata
+        )
+        
         try:
-            logger.info(f"Connecting to HTTP MCP server: {server.name} at {server.url}")
-            
-            # Connect and discover tools using the pattern that works
-            # Include any configured headers
-            client_kwargs = {}
-            if server.headers:
-                client_kwargs['headers'] = server.headers
-            async with streamablehttp_client(server.url, **client_kwargs) as (read_stream, write_stream, _):
-                async with ClientSession(read_stream, write_stream) as session:
-                    await session.initialize()
-                    
-                    # Discover tools with timeout
-                    try:
-                        tools_resp = await asyncio.wait_for(
-                            session.list_tools(),
-                            timeout=10.0  # 10 second timeout for tool discovery
-                        )
-                        
-                        # Store tool information (but not the session since it will be closed)
-                        for tool in tools_resp.tools:
-                            # Use underscore instead of colon for OpenAI compatibility
-                            tool_key = f"{server.name}_{tool.name}"
-                            self.available_tools[tool_key] = {
-                                'server': server.name,
-                                'tool': tool,
-                                'server_url': server.url,  # Store URL for reconnection
-                                'headers': server.headers,  # Preserve headers for reconnect
-                                'session': None  # We'll reconnect for each call
-                            }
-                        
-                        # Store server info in sessions dict for accurate count
-                        # (even though we reconnect for each HTTP call)
-                        self.sessions[server.name] = {
-                            'type': 'http',
-                            'url': server.url,
-                            'headers': server.headers,
-                            'tool_count': len(tools_resp.tools)
-                        }
-                        
-                        logger.info(f"Connected to {server.name}, discovered {len(tools_resp.tools)} tools")
-                        
-                    except asyncio.TimeoutError:
-                        logger.warning(f"Tool discovery for {server.name} timed out. Continuing with initialization.")
-                        
+            await context.websocket.send_text(state_message.model_dump_json())
+            logger.info(f"Connection {connection_id}: {old_state} → {state} - {message}")
+            return True
         except Exception as e:
-            logger.error(f"Failed to connect to HTTP server {server.name}: {e}")
-            # Don't raise - continue with other servers
+            logger.error(f"Failed to send state update to {connection_id}: {e}")
+            # Mark connection for cleanup if websocket is broken
+            if state != ConnectionState.ERROR:
+                await self.update_state(connection_id, ConnectionState.ERROR, 
+                                       f"Communication error: {str(e)}")
+            return False
     
-    async def _connect_stdio_server(self, server: MCPServerConfig):
-        """Connect to a STDIO-based MCP server."""
+    async def configure_connection(self, connection_id: str, config: ConnectionConfig) -> bool:
+        """Configure connection with MCP and visualization settings"""
+        if connection_id not in self.connections:
+            return False
+        
+        context = self.connections[connection_id]
+        context.config = config
+        context.metrics.client_id = config.client_id
+        
         try:
-            logger.info(f"Connecting to STDIO MCP server: {server.name}")
-            
-            from mcp.client.stdio import StdioServerParameters, stdio_client
-            
-            # Create server parameters
-            server_params = StdioServerParameters(
-                command=server.command,
-                args=server.args or []
+            await self.update_state(
+                connection_id, 
+                ConnectionState.CONFIG_RECEIVED, 
+                "Configuration received, validating..."
             )
             
-            # Connect to the server process via stdio
-            async with stdio_client(server_params) as (read_stream, write_stream):
-                # Create and initialize the session
-                session = ClientSession(read_stream, write_stream)
-                await session.initialize()
-                
-                # Store session
-                self.sessions[server.name] = session
-                
-                # Discover tools with timeout
-                try:
-                    tools_resp = await asyncio.wait_for(
-                        session.list_tools(),
-                        timeout=10.0  # 10 second timeout for tool discovery
-                    )
-                    
-                    for tool in tools_resp.tools:
-                        # Use underscore instead of colon for OpenAI compatibility
-                        tool_key = f"{server.name}_{tool.name}"
-                        self.available_tools[tool_key] = {
-                            'server': server.name,
-                            'tool': tool,
-                            'session': session
-                        }
-                    
-                    logger.info(f"Connected to {server.name}, discovered {len(tools_resp.tools)} tools")
-                except asyncio.TimeoutError:
-                    logger.warning(f"Tool discovery for {server.name} timed out. Continuing with initialization.")
-                    
-        except Exception as e:
-            logger.error(f"Failed to connect to STDIO server {server.name}: {e}")
-            raise
-
-    async def _connect_websocket_server(self, server: MCPServerConfig):
-        """Connect to a WebSocket-based MCP server."""
-        # This would use the existing WebSocket connection logic
-        # For now, we'll log that it's not implemented in this enhanced version
-        logger.warning(f"WebSocket transport not yet implemented in enhanced client for: {server.name}")
-
-    async def _initialize_container(self):
-        """Initialize a container for code interpreter and upload data files."""
-        try:
-            logger.info("Creating container for code interpreter...")
-
-            # Create a new container with a unique name
-            import time
-            container_name = f"dealership-data-{int(time.time())}"
-            container = await self.openai_client.containers.create(name=container_name)
-            self.container_id = container.id
-
-            logger.info(f"Container created with ID: {self.container_id} (name: {container_name})")
-
-            # Find and upload all CSV files from backend/data/
-            data_dir = Path(__file__).parent.parent / "data"
-
-            if not data_dir.exists():
-                logger.warning(f"Data directory not found: {data_dir}")
-                return
-
-            # Get all CSV files
-            csv_files = list(data_dir.glob("*.csv"))
-
-            if not csv_files:
-                logger.warning(f"No CSV files found in {data_dir}")
-                return
-
-            logger.info(f"Uploading {len(csv_files)} files to container...")
-
-            # Upload each file
-            for csv_file in csv_files:
-                try:
-                    with open(csv_file, 'rb') as f:
-                        await self.openai_client.containers.files.create(
-                            container_id=self.container_id,
-                            file=f
-                        )
-                    logger.info(f"Uploaded: {csv_file.name}")
-                except Exception as e:
-                    logger.error(f"Failed to upload {csv_file.name}: {e}")
-
-            logger.info(f"Container initialization complete. {len(csv_files)} files uploaded.")
-
-        except Exception as e:
-            logger.error(f"Failed to initialize container: {e}")
-            # Don't raise - code interpreter will be unavailable but client can still work
-            self.container_id = None
-    
-    async def chat_with_tools(self, user_message: str, conversation_history: Optional[List[Dict[str, Any]]] = None) -> str:
-        """
-        Chat with the assistant using available MCP tools via OpenAI Responses API.
-
-        Args:
-            user_message: The user's message
-            conversation_history: Optional conversation history
-
-        Returns:
-            The assistant's response
-        """
-        if not self.openai_client:
-            raise RuntimeError("MCP client not initialized")
-
-        # Prepare input for Responses API
-        input_items = []
-
-        # Add conversation history as input items
-        if conversation_history:
-            for msg in conversation_history:
-                role = msg.get("role", "user")
-                content = msg.get("content", "")
-                input_items.append({
-                    "type": "message",
-                    "role": role,
-                    "content": [{"type": "input_text", "text": content}]
-                })
-
-        # Add current user message
-        input_items.append({
-            "type": "message",
-            "role": "user",
-            "content": [{"type": "input_text", "text": user_message}]
-        })
-
-        try:
-            # Prepare request parameters
-            request_params = {
-                "model": self.config.model,
-                "input": input_items,
-            }
-
-            # Use stored prompt if configured
-            if self.config.prompt_id:
-                request_params["prompt"] = {
-                    "id": self.config.prompt_id,
-                    "version": self.config.prompt_version or "1",
-                    "include": [
-                    "code_interpreter_call.outputs",
-                    "reasoning.encrypted_content",
-                    "web_search_call.action.sources"
-                    ]
-                }
-                logger.info(f"Using stored prompt: {self.config.prompt_id} v{self.config.prompt_version}")
-
-            # Add code interpreter tool with container if available
-            if self.container_id:
-                request_params["tools"] = [{
-                    "type": "code_interpreter",
-                    "container": self.container_id
-                }]
-                logger.info(f"Code interpreter enabled with container: {self.container_id}")
-
-            logger.info(f"Calling Responses API with input: {len(input_items)} messages")
-
-            # Call Responses API
-            response = await self.openai_client.responses.create(**request_params)
-
-            # Return the response text directly
-            return self._extract_response_text(response)
-
-        except Exception as e:
-            logger.error(f"Error in chat_with_tools: {e}")
-            return f"Error processing request: {str(e)}"
-
-    def _extract_response_text(self, response) -> str:
-        """Extract text content from Responses API response."""
-        try:
-            # Check for output_text attribute (direct text output)
-            if hasattr(response, 'output_text') and response.output_text:
-                return response.output_text
-
-            # Check for output items
-            if hasattr(response, 'output') and response.output:
-                text_parts = []
-                for item in response.output:
-                    if item.type == "message":
-                        for content_part in item.content:
-                            if content_part.type == "text":
-                                text_parts.append(content_part.text)
-
-                if text_parts:
-                    return "\n".join(text_parts)
-
-            # Fallback: return status or empty
-            return f"Response completed with status: {response.status}"
-        except Exception as e:
-            logger.error(f"Error extracting response text: {e}")
-            return "Error extracting response"
-
-    async def chat_with_tools_streaming(
-        self,
-        user_message: str,
-        conversation_history: Optional[List[Dict[str, Any]]] = None,
-        text_callback: Optional[Callable[[str], Awaitable[None]]] = None
-    ) -> str:
-        """
-        Chat with the assistant using available MCP tools via OpenAI Responses API with streaming.
-
-        Args:
-            user_message: The user's message
-            conversation_history: Optional conversation history
-            text_callback: Callback function for streaming text chunks
-
-        Returns:
-            The complete assistant's response
-        """
-        if not self.openai_client:
-            raise RuntimeError("MCP client not initialized")
-
-        # Prepare input for Responses API
-        input_items = []
-
-        # Add conversation history as input items
-        if conversation_history:
-            for msg in conversation_history:
-                role = msg.get("role", "user")
-                content = msg.get("content", "")
-                input_items.append({
-                    "type": "message",
-                    "role": role,
-                    "content": [{"type": "input_text", "text": content}]
-                })
-
-        # Add current user message
-        input_items.append({
-            "type": "message",
-            "role": "user",
-            "content": [{"type": "input_text", "text": user_message}]
-        })
-
-        try:
-            # Prepare request parameters
-            request_params = {
-                "model": self.config.model,
-                "input": input_items,
-                "stream": True,  # Enable streaming
-            }
-
-            # Use stored prompt if configured
-            if self.config.prompt_id:
-                request_params["prompt"] = {
-                    "id": self.config.prompt_id,
-                    "version": self.config.prompt_version or "1"
-                }
-                logger.info(f"Using stored prompt: {self.config.prompt_id} v{self.config.prompt_version}")
-
-            # Add code interpreter tool with container if available
-            if self.container_id:
-                request_params["tools"] = [{
-                    "type": "code_interpreter",
-                    "container": self.container_id
-                }]
-                logger.info(f"Code interpreter enabled with container: {self.container_id}")
-
-            logger.info(f"Calling Responses API (streaming) with input: {len(input_items)} messages")
-
-            # Call Responses API with streaming
-            stream = await self.openai_client.responses.create(**request_params)
-
-            # Process stream events
-            accumulated_text = ""
-            code_output = ""
-
-            async for event in stream:
-                # Handle text delta events
-                if event.type == "response.output_text.delta":
-                    if hasattr(event, 'delta') and event.delta:
-                        accumulated_text += event.delta
-                        if text_callback:
-                            await text_callback(event.delta)
-
-                # Handle text done event
-                elif event.type == "response.output_text.done":
-                    logger.info("Text output completed")
-
-                # Handle code interpreter events
-                elif event.type == "response.code_interpreter_call.in_progress":
-                    logger.info("Code interpreter executing...")
-                    if text_callback:
-                        await text_callback("\n[Code Interpreter executing...]\n")
-
-                elif event.type == "response.code_interpreter_call.interpreting":
-                    logger.info("Code interpreter interpreting results...")
-
-                elif event.type == "response.code_interpreter_call.code.delta":
-                    if hasattr(event, 'delta') and event.delta:
-                        code_output += event.delta
-                        logger.debug(f"Code delta: {event.delta}")
-
-                elif event.type == "response.code_interpreter_call.code.done":
-                    logger.info(f"Code execution complete: {code_output}")
-                    if text_callback and code_output:
-                        await text_callback(f"\n```python\n{code_output}\n```\n")
-                    code_output = ""  # Reset for next code block
-
-                elif event.type == "response.code_interpreter_call.completed":
-                    logger.info("Code interpreter call completed")
-                    if text_callback:
-                        await text_callback("[Code execution completed]\n")
-
-                # Handle response done event
-                elif event.type == "response.done":
-                    logger.info(f"Response completed with status: {event.response.status}")
-
-                # Handle error events
-                elif event.type == "error":
-                    error_msg = event.error.message if hasattr(event, 'error') else "Unknown error"
-                    logger.error(f"Stream error: {error_msg}")
-                    return f"Error: {error_msg}"
-
-            return accumulated_text
-
-        except Exception as e:
-            logger.error(f"Error in chat_with_tools_streaming: {e}")
-            return f"Error processing request: {str(e)}"
-    
-    async def _call_tool(self, tool_key: str, args: Dict[str, Any]) -> str:
-        """Call a specific MCP tool."""
-        if tool_key not in self.available_tools:
-            return f"Error: Tool {tool_key} not found"
-        
-        tool_info = self.available_tools[tool_key]
-        tool_name = tool_info['tool'].name
-        
-        try:
-            # Handle built-in tools
-            if tool_info['server'] == 'builtin':
-                handler = tool_info['handler']
-                logger.info(f"Calling built-in tool: {tool_name} with args {args}")
-                
-                # Convert camelCase to snake_case for function parameters
-                converted_args = {}
-                for key, value in args.items():
-                    if key == 'altText':
-                        converted_args['alt_text'] = value
-                    elif key == 'numResults':
-                        converted_args['num_results'] = value
-                    else:
-                        converted_args[key] = value
-                
-                # Call the built-in tool handler
-                result = await handler(**converted_args)
-                
-                # Convert result to string for consistency
-                if isinstance(result, list):
-                    return json.dumps(result, indent=2)
-                else:
-                    return str(result)
-            
-            # If it's an HTTP server, reconnect for the tool call
-            elif 'server_url' in tool_info:
-                server_url = tool_info['server_url']
-                headers = tool_info.get('headers')
-                logger.info(f"Reconnecting to HTTP server for tool call: {tool_key}")
-                
-                client_kwargs = {}
-                if headers:
-                    client_kwargs['headers'] = headers
-                async with streamablehttp_client(server_url, **client_kwargs) as (read_stream, write_stream, _):
-                    async with ClientSession(read_stream, write_stream) as session:
-                        await session.initialize()
-                        # Call the MCP tool with timeout to prevent hanging
-
-                        logger.info(f"Calling tool: {tool_name} with args {args}")
-                        if "contacts_create-contact" in tool_name:
-                            args = {"body": args}
-                            logger.info(f"Arg got revamped for ghl-mcp_contacts_create-contact: {args}")
-                        tool_result = await asyncio.wait_for(
-                            session.call_tool(tool_name, args),
-                            timeout=30.0  # 20 second timeout for tool calls
-                        )
-                        
-                        logger.info(f"Tool result: {tool_result}")
-
-                        # Extract text result
-                        if tool_result.isError:
-                            return f"Error: {tool_result.content[0].text if tool_result.content else 'Unknown error'}"
-                        else:
-                            return tool_result.content[0].text if tool_result.content else "No result"
-            else:
-                # For STDIO servers, use the stored session
-                session = tool_info['session']
-                if not session:
-                    return f"Error: No session available for tool {tool_key}"
-                
-                # Call the MCP tool with timeout to prevent hanging
-                tool_result = await asyncio.wait_for(
-                    session.call_tool(tool_name, arguments=args),
-                    timeout=20.0  # 20 second timeout for tool calls
+            # Validate configuration
+            if not await self._validate_config(config):
+                await self.update_state(
+                    connection_id, 
+                    ConnectionState.ERROR, 
+                    "Configuration validation failed"
                 )
-                
-                # Extract text result
-                if tool_result.isError:
-                    return f"Error: {tool_result.content[0].text if tool_result.content else 'Unknown error'}"
-                else:
-                    return tool_result.content[0].text if tool_result.content else "No result"
-                
-        except asyncio.TimeoutError:
-            logger.error(f"Tool call to {tool_key} timed out")
-            return f"Error: Tool call timed out after 20 seconds"
-        except Exception as e:
-            logger.error(f"Error calling tool {tool_key}: {e}")
-            return f"Error calling tool: {str(e)}"
-    
-    def get_available_tools(self) -> List[str]:
-        """Get list of available tool names."""
-        return list(self.available_tools.keys())
-    
-    def get_tools(self) -> List[Any]:
-        """Get tools in the format expected by LangGraph/LangChain integration."""
-        tools = []
-        for tool_key, tool_info in self.available_tools.items():
-            tool = tool_info['tool']
-            # Create a tool object that mimics the expected interface
-            class ToolWrapper:
-                def __init__(self, name, description, input_schema, call_func):
-                    self.name = name
-                    self.description = description
-                    self.inputSchema = input_schema
-                    self._call_func = call_func
-                
-                async def call(self, arguments):
-                    return await self._call_func(arguments)
+                return False
             
-            wrapped_tool = ToolWrapper(
-                name=tool_key,
-                description=tool.description or f"Tool from {tool_info['server']}",
-                input_schema=tool.inputSchema,
-                call_func=lambda args, tk=tool_key: self._call_tool(tk, args)
+            await self.update_state(
+                connection_id, 
+                ConnectionState.VALIDATING, 
+                "Configuration validated, initializing MCP client...", 
+                25
             )
-            tools.append(wrapped_tool)
-        return tools
-        
-    async def close(self):
-        """Close all MCP sessions and cleanup container."""
-        # Close all sessions
-        for session in self.sessions.values():
+            
+            # Initialize MCP client
             try:
-                await session.close()
+                context.mcp_client = await self._initialize_mcp_client(connection_id, config.mcp_config)
+                await self.update_state(
+                    connection_id, 
+                    ConnectionState.MCP_INITIALIZING,
+                    f"MCP client ready with {len(context.mcp_client.sessions)} servers, setting up visualization...", 
+                    50
+                )
             except Exception as e:
-                logger.error(f"Error closing session: {e}")
-
-        # Close all connection resources
-        for server_name, (_, _, close_func) in self._connection_resources.items():
+                logger.error(f"MCP initialization failed for {connection_id}: {e}", exc_info=True)
+                await self.update_state(
+                    connection_id, 
+                    ConnectionState.ERROR,
+                    f"MCP initialization failed: {str(e)}"
+                )
+                return False
+            
+            # Initialize visualization provider
             try:
-                if close_func:
-                    await close_func()
-                    logger.debug(f"Closed connection resources for {server_name}")
+                context.visualization_provider = await self._initialize_viz_provider(
+                    connection_id, config.visualization_provider
+                )
+                await self.update_state(
+                    connection_id, 
+                    ConnectionState.VIZ_INITIALIZING,
+                    f"Visualization provider ({config.visualization_provider.provider_type}) ready, finalizing setup...", 
+                    75
+                )
             except Exception as e:
-                logger.error(f"Error closing connection resources for {server_name}: {e}")
-
-        # Delete container if it exists
-        if self.container_id:
-            try:
-                logger.info(f"Deleting container: {self.container_id}")
-                await self.openai_client.containers.delete(self.container_id)
-                logger.info("Container deleted successfully")
-            except Exception as e:
-                logger.error(f"Error deleting container: {e}")
-
-        self.sessions.clear()
-        self.available_tools.clear()
-        self._connection_resources.clear()
-        self.container_id = None
-
-    async def make_enhancement_decision_streaming(
-        self,
-        assistant_response: str,
-        conversation_history: Optional[List[Dict[str, Any]]] = None,
-        voice_injection_callback: Optional[Callable[[str], Awaitable[None]]] = None
-    ) -> EnhancementDecision:
-        """
-        Make an enhancement decision with full streaming support for both function
-        calls and direct answers, enabling real-time voice-over injection.
-        Uses the same unified function call pattern as the non-streaming version.
-        """
-        if not self.openai_client:
-            raise RuntimeError("MCP client not initialized")
-
+                logger.error(f"Visualization setup failed for {connection_id}: {e}", exc_info=True)
+                await self.update_state(
+                    connection_id, 
+                    ConnectionState.ERROR,
+                    f"Visualization setup failed: {str(e)}"
+                )
+                return False
+            
+            await self.update_state(
+                connection_id, 
+                ConnectionState.READY,
+                "Connection ready for chat!", 
+                100
+            )
+            
+            # Start per-connection processor
+            await self._start_processor(connection_id)
+            
+            await self.update_state(
+                connection_id, 
+                ConnectionState.ACTIVE,
+                "Connection active and processing messages"
+            )
+            
+            return True
+            
+        except Exception as e:
+            logger.error(f"Configuration error for {connection_id}: {e}", exc_info=True)
+            await self.update_state(
+                connection_id, 
+                ConnectionState.ERROR,
+                f"Configuration error: {str(e)}"
+            )
+            return False
+    
+    async def _validate_config(self, config: ConnectionConfig) -> bool:
+        """Validate connection configuration"""
         try:
-            # Load the enhancement prompt
-            prompt_path = os.path.join(os.path.dirname(__file__), "../prompts", "mcp_agent_prompt.txt")
-            with open(prompt_path, "r") as f:
-                enhancement_prompt = f.read().strip()
-                
-            # Get available tools information
-            available_tools_info = []
-            for tool_key, tool_info in self.available_tools.items():
-                tool = tool_info['tool']
-                available_tools_info.append({
-                    "name": tool_key,
-                    "description": tool.description or f"Tool from {tool_info['server']}",
-                    "server": tool_info['server'],
-                    "headers": tool_info.get("headers")
-                })
+            # Basic validation is handled by Pydantic models
             
-            # Format the prompt with available tools
-            tools_description = "\n".join([
-                f"- **{tool['name']}** ({tool['server']}): {tool['description']}" +
-                (f" (Headers sent: {json.dumps(tool['headers'])})" if tool.get('headers') else "")
-                for tool in available_tools_info
-            ])
+            # Validate client authorization
+            if not await self._validate_client_auth(config.client_id, config.auth_token):
+                logger.warning(f"Unauthorized client: {config.client_id}")
+                return False
             
-            if not tools_description:
-                tools_description = "No tools currently available."
+            # Validate MCP server URLs for security
+            for server in config.mcp_config.servers:
+                if not await self._validate_mcp_server_url(server.url):
+                    logger.warning(f"Invalid MCP server URL: {server.url}")
+                    return False
             
-            formatted_prompt = enhancement_prompt.format(available_tools=tools_description)
+            # Validate visualization provider
+            if not await self._validate_viz_provider_config(config.visualization_provider):
+                logger.warning(f"Invalid visualization provider: {config.visualization_provider.provider_type}")
+                return False
             
-            # Prepare conversation context
-            context_text = ""
-            if conversation_history:
-                context_text = "\n\nConversation Context:\n"
-                for msg in conversation_history[-3:]:  # Last 3 messages for context
-                    role = msg.get('role', 'unknown')
-                    content = msg.get('content', '')
-                    context_text += f"{role}: {content}\n"
+            return True
             
-            # Prepare messages for OpenAI with tool-aware prompt
-            messages = [
-                {"role": "system", "content": formatted_prompt},
-                {"role": "user", "content": f"""Analyze this voice assistant response and make an enhancement decision:
-
-Original Response: "{assistant_response}"{context_text}
-
-Instructions:
-1. If tools would help improve this response, call them first
-2. Once you have all the information you need (from tools or original response), call the process_enhancement_decision function to provide your final decision
-3. Always end by calling process_enhancement_decision - this is required to complete the task"""}
+        except Exception as e:
+            logger.error(f"Configuration validation error: {e}")
+            return False
+    
+    async def _validate_client_auth(self, client_id: str, auth_token: Optional[str]) -> bool:
+        """Validate client credentials"""
+        # TODO: Implement proper authentication
+        # For now, allow all clients
+        return True
+    
+    async def _validate_mcp_server_url(self, url: str) -> bool:
+        """Validate MCP server URL for security (prevent SSRF)"""
+        try:
+            parsed = urlparse(url)
+            
+            # Block localhost and internal IPs
+            forbidden_hosts = [
+                "localhost", "127.0.0.1", "0.0.0.0",
+                "169.254.169.254",  # AWS metadata service
+                "::1"  # IPv6 localhost
             ]
             
-            # Prepare function definitions from available tools
-            functions = []
-            for tool_key, tool_info in self.available_tools.items():
-                tool = tool_info['tool']
-                description = tool.description or f"Tool from {tool_info['server']}"
-                if tool_info.get("headers"):
-                    description += f" Note: The following headers are sent with this tool call: {json.dumps(tool_info['headers'])}"
-                
-                functions.append({
-                    "name": tool_key,
-                    "description": description,
-                    "parameters": tool.inputSchema
-                })
+            if parsed.hostname in forbidden_hosts:
+                return False
             
-            # Add the synthetic enhancement decision function
-            functions.append({
-                "name": "process_enhancement_decision",
-                "description": "Process and return the final enhancement decision for the voice assistant response. Call this after using any tools or to provide the final decision.",
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "displayEnhancement": {
-                            "type": "boolean",
-                            "description": "Whether to display visual enhancement to the user"
-                        },
-                        "displayEnhancedText": {
-                            "type": "string", 
-                            "description": "The enhanced text to display to the user (can include tool results, formatting, etc.)"
-                        },
-                        "voiceOverText": {
-                            "type": "string",
-                            "description": "Text for voice-over narration (empty string if no enhancement)"
-                        }
-                    },
-                    "required": ["displayEnhancement", "displayEnhancedText", "voiceOverText"]
-                }
-            })
+            # Block private IP ranges (basic check)
+            if parsed.hostname and parsed.hostname.startswith(("10.", "172.", "192.168.")):
+                return False
             
-            # Process function calls in a loop until we get the final decision
-            tools_used = []
-            max_iterations = 5  # Prevent infinite loops
-            iteration = 0
+            return True
             
-            while iteration < max_iterations:
-                iteration += 1
-                
-                try:
-                    # -- Start of Streaming Logic --
-                    stream_params = {
-                        "model": self.config.model,
-                        "messages": messages,
-                        "stream": True,
-                        "temperature": 0.3,
-                        "functions": functions,
-                        "function_call": "auto"
-                    }
+        except Exception:
+            return False
+    
+    async def _validate_viz_provider_config(self, config: VisualizationProviderConfig) -> bool:
+        """Validate visualization provider configuration"""
+        # Check if required environment variables exist
+        if config.api_key_env:
+            api_key = os.getenv(config.api_key_env)
+            if not api_key:
+                logger.warning(f"API key not found in environment: {config.api_key_env}")
+                return False
+        
+        return True
+    
+    async def _initialize_mcp_client(self, connection_id: str, mcp_config: MCPClientConfig) -> EnhancedMCPClient:
+        """Initialize MCP client with progress updates"""
+        await self.update_state(
+            connection_id, 
+            ConnectionState.MCP_INITIALIZING,
+            "Creating MCP client configuration...", 
+            30
+        )
+        
+        # Create temporary config file for this connection
+        config_data = {
+            "config": {
+                "model": mcp_config.model,
+                "openai_api_key_env": mcp_config.api_key_env,
+                "timeout": mcp_config.timeout
+            },
+            "servers": {}
+        }
 
-                    stream = await self.openai_client.chat.completions.create(**stream_params)
+        # Add prompt_id and prompt_version if configured
+        if mcp_config.prompt_id:
+            config_data["config"]["prompt_id"] = mcp_config.prompt_id
+            config_data["config"]["prompt_version"] = mcp_config.prompt_version or "1"
+        
+        for server in mcp_config.servers:
+            config_data["servers"][server.name] = {
+                "url": server.url,
+                "transport": server.transport,
+                "description": server.description
+            }
+            if server.headers:
+                config_data["servers"][server.name]["headers"] = server.headers
+        
+        # Write to temporary file
+        temp_file = tempfile.NamedTemporaryFile(
+            mode='w', 
+            suffix=f'_mcp_config_{connection_id}.json',
+            delete=False
+        )
+        
+        with temp_file as f:
+            json.dump(config_data, f, indent=2)
+            temp_path = f.name
+        
+        # Store temp path for cleanup
+        context = self.connections[connection_id]
+        context.temp_mcp_config_path = temp_path
+        
+        await self.update_state(
+            connection_id, 
+            ConnectionState.MCP_INITIALIZING,
+            "Connecting to MCP servers...", 
+            40
+        )
+        
+        try:
+            client = EnhancedMCPClient(temp_path)
+            # Use at least 120 seconds for initialization to allow time for container creation and file uploads
+            init_timeout = max(mcp_config.timeout, 120)
+            logger.info(f"Initializing MCP client with timeout: {init_timeout}s (config timeout: {mcp_config.timeout}s)")
+            await asyncio.wait_for(client.initialize(), timeout=init_timeout)
 
-                    # Buffers to handle the stream
-                    is_function_call = False
-                    func_name = ""
-                    func_args_buffer = ""
-                    content_buffer = ""
-
-                    async for chunk in stream:
-                        delta = chunk.choices[0].delta
-                        if not delta:
-                            continue
-                        
-                        if delta.function_call:
-                            is_function_call = True
-                            if delta.function_call.name:
-                                func_name = delta.function_call.name
-                            if delta.function_call.arguments:
-                                func_args_buffer += delta.function_call.arguments
-                        
-                        if delta.content:
-                            content_buffer += delta.content
-                            # Stream content for voice-over if this is a direct response
-                            if voice_injection_callback and not is_function_call:
-                                await voice_injection_callback(delta.content)
-                    
-                    # -- End of Streaming, now process the result --
-                    
-                    if is_function_call:
-                        logger.info(f"Streaming detected function call: {func_name} with args: {func_args_buffer}")
-                        
-                        try:
-                            args = json.loads(func_args_buffer)
-                        except json.JSONDecodeError:
-                            args = {}
-                            logger.error(f"Failed to parse function arguments: {func_args_buffer}")
-                        
-                        # Handle the special enhancement decision function
-                        if func_name == "process_enhancement_decision":
-                            decision = EnhancementDecision(
-                                displayEnhancement=args.get("displayEnhancement", False),
-                                displayEnhancedText=args.get("displayEnhancedText", assistant_response),
-                                voiceOverText=args.get("voiceOverText", "")
-                            )
-                            
-                            # Handle voice injection callback
-                            if decision.displayEnhancement and voice_injection_callback and decision.voiceOverText != "":
-                                await voice_injection_callback(decision.voiceOverText)
-                            
-                            logger.info(f"Enhanced MCP Agent decision (streaming): enhancement={decision.displayEnhancement}, tools_used={len(tools_used)}")
-                            return decision
-                        
-                        # Handle regular MCP tool calls
-                        else:
-                            # Inject voice-over for tool usage
-                            if voice_injection_callback:
-                                await voice_injection_callback(f"I'm using the {func_name.split('_')[-1]} tool. ")
-                            
-                            tool_result = await self._call_tool(func_name, args)
-                            tools_used.append(func_name)
-                            
-                            # Append the assistant's function call message
-                            messages.append({
-                                "role": "assistant",
-                                "content": None,
-                                "function_call": {
-                                    "name": func_name,
-                                    "arguments": json.dumps(args)
-                                }
-                            })
-                            
-                            # Append the function's response
-                            messages.append({
-                                "role": "function", 
-                                "name": func_name,
-                                "content": tool_result
-                            })
-                            
-                            # Continue the loop to let the model make the next decision
-                            continue
-                    
-                    else:
-                        # Model provided content without function call - this shouldn't happen with our prompt
-                        logger.warning("Model provided response without calling process_enhancement_decision function")
-                        # Force a final decision
-                        return EnhancementDecision(
-                            displayEnhancement=len(tools_used) > 0,
-                            displayEnhancedText=content_buffer or assistant_response,
-                            voiceOverText="I used tools to help answer your question." if tools_used else ""
-                        )
-                
-                except asyncio.TimeoutError:
-                    logger.error(f"Streaming function call iteration {iteration} timed out")
-                    break
-                except Exception as e:
-                    logger.error(f"Error in streaming function call iteration {iteration}: {e}")
-                    break
-            
-            # Fallback if we exit the loop without a decision
-            logger.warning("Reached max iterations or error in streaming, returning fallback decision")
-            return EnhancementDecision(
-                displayEnhancement=len(tools_used) > 0,
-                displayEnhancedText=assistant_response,
-                voiceOverText="I used tools to help answer your question." if tools_used else ""
+            await self.update_state(
+                connection_id,
+                ConnectionState.MCP_INITIALIZING,
+                f"Connected to {len(client.sessions)} MCP servers",
+                45
             )
 
+            return client
+
+        except asyncio.TimeoutError:
+            raise Exception(f"MCP client initialization timed out after {init_timeout}s")
         except Exception as e:
-            logger.error(f"Error in streaming enhanced MCP agent decision: {e}", exc_info=True)
-            return EnhancementDecision(
-                displayEnhancement=False,
-                displayEnhancedText=assistant_response,
-                voiceOverText=""
+            raise Exception(f"MCP client initialization failed: {str(e)}")
+    
+    async def _initialize_viz_provider(
+        self, 
+        connection_id: str, 
+        viz_config: VisualizationProviderConfig
+    ) -> VisualizationProvider:
+        """Initialize visualization provider"""
+        await self.update_state(
+            connection_id, 
+            ConnectionState.VIZ_INITIALIZING,
+            f"Setting up {viz_config.provider_type} visualization provider...", 
+            60
+        )
+        
+        try:
+            provider = await self.viz_factory.create_provider(viz_config)
+            if not provider:
+                raise Exception(f"Failed to create {viz_config.provider_type} provider")
+            
+            await self.update_state(
+                connection_id, 
+                ConnectionState.VIZ_INITIALIZING,
+                f"{viz_config.provider_type} provider ready", 
+                70
             )
+            
+            return provider
+            
+        except Exception as e:
+            raise Exception(f"Visualization provider setup failed: {str(e)}")
+    
+    async def _start_processor(self, connection_id: str):
+        """Start per-connection message processor"""
+        context = self.connections[connection_id]
+        
+        # Import here to avoid circular imports
+        from app.connection_processor import PerConnectionProcessor
+        
+        processor = PerConnectionProcessor(context)
+        context.processor_task = asyncio.create_task(processor.run())
+        
+        logger.info(f"Started processor for connection {connection_id}")
+    
+    async def cleanup_connection(self, connection_id: str):
+        """Clean up all resources for a connection"""
+        if connection_id not in self.connections:
+            return
+        
+        context = self.connections[connection_id]
+        logger.info(f"Cleaning up connection {connection_id}")
+        
+        try:
+            await self.update_state(
+                connection_id, 
+                ConnectionState.DISCONNECTING, 
+                "Cleaning up connection..."
+            )
+        except:
+            pass  # Websocket might already be closed
+        
+        # Stop processor task
+        if context.processor_task:
+            context.processor_task.cancel()
+            try:
+                await asyncio.wait_for(context.processor_task, timeout=5.0)
+            except (asyncio.CancelledError, asyncio.TimeoutError):
+                pass
+        
+        # Cleanup voice agent and broadcast subscriptions
+        if context.voice_agent:
+            try:
+                logger.info(f"Cleaning up voice agent for connection {connection_id}")
+                # Cleanup broadcast subscription
+                from app.voice_broadcast_manager import voice_broadcast_manager
+                await voice_broadcast_manager.unsubscribe(connection_id)
+                
+                # The voice agent cleanup will be handled by WebRTC connection closure
+                context.voice_agent = None
+                context.webrtc_connection = None
+                context.voice_thread_id = None
+            except Exception as e:
+                logger.error(f"Error cleaning up voice agent for {connection_id}: {e}")
+        
+        # Close MCP client
+        if context.mcp_client:
+            try:
+                await context.mcp_client.close()
+            except Exception as e:
+                logger.error(f"Error closing MCP client for {connection_id}: {e}")
+        
+        # Cleanup visualization provider
+        if context.visualization_provider:
+            try:
+                await context.visualization_provider.cleanup()
+            except Exception as e:
+                logger.error(f"Error cleaning up viz provider for {connection_id}: {e}")
+        
+        # Remove temporary MCP config file
+        if context.temp_mcp_config_path and os.path.exists(context.temp_mcp_config_path):
+            try:
+                os.unlink(context.temp_mcp_config_path)
+            except Exception as e:
+                logger.error(f"Error removing temp config file: {e}")
+        
+        # Clear queues
+        for queue in [context.message_queue, context.raw_output_queue]:
+            if queue:
+                while not queue.empty():
+                    try:
+                        queue.get_nowait()
+                        queue.task_done()
+                    except:
+                        break
+        
+        # Remove from connections
+        del self.connections[connection_id]
+        logger.info(f"Connection {connection_id} cleaned up successfully")
+    
+    async def register_voice_agent(self, connection_id: str, voice_agent: Any, webrtc_connection: Any, voice_thread_id: str) -> bool:
+        """Register a voice agent for a specific connection"""
+        if connection_id not in self.connections:
+            logger.warning(f"Attempted to register voice agent for unknown connection: {connection_id}")
+            return False
+        
+        context = self.connections[connection_id]
+        context.voice_agent = voice_agent
+        context.webrtc_connection = webrtc_connection
+        context.voice_thread_id = voice_thread_id
+        
+        # Update broadcast manager thread mapping for existing subscriptions
+        from app.voice_broadcast_manager import voice_broadcast_manager
+        await voice_broadcast_manager.update_thread_id(connection_id, voice_thread_id)
+        
+        logger.info(f"Registered voice agent for connection {connection_id} with thread_id {voice_thread_id}")
+        return True
+    
+    async def unregister_voice_agent(self, connection_id: str) -> bool:
+        """Unregister voice agent for a specific connection"""
+        if connection_id not in self.connections:
+            return False
+        
+        context = self.connections[connection_id]
+        if context.voice_agent:
+            logger.info(f"Unregistered voice agent for connection {connection_id}")
+            context.voice_agent = None
+            context.webrtc_connection = None
+            context.voice_thread_id = None
+            return True
+        
+        return False
+    
+    async def get_voice_agent_by_connection(self, connection_id: str) -> Optional[Any]:
+        """Get voice agent for a specific connection"""
+        if connection_id not in self.connections:
+            return None
+        return self.connections[connection_id].voice_agent
+    
+    async def get_voice_agent_by_thread_id(self, thread_id: str) -> tuple[Optional[Any], Optional[str]]:
+        """Get voice agent and connection_id by thread_id"""
+        for connection_id, context in self.connections.items():
+            if context.voice_thread_id == thread_id:
+                return context.voice_agent, connection_id
+        return None, None
+    
+    async def inject_tts_to_connection(self, connection_id: str, voice_text: str) -> bool:
+        """Inject TTS voice-over to a specific connection's voice agent"""
+        if connection_id not in self.connections:
+            logger.warning(f"Attempted TTS injection for unknown connection: {connection_id}")
+            return False
+        
+        context = self.connections[connection_id]
+        if not context.voice_agent:
+            logger.warning(f"No voice agent found for connection {connection_id}")
+            return False
+        
+        try:
+            await context.voice_agent.inject_tts_voice_over(voice_text)
+            logger.info(f"Successfully injected TTS to connection {connection_id}: '{voice_text[:50]}...'")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to inject TTS to connection {connection_id}: {e}")
+            return False
+    
+
+    async def get_connection_metrics(self) -> Dict[str, Any]:
+        """Get metrics for all connections"""
+        metrics = {
+            "total_connections": len(self.connections),
+            "connections_by_state": {},
+            "connections": []
+        }
+        
+        for context in self.connections.values():
+            state_str = context.state.value
+            metrics["connections_by_state"][state_str] = metrics["connections_by_state"].get(state_str, 0) + 1
+            metrics["connections"].append({
+                "connection_id": context.connection_id,
+                "client_id": context.config.client_id if context.config else "unknown",
+                "state": state_str,
+                "created_at": context.created_at,
+                "last_activity": context.last_activity,
+                "mcp_servers": len(context.mcp_client.sessions) if context.mcp_client else 0,
+                "viz_provider": context.config.visualization_provider.provider_type if context.config else None,
+                "has_voice_agent": context.voice_agent is not None,
+                "voice_thread_id": context.voice_thread_id
+            })
+        
+        return metrics
+    
+    async def _periodic_cleanup(self):
+        """Periodic cleanup of stale connections"""
+        while True:
+            try:
+                await asyncio.sleep(300)  # Run every 5 minutes
+                current_time = time.time()
+                stale_connections = []
+                
+                for connection_id, context in self.connections.items():
+                    # Mark connections as stale if no activity for 1 hour
+                    if current_time - context.last_activity > 3600:
+                        stale_connections.append(connection_id)
+                
+                for connection_id in stale_connections:
+                    logger.info(f"Cleaning up stale connection: {connection_id}")
+                    await self.cleanup_connection(connection_id)
+                    
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                logger.error(f"Error in periodic cleanup: {e}")
+
+# Global connection manager instance
+connection_manager = ConnectionManager()
