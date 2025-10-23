@@ -154,6 +154,24 @@ export interface GeUIOptions {
   
   /** Custom WebSocket connection handler (for per-connection setup) */
   onWebSocketConnect?: (ws: WebSocket) => () => void;
+  
+  /** Voice idle timeout configuration */
+  voiceIdleTimeout?: {
+    /** Whether to enable voice idle timeout (default: true) */
+    enabled?: boolean;
+    /** Seconds of inactivity before showing warning (default: 50) */
+    warningThreshold?: number;
+    /** Seconds of inactivity before disconnecting (default: 60) */
+    disconnectThreshold?: number;
+    /** Callback when idle warning is shown */
+    onIdleWarning?: (secondsRemaining: number) => void;
+    /** Callback when voice is disconnected due to idle */
+    onIdleDisconnect?: () => void;
+    /** Custom warning message (can include {seconds} placeholder) */
+    warningMessage?: string;
+    /** Custom disconnect message */
+    disconnectMessage?: string;
+  };
 }
 
 /**

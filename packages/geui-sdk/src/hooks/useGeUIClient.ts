@@ -22,6 +22,16 @@ export interface UseGeUIClientOptions extends ConnectionServiceOptions {
    * Whether to automatically connect on mount
    */
   autoConnect?: boolean;
+  
+  /**
+   * Voice idle timeout configuration
+   */
+  voiceIdleTimeout?: {
+    /** Callback when idle warning is shown */
+    onIdleWarning?: (secondsRemaining: number) => void;
+    /** Callback when voice is disconnected due to idle */
+    onIdleDisconnect?: () => void;
+  };
 }
 
 /**
@@ -107,6 +117,11 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
       onInputChange: options.onInputChange,
       onLinkClick: options.onLinkClick,
       onWebSocketConnect: options.onWebSocketConnect,
+      voiceIdleTimeout: options.voiceIdleTimeout ? {
+        enabled: options.voiceIdleTimeout.enabled,
+        disconnectThreshold: options.voiceIdleTimeout.disconnectThreshold,
+        warningThreshold: options.voiceIdleTimeout.warningThreshold
+      } : undefined,
     });
     connectionServiceRef.current = newService;
     
@@ -187,6 +202,20 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
       setIsLoading(true);
     };
     const handleAudioStream = (stream: MediaStream) => setAudioStream(stream);
+    const handleVoiceIdleWarning = (data: { message: string, secondsRemaining: number }) => {
+      console.log('🔔 Voice idle warning:', data.message);
+      // Call user's callback if provided
+      if (options.voiceIdleTimeout?.onIdleWarning) {
+        options.voiceIdleTimeout.onIdleWarning(data.secondsRemaining);
+      }
+    };
+    const handleVoiceIdleDisconnect = (data: { message: string, reason: string }) => {
+      console.log('🔌 Voice disconnected due to idle:', data.message);
+      // Call user's callback if provided
+      if (options.voiceIdleTimeout?.onIdleDisconnect) {
+        options.voiceIdleTimeout.onIdleDisconnect();
+      }
+    };
     const handleError = (error: Error) => {
       console.error('Connection service error:', error);
       setIsLoading(false);
@@ -204,6 +233,8 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
     newService.on(ConnectionEvent.ENHANCEMENT_STARTED, handleEnhancementStarted);
     newService.on(ConnectionEvent.INTERACTION_LOADING, handleInteractionLoading);
     newService.on(ConnectionEvent.AUDIO_STREAM, handleAudioStream);
+    newService.on(ConnectionEvent.VOICE_IDLE_WARNING, handleVoiceIdleWarning);
+    newService.on(ConnectionEvent.VOICE_IDLE_DISCONNECT, handleVoiceIdleDisconnect);
     newService.on(ConnectionEvent.ERROR, handleError);
     
     // Auto-connect if enabled (WebSocket-first pattern)
