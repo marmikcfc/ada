@@ -22,6 +22,8 @@ export enum ConnectionEvent {
   INTERACTION_PROCESSING = 'interaction_processing',
   INTERACTION_COMPLETE = 'interaction_complete',
   INTERACTION_LOADING = 'interaction_loading',
+  VOICE_IDLE_WARNING = 'voice_idle_warning',
+  VOICE_IDLE_DISCONNECT = 'voice_idle_disconnect',
   ERROR = 'error'
 }
 
@@ -56,6 +58,12 @@ export interface ConnectionServiceOptions {
   onLinkClick?: (href: string, context: any) => void;
   /** Custom WebSocket connection handler (for per-connection setup) */
   onWebSocketConnect?: (ws: WebSocket) => () => void;
+  /** Voice idle timeout configuration */
+  voiceIdleTimeout?: {
+    enabled?: boolean;
+    disconnectThreshold?: number;
+    warningThreshold?: number;
+  };
 }
 
 /**
@@ -93,6 +101,13 @@ export class ConnectionService extends EventEmitter {
   private onLinkClick?: (href: string, context: any) => void;
   private onWebSocketConnect?: (ws: WebSocket) => () => void;
   private wsCleanupCallback?: () => void;
+  
+  // Voice idle configuration
+  private voiceIdleTimeout?: {
+    enabled?: boolean;
+    disconnectThreshold?: number;
+    warningThreshold?: number;
+  };
 
   private webSocket: WebSocket | null = null;
   private peerConnection: RTCPeerConnection | null = null;
@@ -144,6 +159,9 @@ export class ConnectionService extends EventEmitter {
     this.onInputChange = options.onInputChange;
     this.onLinkClick = options.onLinkClick;
     this.onWebSocketConnect = options.onWebSocketConnect;
+    
+    // Voice idle configuration
+    this.voiceIdleTimeout = options.voiceIdleTimeout;
     
     // Setup global interaction handlers
     this.setupGlobalHandlers();
@@ -381,6 +399,46 @@ export class ConnectionService extends EventEmitter {
     
     this.remoteStream = null;
     this.setVoiceState('disconnected');
+  }
+
+  /**
+   * Send connection configuration (for per-connection setup)
+   */
+  private async sendConnectionConfig(): Promise<void> {
+    if (!this.webSocket || this.webSocket.readyState !== WebSocket.OPEN) {
+      throw new Error('WebSocket is not connected');
+    }
+    
+    // Build voice idle settings
+    const voiceIdleSettings = this.voiceIdleTimeout ? {
+      enabled: this.voiceIdleTimeout.enabled ?? true,
+      timeout_seconds: this.voiceIdleTimeout.disconnectThreshold ?? 60,
+      warning_seconds: this.voiceIdleTimeout.warningThreshold ?? 50
+    } : undefined;
+    
+    const config = {
+      type: 'connection_config',
+      config: {
+        client_id: `web-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`,
+        mcp_config: {
+          model: 'gpt-4o-mini',
+          api_key_env: 'OPENAI_API_KEY',
+          servers: [] // TODO: Add MCP endpoints when implemented
+        },
+        visualization_provider: {
+          provider_type: 'thesys',
+          model: 'c1-nightly',
+          api_key_env: 'THESYS_API_KEY'
+        },
+        voice_idle_settings: voiceIdleSettings,
+        preferences: {
+          ui_framework: this.uiFramework
+        }
+      }
+    };
+    
+    console.log(`[WS:${this.connectionLogId}] Sending connection configuration:`, config);
+    this.webSocket.send(JSON.stringify(config));
   }
 
   /**
@@ -793,6 +851,11 @@ export class ConnectionService extends EventEmitter {
           if (data.connection_id && !this.backendConnectionId) {
             this.backendConnectionId = data.connection_id;
             console.log(`[WS:${this.connectionLogId}] Backend connection ID set: ${data.connection_id}`);
+            
+            // Send connection configuration if using per-connection endpoint
+            if (this.websocketURL.includes('/ws/per-connection-messages')) {
+              await this.sendConnectionConfig();
+            }
           }
           break;
           
@@ -801,6 +864,24 @@ export class ConnectionService extends EventEmitter {
           if (data.state === 'disconnecting') {
             this.setConnectionState('disconnected');
           }
+          break;
+          
+        case 'voice_idle_warning':
+          console.log(`[WS:${this.connectionLogId}] Voice idle warning:`, data.message);
+          this.emit(ConnectionEvent.VOICE_IDLE_WARNING, {
+            message: data.message,
+            secondsRemaining: data.seconds_remaining
+          });
+          break;
+          
+        case 'voice_idle_disconnect':
+          console.log(`[WS:${this.connectionLogId}] Voice idle disconnect:`, data.message);
+          this.emit(ConnectionEvent.VOICE_IDLE_DISCONNECT, {
+            message: data.message,
+            reason: data.reason
+          });
+          // Also update voice state to disconnected
+          this.setVoiceState('disconnected');
           break;
           
         case 'error':
