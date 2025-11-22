@@ -4,10 +4,10 @@ version = "0.1.0"
 description = "GenUI SDK Backend - FastAPI server with WebRTC, voice processing, and AI visualization capabilities"
 authors = ["Your Name <your.email@example.com>"]
 readme = "README.md"
-packages = [{include = "app"}, {include = "utils"}, {include = "schemas"}]
+packages = [{include = "app"}, {include = "utils"}]
 
 [tool.poetry.dependencies]
-python = "^3.9"
+python = "^3.10"
 
 # Core Framework
 fastapi = "^0.110.0"
@@ -19,18 +19,19 @@ pydantic-settings = "^2.1.0"
 openai = "^1.3.0"
 anthropic = "^0.8.0"
 mcp = "^1.0.0"
+onnxruntime = "^1.23.2"
 
 # Voice & WebRTC Processing
-pipecat-ai = "^0.0.40"
-pipecat-ai-small-webrtc = "^0.0.3"
+pipecat-ai = {extras = ["webrtc", "cartesia", "deepgram", "noisereduce", "silero"], version = "^0.0.95"}
+
 
 # Computer Vision & Media
 opencv-python = "^4.8.0"
 numpy = "^1.24.0"
 
 # HTTP & Communication
-httpx = "^0.25.0"
-websockets = "^12.0"
+httpx = "^0.27.0"
+websockets = "^13.0"
 aiohttp = "^3.9.0"
 
 # Database
@@ -39,7 +40,7 @@ aiosqlite = "^0.19.0"
 # Utilities & Environment
 loguru = "^0.7.0"
 python-dotenv = "^1.0.0"
-python-multipart = "^0.0.6"
+python-multipart = "^0.0.9"
 
 # Development Dependencies
 [tool.poetry.group.dev.dependencies]
@@ -65,7 +66,7 @@ line_length = 100
 multi_line_output = 3
 
 [tool.mypy]
-python_version = "3.9"
+python_version = "3.10"
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

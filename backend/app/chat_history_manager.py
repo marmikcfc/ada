@@ -519,10 +519,35 @@ class ChatHistoryManager:
             limit = max_messages if max_messages is not None else self.max_history_per_thread
             
             # Get the most recent messages
-            history = self._history[thread_id][-limit:].copy()
+            raw_history = self._history[thread_id][-limit:].copy()
             
-            logger.debug(f"Retrieved {len(history)} recent messages for thread {thread_id}")
-            return history
+            # Process messages to handle enhanced responses
+            processed_history = []
+            for msg in raw_history:
+                # Check if this is an enhanced response
+                if msg.get("role") == "assistant" and msg.get("content", "").startswith('{"type": "enhanced_response"'):
+                    try:
+                        import json
+                        enhanced_data = json.loads(msg["content"])
+                        # Extract the original response if available, otherwise skip this message
+                        if enhanced_data.get("original_response"):
+                            processed_msg = {
+                                "role": "assistant",
+                                "content": enhanced_data["original_response"]
+                            }
+                            if "id" in msg:
+                                processed_msg["id"] = msg["id"]
+                            processed_history.append(processed_msg)
+                        # Skip enhanced messages without original_response
+                    except (json.JSONDecodeError, KeyError):
+                        # If parsing fails, include as-is (shouldn't happen)
+                        processed_history.append(msg)
+                else:
+                    # Include all other messages as-is
+                    processed_history.append(msg)
+            
+            logger.debug(f"Retrieved {len(processed_history)} recent messages for thread {thread_id} (from {len(raw_history)} raw)")
+            return processed_history
     
     async def _load_thread_from_db(self, thread_id: str) -> None:
         """
