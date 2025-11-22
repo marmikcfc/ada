@@ -155,7 +155,7 @@ import { ConfigurableGeUIClient } from './ConfigurableGeUIClient';
     },
     visualization_provider: {
       provider_type: "thesys", // Rich C1 components
-      model: "c1-nightly",
+      model: "c1/anthropic/claude-sonnet-4/v-20250915",
       api_key_env: "THESYS_API_KEY"
     },
     preferences: {
@@ -229,7 +229,7 @@ import { ConfigurableGeUIClient } from './ConfigurableGeUIClient';
           },
           visualization_provider: {
             provider_type: "thesys",
-            model: "c1-nightly", 
+            model: "c1/anthropic/claude-sonnet-4/v-20250915", 
             api_key_env: "THESYS_API_KEY"
           },
           preferences: {

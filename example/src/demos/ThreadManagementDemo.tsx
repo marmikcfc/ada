@@ -83,7 +83,7 @@ const DEFAULT_CONFIG: ConfigurationState = {
     framework: 'crayon',
     visualizationLLM: {
       provider: 'thesys',
-      model: 'c1-nightly',
+      model: 'c1/anthropic/claude-sonnet-4/v-20250915',
       apiKeyEnv: 'THESYS_API_KEY'
     }
   },
@@ -1926,7 +1926,7 @@ const ThreadManagementDemo: React.FC = () => {
       },
       visualization_provider: config.uiFramework.framework === 'crayon' ? {
         provider_type: 'thesys' as const,
-        model: 'c1-nightly',
+        model: 'c1/anthropic/claude-sonnet-4/v-20250915',
         api_key_env: 'THESYS_API_KEY'
       } : {
         provider_type: (config.uiFramework.visualizationLLM?.provider || 'openai') as 'thesys' | 'openai' | 'anthropic' | 'google' | 'tomorrow_ai',
