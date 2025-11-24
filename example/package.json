@@ -74,9 +74,6 @@
     "zod-to-json-schema": "^3.24.6",
     "zustand": "^5.0.6"
   },
-  "workspaces": [
-    "../packages/*"
-  ],
   "devDependencies": {
     "@testing-library/jest-dom": "^6.4.2",
     "@testing-library/react": "^14.2.1",

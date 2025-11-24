@@ -61,20 +61,56 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
 
   // Extract C1 content from wrapped format
   const extractC1Content = (rawContent: string): string => {
-    // First try to match complete content tags
-    const completeMatch = rawContent.match(/<content>([\s\S]*?)<\/content>/);
-    if (completeMatch) {
-      return completeMatch[1];
+    console.log('🔧 [FCR] extractC1Content START');
+    console.log('  Input length:', rawContent.length);
+    console.log('  First 200 chars:', rawContent.substring(0, 200));
+
+    let content = rawContent;
+
+    // First, extract outer content tags if present
+    const outerMatch = content.match(/<content>([\s\S]*?)<\/content>/);
+    if (outerMatch) {
+      console.log('  ✓ Found outer <content> wrapper');
+      content = outerMatch[1];
+    } else {
+      // For streaming, try partial match
+      const partialMatch = content.match(/<content>([\s\S]*)/);
+      if (partialMatch) {
+        console.log('  ✓ Found partial outer <content> (streaming)');
+        content = partialMatch[1];
+      } else {
+        console.log('  ⚠ No outer <content> wrapper found');
+      }
     }
-    
-    // For streaming content, extract partial content if <content> tag is present
-    const partialMatch = rawContent.match(/<content>([\s\S]*)/);
-    if (partialMatch) {
-      return partialMatch[1];
+
+    // Check if there's another content tag inside (double-wrapped with thesys attribute)
+    if (content.includes('<content thesys="true">')) {
+      console.log('  ✓ Found inner <content thesys="true"> wrapper');
+      const innerMatch = content.match(/<content[^>]*>([\s\S]*?)(?:<\/content>|$)/);
+      if (innerMatch) {
+        console.log('  ✓ Extracted inner content');
+        content = innerMatch[1];
+      }
     }
-    
-    // Fallback to original content
-    return rawContent;
+
+    // Decode HTML entities that might have been encoded
+    const hasEntities = content.includes('&quot;') || content.includes('&lt;') || content.includes('&gt;') || content.includes('&amp;') || content.includes('&apos;');
+    if (hasEntities) {
+      console.log('  ✓ Decoding HTML entities');
+      content = content
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&amp;/g, '&');
+    }
+
+    console.log('  Output length:', content.length);
+    console.log('  Output starts with {:', content.startsWith('{'));
+    console.log('  First 200 chars of output:', content.substring(0, 200));
+    console.log('🔧 [FCR] extractC1Content END');
+
+    return content;
   };
 
   // HTML sanitization using DOMPurify
@@ -160,18 +196,31 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
       const c1Xml = extractC1Content(content || '');
 
       // Validation logging for C1 content
-      console.log('[C1Component] Rendering C1 content:', {
-        hasContentTag: (content || '').includes('<content>'),
-        hasClosingTag: (content || '').includes('</content>'),
-        extractedLength: c1Xml.length,
-        isStreaming: isStreaming,
-        rawContentPreview: (content || '').substring(0, 200),
-        extractedPreview: c1Xml.substring(0, 200)
-      });
+      console.log('🎯 [FCR] C1Component FINAL render attempt:');
+      console.log('  contentType:', detectedType);
+      console.log('  rawLength:', (content || '').length);
+      console.log('  extractedLength:', c1Xml.length);
+      console.log('  isJSON:', c1Xml.startsWith('{'));
+      console.log('  hasCard:', c1Xml.includes('"Card"') || c1Xml.includes('Card'));
+      console.log('  hasHeader:', c1Xml.includes('"Header"') || c1Xml.includes('Header'));
+      console.log('  hasList:', c1Xml.includes('"List"') || c1Xml.includes('List'));
+      console.log('  isStreaming:', isStreaming);
+
+      // Check if content looks valid
+      const isValidJSON = c1Xml.startsWith('{') && (c1Xml.includes('"component"') || c1Xml.includes('"type"'));
+      console.log('  isValidJSON:', isValidJSON);
+
+      if (isValidJSON) {
+        console.log('  ✅ Content appears to be valid C1 JSON');
+        console.log('  First 500 chars:', c1Xml.substring(0, 500));
+      } else {
+        console.log('  ⚠️ Content may not be valid C1 JSON');
+        console.log('  Full content:', c1Xml);
+      }
 
       // Validate extracted content
       if (!c1Xml || c1Xml.trim().length === 0) {
-        console.warn('[C1Component] Empty or invalid C1 content extracted');
+        console.error('🔍 [H4] EMPTY C1 CONTENT!');
         return (
           <div style={{ padding: '16px', background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '8px', color: '#856404' }}>
             <p style={{ margin: 0, fontSize: '14px' }}>No C1 content available to render.</p>

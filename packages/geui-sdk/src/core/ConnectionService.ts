@@ -753,12 +753,21 @@ export class ConnectionService extends EventEmitter {
               console.log(`[WS:${this.connectionLogId}] Final streaming message role: ${messageRole} (from backend: ${data.role})`);
               
               const finalMessage = {
-                id: doneId,
+                id: `${doneId}-enhanced`, // Append suffix to ensure unique ID (avoid duplicate React keys)
                 role: messageRole as 'user' | 'assistant',
                 content: this.streamingContent,
                 contentType: this.streamingContentType, // Use the streaming content type directly
                 timestamp: new Date(),
               };
+
+              console.log('🔍 [H3] Creating enhanced message:', {
+                id: finalMessage.id,
+                contentType: finalMessage.contentType,
+                contentLength: finalMessage.content.length,
+                hasContentTag: finalMessage.content.includes('<content>'),
+                hasClosingTag: finalMessage.content.includes('</content>'),
+                contentPreview: finalMessage.content.substring(0, 200)
+              });
 
               // Surface to consumers before we clear the buffer
               this.emit(ConnectionEvent.MESSAGE_RECEIVED, finalMessage);

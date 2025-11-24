@@ -133,14 +133,21 @@ export function useGeUIClient(options: UseGeUIClientOptions): GeUIClient & {
       }
     };
     const handleMessageReceived = (message: Message) => {
-      console.log('🔥 MESSAGE_RECEIVED handler called:', message);
+      console.log('🔍 [H3] MESSAGE_RECEIVED:', {
+        id: message.id,
+        role: message.role,
+        contentType: message.contentType,
+        contentLength: message.content?.length,
+        contentPreview: message.content?.substring(0, 100)
+      });
+
       setMessages(prev => {
-        console.log('🔥 Previous messages:', prev);
+        console.log('🔍 [H3] Messages before:', prev.map(m => ({ id: m.id, type: m.contentType })));
         const newMessages = [...prev, message];
-        console.log('🔥 New messages:', newMessages);
+        console.log('🔍 [H3] Messages after:', newMessages.map(m => ({ id: m.id, type: m.contentType })));
         return newMessages;
       });
-      
+
       // Only clear loading state for assistant messages, not user messages
       // This allows "thinking" message to persist during interactions
       if (message.role === 'assistant') {

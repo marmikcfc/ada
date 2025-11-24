@@ -140,7 +140,15 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   
   // Combine messages with streaming content and loading states
   const displayMessages = [...messages];
-  
+
+  console.log('🔍 [H4] Display messages array:', {
+    messageCount: displayMessages.length,
+    messageIds: displayMessages.map(m => m.id),
+    messageTypes: displayMessages.map(m => 'contentType' in m ? m.contentType : 'text'),
+    streamingActive: isStreamingActive,
+    streamingId: streamingMessageId
+  });
+
   // Add streaming message if active
   if (isStreamingActive && streamingContent) {
     const streamingMessage: AssistantMessage = {
@@ -227,6 +235,14 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
       <div className="geui-chat-messages" style={messagesContainerStyles}>
         {displayMessages.map((message, index) => {
           const isCurrentlyStreaming = isStreamingActive && index === displayMessages.length - 1;
+          console.log('🔍 [H4] Rendering message:', {
+            index,
+            id: message.id,
+            role: message.role,
+            contentType: 'contentType' in message ? message.contentType : undefined,
+            isStreaming: isCurrentlyStreaming,
+            contentLength: message.content?.length
+          });
           return (
             <ChatMessage
               key={message.id}

@@ -1,0 +1,25 @@
+{
+  "name": "configurable-connection-example",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone example demonstrating configurable WebSocket and WebRTC connections with the GeUI SDK",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "geui-sdk": "workspace:*",
+    "@crayonai/react-ui": "^0.7.9",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.1",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "~5.6.2",
+    "vite": "^6.0.3"
+  }
+}
