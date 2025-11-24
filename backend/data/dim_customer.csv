@@ -1,0 +1,121 @@
+customer_id,first_name,last_name,email,phone,address,city,state,zip,dl_masked,credit_score_band,contact_opt_in_sms,contact_opt_in_email
+5000,Drew,Thompson,drew.thompson@example.com,555-619-2743,991 Pine St,San Jose,CA,95110,CA-XXXXXX88,800-850,False,False
+5001,Alex,Brown,alex.brown@autodealer.test,555-345-1949,346 Elm St,Santa Clara,CA,95050,NC-XXXXXX27,580-669,False,False
+5002,Chris,Martinez,chris.martinez@mail.test,555-806-4295,830 Pine St,San Jose,CA,95110,TX-XXXXXX33,670-739,True,True
+5003,Evan,Davis,evan.davis@example.com,555-824-1964,334 Maple St,Anytown,CA,94105,NC-XXXXXX73,580-669,False,True
+5004,Peyton,White,peyton.white@example.com,555-199-8062,462 Cedar St,Riverside,CA,92501,NY-XXXXXX51,580-669,True,False
+5005,Riley,White,riley.white@autodealer.test,555-573-5092,995 Maple St,Riverside,CA,92501,FL-XXXXXX13,740-799,False,False
+5006,Chris,Jackson,chris.jackson@example.com,555-488-1035,499 Pine St,Anytown,CA,94105,NY-XXXXXX34,300-579,True,False
+5007,Jordan,Johnson,jordan.johnson@autodealer.test,555-614-9701,261 Maple St,Sacramento,CA,95814,TX-XXXXXX36,800-850,True,True
+5008,Skyler,Williams,skyler.williams@mail.test,555-697-9565,423 Pine St,San Diego,CA,92101,AZ-XXXXXX47,300-579,True,False
+5009,Skyler,Robinson,skyler.robinson@example.com,555-650-4492,618 Pine St,Anytown,CA,94105,NC-XXXXXX27,670-739,True,False
+5010,Casey,Jones,casey.jones@example.com,555-209-3546,378 Pine St,Santa Clara,CA,95050,CA-XXXXXX74,300-579,False,False
+5011,Jordan,Smith,jordan.smith@example.com,555-752-5291,265 Cedar St,Santa Clara,CA,95050,CA-XXXXXX28,670-739,True,False
+5012,Riley,Johnson,riley.johnson@autodealer.test,555-915-1653,466 Oak St,Santa Clara,CA,95050,FL-XXXXXX23,580-669,False,True
+5013,Avery,Anderson,avery.anderson@autodealer.test,555-921-5065,373 Oak St,San Jose,CA,95110,IL-XXXXXX75,580-669,True,True
+5014,Chris,Jackson,chris.jackson@autodealer.test,555-985-2137,891 Pine St,Santa Clara,CA,95050,FL-XXXXXX14,800-850,False,True
+5015,Casey,Clark,casey.clark@autodealer.test,555-846-6139,546 Elm St,San Diego,CA,92101,CA-XXXXXX06,800-850,True,False
+5016,Lee,Williams,lee.williams@autodealer.test,555-738-6143,779 Maple St,Oakland,CA,94607,FL-XXXXXX48,580-669,False,False
+5017,Avery,Clark,avery.clark@autodealer.test,555-515-9977,953 Maple St,Sacramento,CA,95814,PA-XXXXXX57,740-799,True,False
+5018,Avery,Williams,avery.williams@mail.test,555-779-6491,195 Oak St,Santa Clara,CA,95050,GA-XXXXXX37,300-579,False,False
+5019,Evan,Miller,evan.miller@mail.test,555-493-9099,509 Oak St,Oakland,CA,94607,CA-XXXXXX87,800-850,True,True
+5020,Quinn,Jones,quinn.jones@autodealer.test,555-783-9702,672 Elm St,San Jose,CA,95110,MI-XXXXXX72,740-799,False,False
+5021,Sam,Lopez,sam.lopez@mail.test,555-596-4919,381 Cedar St,San Jose,CA,95110,FL-XXXXXX81,580-669,True,False
+5022,Riley,Miller,riley.miller@autodealer.test,555-517-6421,655 Cedar St,Anytown,CA,94105,OH-XXXXXX09,740-799,True,False
+5023,Morgan,Jackson,morgan.jackson@autodealer.test,555-651-9947,919 Elm St,San Jose,CA,95110,AZ-XXXXXX06,740-799,True,False
+5024,Riley,Clark,riley.clark@example.com,555-503-1444,185 Cedar St,Sacramento,CA,95814,PA-XXXXXX53,670-739,False,False
+5025,Drew,White,drew.white@example.com,555-581-1317,867 Elm St,Santa Clara,CA,95050,CA-XXXXXX33,800-850,True,True
+5026,Riley,Martin,riley.martin@example.com,555-677-4571,576 Pine St,Oakland,CA,94607,GA-XXXXXX41,300-579,False,False
+5027,Dana,Miller,dana.miller@mail.test,555-807-4978,204 Pine St,Anytown,CA,94105,TX-XXXXXX65,800-850,False,True
+5028,Lee,Martin,lee.martin@autodealer.test,555-470-8532,824 Oak St,Anytown,CA,94105,OH-XXXXXX77,800-850,False,False
+5029,Sam,Williams,sam.williams@autodealer.test,555-349-8613,683 Elm St,Santa Clara,CA,95050,AZ-XXXXXX73,670-739,False,False
+5030,Skyler,Lopez,skyler.lopez@example.com,555-629-4130,187 Oak St,Sacramento,CA,95814,TX-XXXXXX70,670-739,True,False
+5031,Sam,Wilson,sam.wilson@mail.test,555-477-8753,666 Elm St,Oakland,CA,94607,IL-XXXXXX44,580-669,True,True
+5032,Jamie,Brown,jamie.brown@mail.test,555-880-4033,296 Oak St,Oakland,CA,94607,IL-XXXXXX13,580-669,False,True
+5033,Morgan,Smith,morgan.smith@mail.test,555-229-5494,146 Maple St,Oakland,CA,94607,PA-XXXXXX94,740-799,False,False
+5034,Avery,Johnson,avery.johnson@autodealer.test,555-216-2070,510 Cedar St,Santa Clara,CA,95050,NY-XXXXXX41,300-579,False,True
+5035,Devon,Jackson,devon.jackson@autodealer.test,555-404-8025,412 Elm St,San Diego,CA,92101,FL-XXXXXX41,580-669,True,True
+5036,Avery,Smith,avery.smith@autodealer.test,555-805-8699,398 Maple St,San Diego,CA,92101,WA-XXXXXX49,580-669,False,True
+5037,Shawn,Davis,shawn.davis@example.com,555-372-3330,173 Maple St,Oakland,CA,94607,MI-XXXXXX17,670-739,False,False
+5038,Devon,Martinez,devon.martinez@autodealer.test,555-182-1653,542 Pine St,San Diego,CA,92101,WA-XXXXXX90,670-739,True,True
+5039,Peyton,Thompson,peyton.thompson@autodealer.test,555-384-3973,699 Cedar St,Oakland,CA,94607,FL-XXXXXX51,670-739,False,False
+5040,Morgan,Jackson,morgan.jackson@mail.test,555-137-8451,190 Pine St,San Jose,CA,95110,OH-XXXXXX87,300-579,True,False
+5041,Skyler,Martin,skyler.martin@autodealer.test,555-878-1845,308 Pine St,Oakland,CA,94607,NY-XXXXXX09,580-669,False,True
+5042,Shawn,White,shawn.white@example.com,555-961-2858,572 Maple St,Anytown,CA,94105,NY-XXXXXX77,740-799,True,False
+5043,Chris,Clark,chris.clark@mail.test,555-239-2143,382 Cedar St,Sacramento,CA,95814,WA-XXXXXX99,740-799,True,False
+5044,Shawn,Martin,shawn.martin@autodealer.test,555-665-9903,486 Cedar St,Santa Clara,CA,95050,AZ-XXXXXX60,740-799,False,False
+5045,Riley,Martin,riley.martin@example.com,555-614-6439,990 Maple St,Anytown,CA,94105,TX-XXXXXX62,740-799,False,False
+5046,Skyler,Jackson,skyler.jackson@example.com,555-972-6383,972 Elm St,Oakland,CA,94607,WA-XXXXXX13,670-739,True,True
+5047,Lee,Brown,lee.brown@mail.test,555-820-2646,554 Oak St,San Jose,CA,95110,OH-XXXXXX55,580-669,True,False
+5048,Evan,Garcia,evan.garcia@example.com,555-180-7267,734 Oak St,Riverside,CA,92501,WA-XXXXXX74,300-579,False,False
+5049,Shawn,Garcia,shawn.garcia@autodealer.test,555-453-5901,754 Cedar St,Anytown,CA,94105,OH-XXXXXX13,800-850,False,False
+5050,Morgan,Smith,morgan.smith@mail.test,555-505-5497,108 Elm St,San Jose,CA,95110,WA-XXXXXX53,580-669,False,True
+5051,Casey,Johnson,casey.johnson@autodealer.test,555-134-6977,849 Oak St,Santa Clara,CA,95050,AZ-XXXXXX28,800-850,False,True
+5052,Drew,Martin,drew.martin@autodealer.test,555-864-6549,923 Maple St,San Jose,CA,95110,OH-XXXXXX51,300-579,False,True
+5053,Quinn,Thomas,quinn.thomas@mail.test,555-788-5295,698 Cedar St,Oakland,CA,94607,GA-XXXXXX85,580-669,True,False
+5054,Morgan,White,morgan.white@example.com,555-146-1609,411 Cedar St,Anytown,CA,94105,WA-XXXXXX75,800-850,False,True
+5055,Lee,Brown,lee.brown@autodealer.test,555-730-7686,386 Maple St,San Jose,CA,95110,NC-XXXXXX15,670-739,True,False
+5056,Drew,Miller,drew.miller@autodealer.test,555-193-4475,757 Elm St,Anytown,CA,94105,NC-XXXXXX31,580-669,True,True
+5057,Jamie,Jones,jamie.jones@mail.test,555-102-5542,979 Oak St,San Jose,CA,95110,AZ-XXXXXX20,580-669,False,True
+5058,Avery,Lopez,avery.lopez@example.com,555-859-7897,638 Maple St,Anytown,CA,94105,NC-XXXXXX17,580-669,True,False
+5059,Quinn,Smith,quinn.smith@autodealer.test,555-967-7580,536 Maple St,Anytown,CA,94105,FL-XXXXXX21,670-739,False,False
+5060,Skyler,Thompson,skyler.thompson@autodealer.test,555-617-8048,201 Maple St,Santa Clara,CA,95050,OH-XXXXXX57,740-799,True,False
+5061,Lee,Anderson,lee.anderson@autodealer.test,555-483-3500,803 Cedar St,Oakland,CA,94607,NC-XXXXXX52,300-579,False,True
+5062,Lee,Thomas,lee.thomas@mail.test,555-868-7929,988 Maple St,San Jose,CA,95110,FL-XXXXXX83,740-799,True,True
+5063,Cameron,Martinez,cameron.martinez@example.com,555-880-5564,687 Oak St,Santa Clara,CA,95050,CA-XXXXXX94,580-669,False,False
+5064,Jamie,Thomas,jamie.thomas@example.com,555-990-3347,679 Cedar St,Anytown,CA,94105,PA-XXXXXX66,670-739,True,False
+5065,Morgan,Anderson,morgan.anderson@mail.test,555-710-2391,153 Oak St,San Jose,CA,95110,GA-XXXXXX67,740-799,False,False
+5066,Chris,Thompson,chris.thompson@autodealer.test,555-540-2816,390 Elm St,Anytown,CA,94105,CA-XXXXXX90,580-669,False,True
+5067,Riley,Lopez,riley.lopez@autodealer.test,555-222-1126,609 Cedar St,Santa Clara,CA,95050,TX-XXXXXX85,740-799,True,False
+5068,Alex,Harris,alex.harris@autodealer.test,555-689-8033,687 Cedar St,Anytown,CA,94105,PA-XXXXXX29,670-739,True,False
+5069,Casey,Davis,casey.davis@mail.test,555-510-9584,180 Cedar St,San Diego,CA,92101,NC-XXXXXX81,800-850,True,False
+5070,Cameron,Jones,cameron.jones@example.com,555-249-5193,302 Oak St,Riverside,CA,92501,PA-XXXXXX99,800-850,False,False
+5071,Riley,Harris,riley.harris@autodealer.test,555-552-5961,915 Pine St,Anytown,CA,94105,CA-XXXXXX77,300-579,False,False
+5072,Taylor,Williams,taylor.williams@mail.test,555-619-7299,573 Elm St,Sacramento,CA,95814,NC-XXXXXX97,580-669,True,False
+5073,Casey,Anderson,casey.anderson@example.com,555-616-3827,140 Oak St,Oakland,CA,94607,IL-XXXXXX55,740-799,False,False
+5074,Skyler,Johnson,skyler.johnson@mail.test,555-762-6482,167 Pine St,San Jose,CA,95110,TX-XXXXXX25,800-850,True,False
+5075,Morgan,Jackson,morgan.jackson@mail.test,555-825-2388,417 Elm St,Riverside,CA,92501,CA-XXXXXX85,670-739,False,True
+5076,Chris,Anderson,chris.anderson@autodealer.test,555-296-4711,240 Oak St,San Jose,CA,95110,GA-XXXXXX05,580-669,False,True
+5077,Avery,Garcia,avery.garcia@mail.test,555-889-3712,838 Cedar St,San Jose,CA,95110,NY-XXXXXX47,800-850,True,False
+5078,Peyton,Miller,peyton.miller@mail.test,555-684-8218,572 Pine St,Santa Clara,CA,95050,IL-XXXXXX92,300-579,False,False
+5079,Shawn,Brown,shawn.brown@mail.test,555-971-3042,391 Maple St,Oakland,CA,94607,PA-XXXXXX13,670-739,True,False
+5080,Jordan,Jackson,jordan.jackson@autodealer.test,555-341-7326,183 Pine St,Sacramento,CA,95814,IL-XXXXXX20,740-799,True,False
+5081,Quinn,Clark,quinn.clark@example.com,555-119-5193,320 Oak St,Anytown,CA,94105,TX-XXXXXX34,300-579,True,False
+5082,Skyler,Harris,skyler.harris@example.com,555-956-9189,711 Elm St,Anytown,CA,94105,GA-XXXXXX60,670-739,True,False
+5083,Avery,Williams,avery.williams@autodealer.test,555-169-9618,657 Elm St,Sacramento,CA,95814,IL-XXXXXX65,300-579,False,True
+5084,Cameron,Davis,cameron.davis@mail.test,555-743-2698,890 Elm St,Oakland,CA,94607,MI-XXXXXX27,740-799,True,True
+5085,Taylor,Harris,taylor.harris@autodealer.test,555-306-1717,910 Oak St,Anytown,CA,94105,CA-XXXXXX74,580-669,False,False
+5086,Jordan,Anderson,jordan.anderson@example.com,555-918-7029,547 Cedar St,Santa Clara,CA,95050,IL-XXXXXX58,300-579,False,True
+5087,Lee,Clark,lee.clark@example.com,555-658-5813,428 Maple St,San Jose,CA,95110,MI-XXXXXX62,740-799,False,False
+5088,Jordan,Thomas,jordan.thomas@autodealer.test,555-381-1939,176 Cedar St,Sacramento,CA,95814,FL-XXXXXX70,300-579,True,False
+5089,Cameron,Jackson,cameron.jackson@example.com,555-719-3513,795 Cedar St,Sacramento,CA,95814,OH-XXXXXX85,670-739,False,True
+5090,Casey,Smith,casey.smith@example.com,555-611-9482,496 Elm St,Oakland,CA,94607,NY-XXXXXX47,300-579,True,True
+5091,Quinn,Garcia,quinn.garcia@autodealer.test,555-189-6236,783 Pine St,Oakland,CA,94607,NC-XXXXXX25,580-669,True,True
+5092,Riley,Davis,riley.davis@autodealer.test,555-126-6912,667 Elm St,San Jose,CA,95110,OH-XXXXXX14,740-799,False,False
+5093,Evan,Williams,evan.williams@autodealer.test,555-757-2215,560 Cedar St,Riverside,CA,92501,NC-XXXXXX26,300-579,True,True
+5094,Morgan,Garcia,morgan.garcia@autodealer.test,555-826-4694,454 Elm St,Riverside,CA,92501,GA-XXXXXX24,800-850,True,True
+5095,Evan,Robinson,evan.robinson@example.com,555-774-6531,962 Elm St,Riverside,CA,92501,OH-XXXXXX39,800-850,True,False
+5096,Shawn,Wilson,shawn.wilson@autodealer.test,555-594-5012,924 Cedar St,Oakland,CA,94607,PA-XXXXXX67,580-669,False,True
+5097,Jamie,Anderson,jamie.anderson@autodealer.test,555-508-3142,878 Pine St,Oakland,CA,94607,PA-XXXXXX14,580-669,True,True
+5098,Jordan,Wilson,jordan.wilson@mail.test,555-528-5067,986 Oak St,San Diego,CA,92101,PA-XXXXXX87,670-739,False,True
+5099,Taylor,Jackson,taylor.jackson@autodealer.test,555-346-4524,697 Pine St,Sacramento,CA,95814,CA-XXXXXX48,300-579,False,True
+5100,Drew,Thomas,drew.thomas@autodealer.test,555-474-1741,510 Maple St,San Jose,CA,95110,NC-XXXXXX16,740-799,False,True
+5101,Riley,Brown,riley.brown@autodealer.test,555-913-6555,671 Pine St,San Diego,CA,92101,CA-XXXXXX00,580-669,False,False
+5102,Devon,Harris,devon.harris@mail.test,555-627-3290,435 Elm St,Riverside,CA,92501,NC-XXXXXX58,800-850,False,False
+5103,Peyton,Smith,peyton.smith@autodealer.test,555-789-2795,526 Elm St,Santa Clara,CA,95050,MI-XXXXXX93,300-579,False,True
+5104,Devon,Clark,devon.clark@autodealer.test,555-251-4968,132 Elm St,San Jose,CA,95110,MI-XXXXXX26,580-669,False,False
+5105,Jordan,Jones,jordan.jones@example.com,555-674-6325,778 Cedar St,Sacramento,CA,95814,AZ-XXXXXX58,670-739,False,True
+5106,Sam,Lopez,sam.lopez@autodealer.test,555-330-5876,889 Pine St,Sacramento,CA,95814,TX-XXXXXX44,800-850,False,False
+5107,Cameron,Jones,cameron.jones@example.com,555-394-2294,454 Cedar St,Santa Clara,CA,95050,FL-XXXXXX84,300-579,True,True
+5108,Jordan,Thompson,jordan.thompson@mail.test,555-338-1860,202 Cedar St,Riverside,CA,92501,WA-XXXXXX26,740-799,False,True
+5109,Morgan,Anderson,morgan.anderson@mail.test,555-160-2465,767 Elm St,Santa Clara,CA,95050,PA-XXXXXX06,580-669,False,True
+5110,Alex,Wilson,alex.wilson@mail.test,555-209-6489,391 Cedar St,Sacramento,CA,95814,TX-XXXXXX43,670-739,True,False
+5111,Drew,Garcia,drew.garcia@mail.test,555-445-5833,681 Oak St,Anytown,CA,94105,WA-XXXXXX16,300-579,True,True
+5112,Peyton,Anderson,peyton.anderson@example.com,555-367-7284,341 Cedar St,Riverside,CA,92501,MI-XXXXXX45,580-669,True,True
+5113,Quinn,Wilson,quinn.wilson@autodealer.test,555-802-9233,820 Pine St,Riverside,CA,92501,FL-XXXXXX27,740-799,False,False
+5114,Shawn,Martin,shawn.martin@mail.test,555-921-4578,880 Oak St,San Jose,CA,95110,TX-XXXXXX19,300-579,True,True
+5115,Avery,Anderson,avery.anderson@mail.test,555-552-2904,796 Oak St,San Jose,CA,95110,NC-XXXXXX72,740-799,False,True
+5116,Shawn,Harris,shawn.harris@autodealer.test,555-840-1356,505 Pine St,Oakland,CA,94607,NC-XXXXXX51,300-579,True,False
+5117,Jordan,Wilson,jordan.wilson@example.com,555-887-3218,884 Cedar St,San Diego,CA,92101,WA-XXXXXX82,670-739,True,True
+5118,Shawn,Jackson,shawn.jackson@example.com,555-845-4648,954 Maple St,Sacramento,CA,95814,NY-XXXXXX63,740-799,False,True
+5119,Drew,Miller,drew.miller@example.com,555-132-7868,729 Maple St,Oakland,CA,94607,WA-XXXXXX79,300-579,True,True

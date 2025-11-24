@@ -1,0 +1,101 @@
+survey_id,store_id,customer_id,department,rating_1to5,nps,comments,date
+140000,1,5036,Sales,4,2,Would recommend,2025-10-19
+140001,2,5039,Service,3,5,Great experience,2025-10-02
+140002,1,5031,Sales,1,0,Staff was helpful,2025-09-23
+140003,1,5032,Sales,5,3,Staff was helpful,2025-09-03
+140004,1,5067,Sales,5,9,Slow service,2025-10-05
+140005,2,5083,Service,2,10,Would recommend,2025-09-17
+140006,2,5055,Service,5,10,Friendly team,2025-09-30
+140007,2,5083,Service,2,8,Staff was helpful,2025-10-15
+140008,2,5006,Service,5,5,Could be better,2025-09-26
+140009,1,5044,Sales,2,2,Okay,2025-09-21
+140010,2,5014,Sales,2,4,Not satisfied,2025-10-03
+140011,2,5077,Sales,4,0,Staff was helpful,2025-10-11
+140012,2,5048,Service,3,1,Would recommend,2025-10-13
+140013,1,5011,Service,4,2,Slow service,2025-09-26
+140014,1,5060,Sales,2,3,Great experience,2025-09-06
+140015,2,5088,Service,5,1,Okay,2025-09-29
+140016,1,5007,Service,5,1,Would recommend,2025-10-21
+140017,2,5040,Sales,1,9,Could be better,2025-10-16
+140018,1,5013,Service,4,9,Great experience,2025-09-16
+140019,2,5038,Sales,5,6,Slow service,2025-09-30
+140020,1,5025,Sales,3,1,Staff was helpful,2025-10-10
+140021,1,5053,Service,1,10,Staff was helpful,2025-09-05
+140022,1,5082,Service,1,1,Okay,2025-09-29
+140023,1,5076,Sales,1,3,Could be better,2025-10-17
+140024,2,5046,Service,2,10,Staff was helpful,2025-09-15
+140025,1,5086,Sales,4,0,Great experience,2025-10-07
+140026,2,5060,Sales,5,1,Great experience,2025-09-11
+140027,2,5048,Sales,2,4,Not satisfied,2025-10-08
+140028,2,5053,Sales,4,1,Staff was helpful,2025-10-22
+140029,2,5102,Sales,4,6,Could be better,2025-10-21
+140030,2,5003,Sales,2,5,Slow service,2025-09-29
+140031,1,5066,Sales,3,3,Great experience,2025-10-08
+140032,1,5080,Service,5,5,Slow service,2025-08-29
+140033,2,5017,Service,4,10,Not satisfied,2025-08-29
+140034,2,5069,Service,4,3,Friendly team,2025-09-29
+140035,1,5028,Service,3,1,Okay,2025-09-17
+140036,2,5053,Sales,4,10,Great experience,2025-10-05
+140037,1,5099,Sales,4,7,Could be better,2025-09-22
+140038,1,5092,Sales,5,9,Slow service,2025-10-12
+140039,2,5076,Service,1,5,Not satisfied,2025-09-11
+140040,1,5098,Sales,4,4,Would recommend,2025-08-28
+140041,2,5085,Sales,1,1,Friendly team,2025-09-13
+140042,1,5030,Service,5,10,Would recommend,2025-09-19
+140043,2,5056,Sales,3,1,Great experience,2025-09-05
+140044,1,5085,Sales,4,3,Great experience,2025-09-09
+140045,1,5095,Service,4,3,Slow service,2025-09-01
+140046,1,5028,Service,3,10,Would recommend,2025-09-22
+140047,1,5025,Sales,5,5,Not satisfied,2025-10-22
+140048,1,5032,Service,5,0,Slow service,2025-09-24
+140049,2,5080,Service,5,10,Great experience,2025-09-29
+140050,1,5029,Sales,5,8,Would recommend,2025-10-02
+140051,2,5041,Service,3,5,Okay,2025-10-17
+140052,1,5113,Service,5,7,Could be better,2025-10-17
+140053,2,5030,Sales,4,4,Not satisfied,2025-08-25
+140054,2,5042,Sales,1,6,Would recommend,2025-10-12
+140055,1,5035,Sales,3,3,Okay,2025-09-25
+140056,2,5115,Sales,5,7,Friendly team,2025-10-04
+140057,2,5086,Sales,2,3,Slow service,2025-09-11
+140058,2,5029,Service,1,4,Okay,2025-09-07
+140059,1,5078,Sales,5,1,Staff was helpful,2025-09-05
+140060,2,5000,Sales,2,8,Could be better,2025-09-18
+140061,1,5028,Service,3,2,Great experience,2025-10-22
+140062,2,5018,Sales,2,3,Okay,2025-10-02
+140063,1,5005,Service,4,7,Could be better,2025-08-24
+140064,2,5078,Service,1,0,Great experience,2025-10-08
+140065,2,5108,Service,1,9,Not satisfied,2025-09-03
+140066,2,5066,Service,2,8,Okay,2025-08-27
+140067,2,5090,Service,1,10,Could be better,2025-09-02
+140068,2,5033,Service,1,9,Friendly team,2025-09-02
+140069,2,5102,Service,5,6,Not satisfied,2025-09-04
+140070,1,5097,Service,1,7,Would recommend,2025-10-13
+140071,1,5055,Sales,3,0,Would recommend,2025-10-16
+140072,1,5046,Sales,4,1,Okay,2025-09-27
+140073,1,5004,Sales,2,4,Slow service,2025-09-26
+140074,2,5040,Sales,4,3,Great experience,2025-09-23
+140075,1,5000,Sales,5,6,Friendly team,2025-10-07
+140076,1,5066,Sales,2,0,Great experience,2025-10-01
+140077,2,5054,Sales,4,6,Could be better,2025-08-28
+140078,2,5025,Sales,4,8,Great experience,2025-08-24
+140079,2,5104,Service,4,9,Staff was helpful,2025-08-25
+140080,1,5097,Sales,4,3,Could be better,2025-09-14
+140081,1,5083,Sales,4,3,Friendly team,2025-08-29
+140082,1,5016,Sales,4,2,Could be better,2025-08-29
+140083,1,5068,Sales,5,6,Great experience,2025-10-10
+140084,2,5095,Sales,4,7,Could be better,2025-09-04
+140085,1,5033,Sales,3,5,Would recommend,2025-10-10
+140086,2,5086,Sales,4,1,Could be better,2025-09-28
+140087,1,5031,Service,1,7,Would recommend,2025-09-12
+140088,1,5033,Service,1,2,Not satisfied,2025-10-11
+140089,2,5101,Service,2,2,Staff was helpful,2025-09-02
+140090,1,5090,Service,1,2,Staff was helpful,2025-09-04
+140091,1,5005,Service,1,2,Great experience,2025-09-30
+140092,2,5090,Service,4,7,Could be better,2025-09-17
+140093,1,5110,Sales,2,6,Staff was helpful,2025-09-13
+140094,1,5015,Sales,2,7,Slow service,2025-08-29
+140095,2,5088,Service,5,0,Could be better,2025-09-10
+140096,2,5006,Service,5,8,Staff was helpful,2025-08-31
+140097,2,5110,Sales,2,1,Okay,2025-09-29
+140098,1,5013,Service,5,9,Okay,2025-09-03
+140099,2,5045,Service,3,9,Slow service,2025-09-09

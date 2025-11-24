@@ -1,0 +1,6 @@
+lender_id,lender_name,type,tier_program
+10,Ally Financial,Captive,Standard
+11,Chase Auto,Bank,Prime
+12,Local CU #1,Credit Union,Prime+
+13,Santander Consumer,Bank,Near-Prime
+14,Wells Fargo Auto,Bank,Prime

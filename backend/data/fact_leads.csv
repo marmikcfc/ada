@@ -1,0 +1,241 @@
+lead_id,store_id,customer_id,vehicle_id,vendor_id,campaign_name,utm_source,utm_medium,utm_campaign,lead_created_ts,lead_status,assigned_to_employee_id,last_contact_ts,first_response_seconds
+70000,1,5044,9079,203,Used Car Promo,meta,cpc,oct-clearance,2025-09-05T13:52:00,New,1004,2025-09-05T17:14:00,111.0
+70001,2,5026,9059,201,Brand Search,email,email,weekend,2025-09-26T19:13:00,Lost,1002,2025-09-27T04:01:00,2851.0
+70002,1,5099,9070,200,SUV Push,email,referral,fall-used,2025-09-23T19:19:00,Sold,1002,2025-09-24T01:11:00,273.0
+70003,1,5058,9011,204,Used Car Promo,email,email,oct-clearance,2025-10-13T13:37:00,Contacted,1004,2025-10-13T16:50:00,3292.0
+70004,1,5044,9031,200,Email Blast Oct,email,cpm,weekend,2025-09-08T11:31:00,Contacted,1002,2025-09-08T15:58:00,2593.0
+70005,2,5056,9055,203,SUV Push,google,referral,fall-used,2025-09-24T12:20:00,Show,1024,2025-09-24T17:05:00,
+70006,2,5005,9048,201,Weekend Sale,meta,email,fall-used,2025-09-09T09:31:00,Contacted,1004,2025-09-10T01:40:00,2349.0
+70007,1,5070,9053,203,Email Blast Oct,cargurus,email,fall-used,2025-09-10T18:58:00,Contacted,1004,2025-09-10T19:09:00,
+70008,2,5089,9053,204,SUV Push,cargurus,cpc,weekend,2025-10-12T19:32:00,Sold,1004,2025-10-13T02:10:00,819.0
+70009,2,5000,9070,203,Email Blast Oct,google,cpc,weekend,2025-09-26T19:31:00,Appt Set,1024,2025-09-26T21:57:00,691.0
+70010,2,5076,9074,201,Brand Search,google,email,brand-search,2025-08-26T11:11:00,Contacted,1024,2025-08-27T04:04:00,
+70011,1,5054,9010,200,SUV Push,email,referral,oct-suv,2025-09-26T18:44:00,Contacted,1004,2025-09-27T16:42:00,261.0
+70012,1,5026,9024,204,Email Blast Oct,website,cpc,oct-suv,2025-08-27T14:35:00,Sold,1004,2025-08-27T17:24:00,1763.0
+70013,1,5046,9027,201,Weekend Sale,email,cpm,weekend,2025-09-06T17:06:00,Appt Set,1024,2025-09-06T23:22:00,1006.0
+70014,2,5026,9008,205,Used Car Promo,email,referral,oct-suv,2025-09-28T17:26:00,Appt Set,1002,2025-09-28T23:45:00,3198.0
+70015,2,5083,9009,202,Email Blast Oct,website,organic,fall-used,2025-09-28T15:32:00,Appt Set,1004,2025-09-29T13:18:00,707.0
+70016,2,5071,9034,202,Used Car Promo,carsdotcom,referral,oct-suv,2025-09-20T14:38:00,Contacted,1024,2025-09-20T15:58:00,2294.0
+70017,1,5070,9056,201,Email Blast Oct,google,organic,weekend,2025-09-11T18:01:00,New,1024,2025-09-12T13:10:00,1296.0
+70018,1,5043,9045,202,Email Blast Oct,website,cpm,oct-clearance,2025-09-29T18:09:00,Contacted,1004,2025-09-30T04:34:00,1945.0
+70019,2,5100,9035,203,SUV Push,carsdotcom,email,oct-suv,2025-08-29T18:25:00,Show,1024,2025-08-30T16:30:00,950.0
+70020,1,5044,9031,202,Email Blast Oct,carsdotcom,referral,oct-suv,2025-09-12T09:46:00,New,1002,2025-09-13T08:12:00,1622.0
+70021,1,5007,9065,202,Weekend Sale,google,organic,weekend,2025-10-17T18:59:00,Appt Set,1024,2025-10-18T00:15:00,3244.0
+70022,2,5091,9023,203,Weekend Sale,website,email,oct-suv,2025-09-13T17:44:00,Appt Set,1002,2025-09-14T08:38:00,266.0
+70023,1,5064,9060,204,Used Car Promo,cargurus,cpc,brand-search,2025-09-11T15:09:00,Contacted,1024,2025-09-12T06:08:00,398.0
+70024,2,5055,9056,205,Weekend Sale,meta,email,weekend,2025-10-12T11:48:00,Contacted,1024,2025-10-13T05:51:00,2350.0
+70025,1,5077,9013,200,Used Car Promo,carsdotcom,organic,fall-used,2025-09-08T12:04:00,Contacted,1002,2025-09-08T23:10:00,1821.0
+70026,2,5004,9006,204,Used Car Promo,website,cpm,brand-search,2025-09-15T18:41:00,Contacted,1002,2025-09-16T02:49:00,1308.0
+70027,1,5006,9010,205,Brand Search,meta,email,oct-clearance,2025-09-05T19:23:00,Sold,1004,2025-09-05T20:01:00,3043.0
+70028,1,5019,9032,201,Weekend Sale,website,organic,weekend,2025-09-14T10:19:00,Contacted,1004,2025-09-15T07:44:00,153.0
+70029,1,5066,9065,202,SUV Push,google,organic,oct-clearance,2025-10-09T11:44:00,Contacted,1024,2025-10-10T08:59:00,135.0
+70030,2,5021,9012,205,Email Blast Oct,google,cpc,fall-used,2025-09-10T09:29:00,New,1024,2025-09-10T22:50:00,94.0
+70031,2,5095,9048,203,Weekend Sale,website,cpc,oct-clearance,2025-09-07T15:32:00,New,1002,2025-09-08T08:47:00,
+70032,2,5004,9057,202,Used Car Promo,carsdotcom,cpm,oct-suv,2025-09-22T17:59:00,Contacted,1004,2025-09-23T17:30:00,222.0
+70033,1,5065,9072,205,Email Blast Oct,carsdotcom,cpc,weekend,2025-09-15T14:40:00,Contacted,1004,2025-09-15T22:31:00,2113.0
+70034,2,5035,9068,204,Weekend Sale,email,cpm,brand-search,2025-09-02T14:57:00,New,1002,2025-09-03T10:40:00,622.0
+70035,1,5009,9065,201,SUV Push,website,email,oct-clearance,2025-09-02T15:19:00,Contacted,1002,2025-09-03T02:01:00,
+70036,1,5097,9049,202,Brand Search,website,email,oct-suv,2025-10-07T17:58:00,New,1002,2025-10-08T04:58:00,3214.0
+70037,2,5058,9041,203,Email Blast Oct,carsdotcom,organic,oct-clearance,2025-10-16T11:46:00,Sold,1002,2025-10-16T15:34:00,1365.0
+70038,1,5050,9031,204,SUV Push,meta,cpc,fall-used,2025-09-01T11:01:00,Appt Set,1002,2025-09-02T10:40:00,2566.0
+70039,2,5043,9054,201,Used Car Promo,carsdotcom,referral,oct-clearance,2025-10-12T16:08:00,Contacted,1002,2025-10-12T22:53:00,2536.0
+70040,2,5056,9049,201,SUV Push,meta,cpc,oct-clearance,2025-09-07T09:26:00,Lost,1004,2025-09-08T06:39:00,121.0
+70041,1,5110,9056,204,Used Car Promo,email,organic,brand-search,2025-09-24T14:55:00,Contacted,1024,2025-09-25T10:36:00,1070.0
+70042,1,5088,9063,203,Used Car Promo,google,cpm,weekend,2025-10-01T17:33:00,Show,1024,2025-10-02T07:13:00,2944.0
+70043,1,5113,9073,201,Email Blast Oct,carsdotcom,referral,fall-used,2025-10-10T09:35:00,Appt Set,1004,2025-10-11T01:29:00,3194.0
+70044,1,5083,9058,203,Used Car Promo,google,email,oct-suv,2025-09-03T15:18:00,Appt Set,1002,2025-09-04T11:26:00,283.0
+70045,1,5073,9029,203,Weekend Sale,email,cpm,brand-search,2025-10-20T17:08:00,Contacted,1002,2025-10-21T01:50:00,1384.0
+70046,1,5028,9078,200,Brand Search,email,referral,fall-used,2025-09-13T19:58:00,Show,1002,2025-09-14T14:00:00,731.0
+70047,1,5050,9008,203,Weekend Sale,carsdotcom,cpc,oct-clearance,2025-10-08T15:46:00,Appt Set,1004,2025-10-09T11:14:00,2155.0
+70048,1,5066,9062,203,Email Blast Oct,cargurus,referral,fall-used,2025-10-18T19:55:00,Contacted,1024,2025-10-19T02:15:00,652.0
+70049,2,5042,9020,203,Used Car Promo,website,cpc,weekend,2025-08-31T11:12:00,Contacted,1004,2025-08-31T19:29:00,3195.0
+70050,1,5094,9075,201,Weekend Sale,cargurus,email,weekend,2025-09-06T18:42:00,Contacted,1002,2025-09-06T20:32:00,1739.0
+70051,1,5011,9079,205,Weekend Sale,website,organic,fall-used,2025-09-04T11:03:00,New,1002,2025-09-04T12:53:00,210.0
+70052,1,5081,9073,203,Weekend Sale,cargurus,cpc,oct-suv,2025-08-30T15:11:00,Appt Set,1004,2025-08-31T02:22:00,1224.0
+70053,1,5088,9005,202,Used Car Promo,meta,cpc,fall-used,2025-09-16T15:52:00,Sold,1004,2025-09-17T10:01:00,1810.0
+70054,1,5062,9030,203,Weekend Sale,email,organic,brand-search,2025-09-19T17:13:00,New,1024,2025-09-20T04:11:00,2566.0
+70055,1,5106,9030,204,Weekend Sale,carsdotcom,email,brand-search,2025-09-09T17:36:00,Contacted,1004,2025-09-09T23:54:00,
+70056,1,5048,9021,203,Brand Search,email,cpm,weekend,2025-10-19T18:14:00,New,1004,2025-10-20T08:31:00,852.0
+70057,1,5000,9045,205,Email Blast Oct,cargurus,cpc,fall-used,2025-08-26T14:22:00,Contacted,1004,2025-08-27T07:49:00,2671.0
+70058,2,5030,9044,205,Weekend Sale,website,cpc,oct-clearance,2025-09-28T14:49:00,Contacted,1002,2025-09-29T02:15:00,2869.0
+70059,1,5079,9075,203,SUV Push,email,referral,weekend,2025-10-16T14:59:00,Show,1004,2025-10-17T06:56:00,2003.0
+70060,2,5049,9033,204,Weekend Sale,google,cpm,weekend,2025-10-13T15:59:00,Appt Set,1024,2025-10-14T03:28:00,3480.0
+70061,1,5096,9048,202,Used Car Promo,email,email,oct-clearance,2025-10-14T14:04:00,Contacted,1024,2025-10-15T10:54:00,
+70062,2,5096,9031,205,Brand Search,cargurus,referral,oct-suv,2025-09-17T11:38:00,Show,1004,2025-09-17T19:54:00,3264.0
+70063,2,5089,9035,201,Brand Search,cargurus,cpc,oct-clearance,2025-09-16T16:53:00,Contacted,1002,2025-09-17T08:11:00,
+70064,2,5093,9065,203,Weekend Sale,cargurus,organic,oct-clearance,2025-09-25T09:51:00,Contacted,1002,2025-09-26T03:38:00,2108.0
+70065,1,5024,9037,200,Email Blast Oct,google,email,oct-suv,2025-10-06T11:13:00,Contacted,1004,2025-10-07T03:19:00,1941.0
+70066,1,5045,9050,204,Email Blast Oct,email,cpm,fall-used,2025-10-19T09:06:00,Show,1002,2025-10-19T15:50:00,2759.0
+70067,2,5063,9010,201,SUV Push,cargurus,cpc,oct-suv,2025-09-11T13:34:00,Appt Set,1024,2025-09-12T08:50:00,1866.0
+70068,1,5093,9019,205,Email Blast Oct,website,cpm,oct-clearance,2025-09-25T10:13:00,Contacted,1002,2025-09-25T21:00:00,2310.0
+70069,1,5051,9072,200,Used Car Promo,google,cpc,brand-search,2025-10-02T14:34:00,New,1004,2025-10-02T20:50:00,592.0
+70070,2,5059,9002,204,Email Blast Oct,cargurus,organic,oct-clearance,2025-10-08T18:57:00,Appt Set,1024,2025-10-09T18:00:00,3484.0
+70071,2,5078,9024,204,SUV Push,google,referral,oct-suv,2025-10-14T17:05:00,Show,1004,2025-10-15T03:50:00,
+70072,1,5100,9010,201,Weekend Sale,cargurus,organic,brand-search,2025-10-06T19:45:00,Contacted,1002,2025-10-07T18:37:00,1987.0
+70073,2,5053,9046,203,Used Car Promo,meta,organic,fall-used,2025-09-14T14:29:00,Contacted,1024,2025-09-15T10:15:00,327.0
+70074,2,5069,9030,204,Brand Search,cargurus,email,brand-search,2025-09-01T17:06:00,Show,1004,2025-09-02T13:25:00,2985.0
+70075,2,5019,9078,200,Email Blast Oct,meta,email,brand-search,2025-09-19T12:39:00,Lost,1004,2025-09-20T08:10:00,711.0
+70076,1,5111,9032,205,Weekend Sale,carsdotcom,cpc,weekend,2025-10-13T14:34:00,Appt Set,1024,2025-10-14T06:32:00,768.0
+70077,2,5003,9012,200,Weekend Sale,google,email,brand-search,2025-09-13T17:06:00,Contacted,1004,2025-09-14T10:08:00,781.0
+70078,1,5103,9074,201,SUV Push,carsdotcom,email,fall-used,2025-10-04T19:03:00,New,1004,2025-10-05T16:13:00,3406.0
+70079,2,5048,9040,203,Email Blast Oct,google,email,oct-suv,2025-09-29T16:12:00,Contacted,1024,2025-09-30T09:47:00,1356.0
+70080,1,5059,9047,200,Weekend Sale,cargurus,cpc,fall-used,2025-09-18T11:54:00,Lost,1002,2025-09-18T20:05:00,1572.0
+70081,2,5099,9029,203,Weekend Sale,meta,cpm,brand-search,2025-09-20T18:25:00,Contacted,1002,2025-09-21T01:00:00,2975.0
+70082,1,5082,9059,202,SUV Push,meta,cpc,oct-suv,2025-09-28T15:53:00,Sold,1024,2025-09-28T16:35:00,
+70083,2,5010,9034,203,Weekend Sale,carsdotcom,email,oct-clearance,2025-09-02T16:42:00,New,1004,2025-09-03T10:15:00,616.0
+70084,2,5072,9000,204,Brand Search,website,referral,oct-clearance,2025-09-20T17:52:00,Contacted,1024,2025-09-21T11:09:00,1515.0
+70085,1,5080,9038,204,Used Car Promo,email,organic,oct-suv,2025-09-10T15:59:00,New,1024,2025-09-11T08:35:00,1563.0
+70086,2,5090,9014,203,Weekend Sale,google,email,weekend,2025-10-07T10:09:00,Lost,1002,2025-10-07T18:41:00,2216.0
+70087,2,5072,9015,204,Brand Search,cargurus,email,oct-suv,2025-09-23T19:47:00,New,1004,2025-09-24T11:26:00,2799.0
+70088,2,5094,9016,202,SUV Push,google,email,fall-used,2025-09-25T16:36:00,Contacted,1024,2025-09-26T12:00:00,1784.0
+70089,2,5043,9027,205,Weekend Sale,google,organic,brand-search,2025-09-09T09:40:00,Appt Set,1002,2025-09-09T14:09:00,752.0
+70090,2,5098,9022,202,Email Blast Oct,google,cpc,weekend,2025-09-25T10:54:00,New,1002,2025-09-26T07:15:00,1092.0
+70091,1,5085,9079,203,SUV Push,website,cpc,fall-used,2025-10-10T11:42:00,Contacted,1002,2025-10-10T16:49:00,3368.0
+70092,1,5037,9015,205,Used Car Promo,email,cpm,oct-clearance,2025-10-01T11:53:00,Show,1024,2025-10-01T23:49:00,1751.0
+70093,2,5117,9042,203,Used Car Promo,cargurus,referral,weekend,2025-08-27T19:16:00,New,1002,2025-08-28T08:23:00,535.0
+70094,1,5106,9060,202,Used Car Promo,carsdotcom,organic,weekend,2025-10-06T15:30:00,Sold,1024,2025-10-06T17:04:00,2232.0
+70095,2,5026,9043,202,Email Blast Oct,cargurus,cpc,fall-used,2025-08-30T17:40:00,Contacted,1024,2025-08-31T13:46:00,3518.0
+70096,1,5042,9075,204,Email Blast Oct,email,cpm,fall-used,2025-09-18T16:49:00,Show,1024,2025-09-18T17:20:00,1050.0
+70097,1,5118,9073,205,Used Car Promo,cargurus,cpm,fall-used,2025-10-06T09:53:00,New,1004,2025-10-06T16:38:00,1744.0
+70098,1,5079,9069,204,Brand Search,email,cpc,oct-suv,2025-08-26T09:39:00,Appt Set,1024,2025-08-26T14:15:00,2493.0
+70099,1,5005,9023,200,SUV Push,cargurus,organic,brand-search,2025-09-17T19:48:00,Appt Set,1024,2025-09-17T22:33:00,
+70100,2,5043,9059,202,SUV Push,google,organic,oct-suv,2025-10-03T16:59:00,Show,1004,2025-10-04T06:24:00,
+70101,2,5030,9038,200,Used Car Promo,meta,email,brand-search,2025-09-14T09:16:00,Contacted,1002,2025-09-15T07:27:00,
+70102,1,5068,9014,203,Email Blast Oct,google,cpc,oct-suv,2025-09-24T10:09:00,Contacted,1002,2025-09-25T05:49:00,1826.0
+70103,1,5020,9070,200,Used Car Promo,cargurus,cpm,fall-used,2025-10-09T13:49:00,New,1004,2025-10-10T09:35:00,2098.0
+70104,2,5009,9004,203,Brand Search,website,cpm,oct-suv,2025-08-24T17:45:00,Contacted,1004,2025-08-25T17:26:00,
+70105,2,5108,9039,203,Brand Search,email,cpc,fall-used,2025-10-15T16:07:00,Contacted,1024,2025-10-16T03:53:00,1530.0
+70106,1,5094,9025,203,SUV Push,cargurus,referral,oct-suv,2025-08-29T16:48:00,Contacted,1024,2025-08-30T16:28:00,2713.0
+70107,1,5045,9036,201,Brand Search,meta,cpc,weekend,2025-09-15T16:05:00,Contacted,1002,2025-09-16T08:56:00,
+70108,2,5069,9029,200,Brand Search,cargurus,cpc,fall-used,2025-09-17T10:50:00,Contacted,1024,2025-09-17T12:27:00,1320.0
+70109,1,5016,9071,205,Weekend Sale,meta,cpc,oct-suv,2025-09-18T10:13:00,Appt Set,1024,2025-09-18T15:12:00,2793.0
+70110,1,5019,9043,200,SUV Push,email,cpc,fall-used,2025-09-24T19:01:00,New,1002,2025-09-25T10:45:00,2592.0
+70111,1,5094,9054,203,Weekend Sale,website,cpm,oct-suv,2025-10-02T11:53:00,Sold,1002,2025-10-03T02:35:00,3409.0
+70112,1,5070,9014,202,SUV Push,google,email,oct-clearance,2025-09-14T19:25:00,Appt Set,1004,2025-09-14T21:44:00,2862.0
+70113,1,5068,9043,203,SUV Push,website,cpc,oct-clearance,2025-08-31T13:09:00,Appt Set,1002,2025-09-01T10:53:00,748.0
+70114,1,5009,9062,201,Brand Search,email,email,fall-used,2025-10-02T15:49:00,New,1004,2025-10-03T15:39:00,2054.0
+70115,2,5032,9067,203,SUV Push,meta,email,oct-suv,2025-10-14T16:44:00,Appt Set,1024,2025-10-14T23:02:00,646.0
+70116,2,5074,9015,202,Used Car Promo,google,email,oct-clearance,2025-10-08T16:39:00,Appt Set,1002,2025-10-08T20:49:00,
+70117,1,5112,9050,203,SUV Push,cargurus,cpc,oct-clearance,2025-09-26T10:39:00,Lost,1002,2025-09-26T15:54:00,3177.0
+70118,1,5068,9001,205,Email Blast Oct,cargurus,cpm,brand-search,2025-10-06T16:31:00,Lost,1004,2025-10-07T04:05:00,2804.0
+70119,1,5022,9038,201,Brand Search,carsdotcom,email,oct-suv,2025-10-02T16:02:00,Lost,1002,2025-10-03T00:13:00,274.0
+70120,2,5046,9004,201,Brand Search,cargurus,cpm,oct-suv,2025-10-09T16:37:00,Contacted,1002,2025-10-10T06:51:00,1776.0
+70121,2,5080,9012,200,Used Car Promo,meta,cpm,weekend,2025-10-18T12:24:00,New,1004,2025-10-18T18:38:00,
+70122,2,5008,9018,201,Email Blast Oct,meta,cpc,weekend,2025-09-17T14:08:00,Appt Set,1002,2025-09-17T23:52:00,855.0
+70123,2,5069,9032,201,Email Blast Oct,website,cpm,weekend,2025-09-01T10:54:00,Contacted,1002,2025-09-02T06:47:00,1773.0
+70124,1,5096,9040,204,Used Car Promo,carsdotcom,organic,oct-suv,2025-09-28T12:05:00,Contacted,1024,2025-09-29T02:51:00,2197.0
+70125,1,5022,9020,204,Brand Search,carsdotcom,cpc,oct-suv,2025-10-10T12:15:00,Contacted,1004,2025-10-11T05:37:00,2433.0
+70126,1,5028,9049,203,Used Car Promo,meta,cpc,weekend,2025-08-26T15:33:00,Show,1002,2025-08-27T15:22:00,3376.0
+70127,1,5114,9064,200,Used Car Promo,email,organic,oct-clearance,2025-10-09T15:13:00,Contacted,1024,2025-10-10T07:03:00,1271.0
+70128,1,5000,9049,205,Used Car Promo,meta,organic,brand-search,2025-10-17T18:47:00,Contacted,1024,2025-10-18T16:34:00,1923.0
+70129,1,5088,9008,202,Used Car Promo,cargurus,email,weekend,2025-08-24T19:04:00,Contacted,1024,2025-08-25T02:18:00,2889.0
+70130,1,5010,9001,204,Email Blast Oct,google,cpc,brand-search,2025-10-13T19:05:00,Show,1004,2025-10-14T11:08:00,1435.0
+70131,1,5048,9008,204,SUV Push,meta,organic,oct-clearance,2025-10-02T09:23:00,Appt Set,1024,2025-10-02T13:25:00,2714.0
+70132,1,5075,9041,205,SUV Push,cargurus,organic,fall-used,2025-10-04T16:47:00,Appt Set,1024,2025-10-05T16:10:00,
+70133,1,5030,9073,203,Weekend Sale,email,email,fall-used,2025-09-20T13:03:00,Contacted,1004,2025-09-21T10:24:00,1474.0
+70134,2,5101,9051,200,Brand Search,carsdotcom,cpm,fall-used,2025-09-16T19:44:00,Contacted,1002,2025-09-16T23:37:00,328.0
+70135,1,5012,9061,204,Brand Search,cargurus,referral,weekend,2025-09-03T13:07:00,Contacted,1002,2025-09-04T05:27:00,2092.0
+70136,1,5106,9005,200,SUV Push,website,organic,brand-search,2025-09-15T15:28:00,Contacted,1024,2025-09-16T03:20:00,147.0
+70137,2,5095,9009,203,Email Blast Oct,website,cpm,fall-used,2025-10-04T19:50:00,Appt Set,1002,2025-10-05T04:52:00,2490.0
+70138,1,5008,9003,201,Email Blast Oct,cargurus,referral,oct-clearance,2025-09-07T16:23:00,Show,1024,2025-09-07T22:02:00,
+70139,1,5100,9005,201,SUV Push,google,cpc,fall-used,2025-10-08T17:18:00,Sold,1024,2025-10-08T21:47:00,778.0
+70140,2,5019,9013,202,SUV Push,cargurus,referral,weekend,2025-09-21T13:23:00,Show,1002,2025-09-22T07:45:00,2363.0
+70141,2,5089,9078,202,SUV Push,google,email,weekend,2025-09-12T10:58:00,Show,1004,2025-09-13T09:13:00,2105.0
+70142,1,5103,9072,204,Used Car Promo,cargurus,cpc,brand-search,2025-10-08T13:30:00,Lost,1002,2025-10-08T18:25:00,
+70143,1,5070,9043,203,Email Blast Oct,google,organic,oct-suv,2025-10-06T17:07:00,Appt Set,1024,2025-10-07T15:10:00,1705.0
+70144,1,5074,9068,200,Weekend Sale,carsdotcom,cpc,weekend,2025-09-05T18:33:00,Contacted,1004,2025-09-06T01:21:00,3202.0
+70145,2,5029,9049,203,SUV Push,email,referral,fall-used,2025-09-24T14:38:00,Lost,1004,2025-09-25T03:31:00,289.0
+70146,1,5100,9040,201,Used Car Promo,email,referral,brand-search,2025-08-24T13:22:00,Sold,1004,2025-08-24T19:07:00,1885.0
+70147,1,5104,9039,201,SUV Push,cargurus,referral,weekend,2025-10-14T15:46:00,New,1004,2025-10-14T18:11:00,
+70148,2,5072,9023,203,SUV Push,website,referral,weekend,2025-10-22T18:48:00,Contacted,1002,2025-10-23T01:46:00,87.0
+70149,2,5115,9074,204,Email Blast Oct,carsdotcom,email,brand-search,2025-09-04T15:18:00,Sold,1002,2025-09-04T16:22:00,232.0
+70150,2,5019,9024,200,Email Blast Oct,carsdotcom,cpm,brand-search,2025-10-13T09:09:00,Sold,1024,2025-10-14T07:19:00,2683.0
+70151,1,5049,9053,204,Email Blast Oct,website,referral,weekend,2025-09-08T09:07:00,Lost,1004,2025-09-08T18:05:00,2079.0
+70152,2,5038,9014,204,Weekend Sale,google,organic,oct-clearance,2025-10-03T19:30:00,Sold,1024,2025-10-03T21:39:00,
+70153,1,5073,9011,200,Email Blast Oct,cargurus,referral,fall-used,2025-09-02T14:29:00,New,1002,2025-09-03T00:32:00,
+70154,1,5077,9058,200,Weekend Sale,meta,email,fall-used,2025-09-11T17:40:00,Appt Set,1004,2025-09-12T17:12:00,
+70155,2,5019,9027,201,Brand Search,meta,email,fall-used,2025-10-14T13:17:00,Contacted,1004,2025-10-15T06:00:00,2879.0
+70156,1,5100,9027,204,SUV Push,meta,email,weekend,2025-09-19T14:58:00,New,1024,2025-09-20T09:04:00,
+70157,2,5027,9067,203,Brand Search,google,cpm,oct-suv,2025-10-17T17:45:00,Sold,1004,2025-10-18T05:48:00,3157.0
+70158,2,5007,9069,201,Email Blast Oct,google,cpc,oct-clearance,2025-09-12T14:08:00,Appt Set,1002,2025-09-13T13:59:00,2507.0
+70159,2,5036,9042,205,Brand Search,google,cpc,brand-search,2025-09-02T12:19:00,Lost,1004,2025-09-02T13:56:00,593.0
+70160,2,5047,9034,200,Email Blast Oct,google,cpc,fall-used,2025-09-05T10:02:00,Appt Set,1024,2025-09-05T10:33:00,2163.0
+70161,1,5115,9075,201,Email Blast Oct,google,cpc,oct-clearance,2025-10-11T10:50:00,Contacted,1024,2025-10-11T20:28:00,2524.0
+70162,1,5092,9050,204,Weekend Sale,google,cpc,weekend,2025-09-30T14:22:00,Show,1002,2025-10-01T08:35:00,2110.0
+70163,1,5058,9000,201,Weekend Sale,email,referral,fall-used,2025-09-06T12:18:00,Appt Set,1024,2025-09-07T08:35:00,3148.0
+70164,2,5112,9051,203,Used Car Promo,meta,email,oct-clearance,2025-09-04T16:43:00,Contacted,1004,2025-09-04T20:44:00,
+70165,2,5051,9065,205,Email Blast Oct,website,cpc,oct-suv,2025-10-11T14:07:00,New,1004,2025-10-12T07:08:00,2188.0
+70166,2,5098,9048,201,Weekend Sale,carsdotcom,organic,brand-search,2025-08-31T15:18:00,Contacted,1002,2025-08-31T17:50:00,3075.0
+70167,2,5114,9025,205,Brand Search,carsdotcom,referral,weekend,2025-10-20T16:43:00,Lost,1024,2025-10-21T15:58:00,112.0
+70168,1,5072,9042,205,SUV Push,google,organic,oct-clearance,2025-08-29T10:09:00,Appt Set,1004,2025-08-29T17:09:00,2906.0
+70169,2,5107,9065,205,Weekend Sale,website,organic,brand-search,2025-10-01T15:07:00,Show,1004,2025-10-02T07:31:00,1799.0
+70170,1,5116,9014,203,Brand Search,google,organic,brand-search,2025-10-05T18:25:00,Appt Set,1004,2025-10-06T02:27:00,
+70171,2,5021,9052,205,Brand Search,meta,referral,weekend,2025-10-03T11:01:00,Sold,1024,2025-10-03T22:20:00,276.0
+70172,2,5103,9054,203,SUV Push,cargurus,referral,brand-search,2025-09-02T13:39:00,New,1024,2025-09-02T22:44:00,3173.0
+70173,1,5016,9059,203,Brand Search,carsdotcom,referral,fall-used,2025-09-27T14:51:00,Appt Set,1004,2025-09-28T06:07:00,
+70174,2,5071,9058,205,SUV Push,carsdotcom,referral,oct-clearance,2025-09-22T09:02:00,Sold,1004,2025-09-22T22:28:00,2760.0
+70175,2,5081,9041,203,Weekend Sale,meta,email,oct-suv,2025-09-24T10:36:00,Appt Set,1004,2025-09-24T19:45:00,2763.0
+70176,2,5097,9003,202,Brand Search,google,email,oct-suv,2025-09-24T18:24:00,Show,1002,2025-09-25T07:04:00,1504.0
+70177,1,5119,9033,203,Email Blast Oct,cargurus,referral,fall-used,2025-09-15T18:01:00,Contacted,1002,2025-09-16T16:45:00,2620.0
+70178,1,5094,9078,202,Brand Search,cargurus,cpm,oct-suv,2025-09-08T12:15:00,New,1024,2025-09-08T23:32:00,2487.0
+70179,2,5096,9054,202,Brand Search,email,referral,weekend,2025-08-26T16:42:00,Appt Set,1002,2025-08-27T03:40:00,
+70180,1,5033,9019,205,SUV Push,cargurus,referral,weekend,2025-09-17T18:24:00,Sold,1024,2025-09-18T06:09:00,460.0
+70181,1,5020,9039,204,SUV Push,cargurus,organic,oct-suv,2025-09-03T18:19:00,Contacted,1004,2025-09-04T14:03:00,1845.0
+70182,1,5068,9074,204,Email Blast Oct,cargurus,cpc,weekend,2025-09-18T12:39:00,Show,1024,2025-09-19T05:02:00,436.0
+70183,2,5119,9070,203,Weekend Sale,cargurus,cpm,brand-search,2025-09-20T12:22:00,Sold,1004,2025-09-20T21:06:00,2728.0
+70184,1,5025,9054,205,Weekend Sale,meta,email,brand-search,2025-10-02T17:29:00,Contacted,1002,2025-10-03T16:12:00,2302.0
+70185,2,5036,9027,204,Brand Search,website,cpm,fall-used,2025-10-15T16:17:00,Appt Set,1004,2025-10-15T21:29:00,
+70186,2,5044,9042,202,Brand Search,email,cpm,brand-search,2025-09-08T11:47:00,Sold,1004,2025-09-08T21:44:00,1289.0
+70187,1,5014,9043,201,SUV Push,google,cpm,fall-used,2025-10-04T11:16:00,Contacted,1004,2025-10-05T04:00:00,1027.0
+70188,2,5088,9010,201,Brand Search,cargurus,organic,weekend,2025-09-28T15:27:00,Contacted,1002,2025-09-29T13:36:00,211.0
+70189,1,5076,9019,202,Weekend Sale,cargurus,cpc,brand-search,2025-10-17T09:46:00,New,1004,2025-10-18T08:51:00,141.0
+70190,1,5105,9024,201,Brand Search,website,email,oct-suv,2025-10-05T10:25:00,Show,1024,2025-10-06T09:15:00,
+70191,1,5066,9059,201,Weekend Sale,google,organic,fall-used,2025-10-16T18:49:00,Contacted,1024,2025-10-17T08:17:00,
+70192,1,5032,9042,202,Used Car Promo,carsdotcom,organic,weekend,2025-10-14T12:59:00,New,1002,2025-10-15T05:53:00,650.0
+70193,2,5072,9012,203,SUV Push,cargurus,cpm,fall-used,2025-09-27T14:44:00,Contacted,1004,2025-09-28T03:27:00,
+70194,1,5058,9030,205,SUV Push,cargurus,email,brand-search,2025-10-15T13:01:00,New,1004,2025-10-16T10:59:00,2541.0
+70195,1,5011,9049,203,Used Car Promo,google,referral,fall-used,2025-10-07T14:57:00,Appt Set,1004,2025-10-07T18:11:00,559.0
+70196,2,5094,9071,205,Used Car Promo,google,organic,oct-suv,2025-10-22T12:19:00,Lost,1004,2025-10-23T04:33:00,716.0
+70197,1,5053,9053,201,Email Blast Oct,website,cpc,fall-used,2025-10-10T15:59:00,Contacted,1004,2025-10-11T12:42:00,2998.0
+70198,1,5039,9031,205,SUV Push,email,referral,oct-clearance,2025-10-09T17:47:00,New,1002,2025-10-10T07:37:00,2907.0
+70199,1,5004,9035,204,SUV Push,website,referral,fall-used,2025-09-05T19:19:00,New,1004,2025-09-06T11:48:00,396.0
+70200,2,5078,9065,201,Brand Search,carsdotcom,organic,oct-clearance,2025-10-18T11:16:00,Sold,1004,2025-10-19T00:18:00,2489.0
+70201,1,5004,9007,200,Used Car Promo,meta,organic,oct-clearance,2025-10-16T18:14:00,Lost,1002,2025-10-17T08:05:00,154.0
+70202,1,5105,9005,204,Brand Search,google,email,brand-search,2025-10-02T15:38:00,Lost,1004,2025-10-03T14:47:00,424.0
+70203,2,5027,9066,202,Used Car Promo,carsdotcom,cpm,brand-search,2025-09-24T10:14:00,Lost,1002,2025-09-25T06:52:00,840.0
+70204,1,5114,9000,200,Email Blast Oct,cargurus,cpm,weekend,2025-09-06T13:46:00,Contacted,1004,2025-09-06T22:24:00,1773.0
+70205,1,5017,9061,202,Used Car Promo,email,cpm,brand-search,2025-09-16T18:43:00,New,1024,2025-09-17T09:19:00,411.0
+70206,2,5088,9011,201,Used Car Promo,cargurus,email,weekend,2025-10-10T18:16:00,New,1024,2025-10-10T19:59:00,2341.0
+70207,2,5013,9078,201,Weekend Sale,google,email,oct-clearance,2025-08-24T13:32:00,Lost,1004,2025-08-24T19:29:00,1299.0
+70208,2,5012,9029,205,Weekend Sale,carsdotcom,cpm,fall-used,2025-09-25T16:59:00,New,1002,2025-09-26T03:50:00,1977.0
+70209,2,5086,9024,203,Email Blast Oct,cargurus,email,fall-used,2025-08-26T11:31:00,Sold,1024,2025-08-26T22:22:00,
+70210,1,5040,9026,204,Used Car Promo,google,cpm,oct-clearance,2025-09-20T11:20:00,Show,1002,2025-09-20T19:20:00,2072.0
+70211,1,5034,9008,203,Brand Search,carsdotcom,organic,weekend,2025-09-04T09:30:00,Contacted,1004,2025-09-05T01:17:00,2951.0
+70212,1,5011,9036,201,Email Blast Oct,meta,cpm,weekend,2025-09-24T10:54:00,New,1004,2025-09-25T06:17:00,666.0
+70213,1,5075,9069,203,Brand Search,meta,referral,oct-suv,2025-10-20T19:37:00,Appt Set,1004,2025-10-20T20:40:00,76.0
+70214,1,5112,9009,202,SUV Push,google,cpc,brand-search,2025-09-11T19:43:00,Appt Set,1024,2025-09-12T18:23:00,1590.0
+70215,1,5053,9079,202,Brand Search,email,email,brand-search,2025-09-23T16:40:00,Appt Set,1004,2025-09-24T12:15:00,
+70216,1,5071,9031,205,Brand Search,website,email,brand-search,2025-09-01T12:55:00,Contacted,1002,2025-09-02T02:41:00,2696.0
+70217,1,5084,9065,200,SUV Push,meta,referral,brand-search,2025-09-09T11:15:00,Sold,1004,2025-09-10T09:30:00,
+70218,2,5066,9061,205,Weekend Sale,meta,organic,oct-suv,2025-10-11T19:09:00,Sold,1004,2025-10-12T12:48:00,2070.0
+70219,2,5024,9000,200,Used Car Promo,cargurus,email,oct-clearance,2025-09-05T16:28:00,Contacted,1004,2025-09-06T14:09:00,
+70220,1,5081,9069,203,Weekend Sale,email,email,oct-suv,2025-09-20T10:02:00,Appt Set,1004,2025-09-21T02:10:00,1958.0
+70221,1,5076,9019,205,Email Blast Oct,meta,email,brand-search,2025-09-20T10:58:00,New,1004,2025-09-21T06:32:00,1290.0
+70222,2,5009,9021,203,Brand Search,carsdotcom,email,fall-used,2025-08-27T17:04:00,Appt Set,1004,2025-08-28T01:55:00,
+70223,2,5044,9064,201,SUV Push,carsdotcom,cpc,oct-suv,2025-09-30T10:49:00,Show,1004,2025-09-30T21:08:00,526.0
+70224,2,5118,9078,202,SUV Push,meta,cpm,oct-suv,2025-09-13T18:46:00,Contacted,1024,2025-09-14T15:33:00,2805.0
+70225,1,5116,9017,200,SUV Push,email,referral,brand-search,2025-09-09T19:06:00,New,1024,2025-09-10T09:05:00,133.0
+70226,2,5015,9073,205,Used Car Promo,cargurus,cpc,oct-clearance,2025-10-18T19:47:00,Contacted,1002,2025-10-18T20:25:00,2053.0
+70227,1,5077,9047,203,SUV Push,email,cpm,brand-search,2025-09-05T10:52:00,Sold,1024,2025-09-06T05:25:00,830.0
+70228,1,5060,9035,200,SUV Push,meta,referral,brand-search,2025-09-05T10:19:00,Contacted,1004,2025-09-05T11:09:00,666.0
+70229,2,5101,9046,200,Email Blast Oct,google,cpc,brand-search,2025-10-18T16:37:00,Appt Set,1004,2025-10-19T09:42:00,1267.0
+70230,2,5082,9041,203,Weekend Sale,website,email,brand-search,2025-10-10T18:38:00,New,1002,2025-10-10T20:52:00,1251.0
+70231,2,5021,9024,203,Brand Search,carsdotcom,email,fall-used,2025-09-26T09:27:00,New,1004,2025-09-27T09:25:00,2326.0
+70232,2,5043,9032,201,Weekend Sale,meta,email,fall-used,2025-09-20T09:10:00,Contacted,1024,2025-09-21T07:45:00,847.0
+70233,2,5090,9079,205,Email Blast Oct,carsdotcom,cpm,weekend,2025-09-22T11:56:00,Contacted,1002,2025-09-22T21:44:00,2973.0
+70234,2,5119,9032,200,Used Car Promo,carsdotcom,organic,oct-clearance,2025-10-07T10:42:00,Contacted,1002,2025-10-08T05:52:00,769.0
+70235,1,5069,9007,201,Weekend Sale,google,cpc,fall-used,2025-08-27T09:22:00,Contacted,1004,2025-08-27T13:25:00,
+70236,2,5033,9076,202,Brand Search,website,organic,oct-clearance,2025-10-02T12:07:00,Contacted,1024,2025-10-03T05:52:00,2052.0
+70237,1,5001,9057,200,Weekend Sale,website,cpc,weekend,2025-10-01T19:06:00,Show,1002,2025-10-02T12:34:00,1853.0
+70238,1,5018,9050,205,Email Blast Oct,email,referral,weekend,2025-08-30T11:40:00,Lost,1004,2025-08-30T15:13:00,901.0
+70239,1,5021,9074,203,Used Car Promo,google,cpm,brand-search,2025-09-02T19:23:00,New,1004,2025-09-03T05:20:00,624.0

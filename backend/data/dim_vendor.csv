@@ -1,0 +1,7 @@
+vendor_id,vendor_name,channel,category,cost_model
+200,Google Ads,SEM,Search,CPC
+201,Meta Ads,Social,Paid Social,CPM
+202,CarGurus,Listings,Marketplace,Flat
+203,Cars.com,Listings,Marketplace,Flat
+204,Dealer Website,Organic,Website,None
+205,Email Campaign,Email,CRM,Flat

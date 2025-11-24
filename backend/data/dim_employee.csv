@@ -1,0 +1,29 @@
+employee_id,first_name,last_name,role,department,store_id,hire_date,termination_date,active_flag
+1000,Casey,Smith,Technician,Service,2,2024-05-10,,True
+1001,Sam,Jones,Technician,Service,1,2022-09-03,,True
+1002,Taylor,Robinson,BDC Agent,BDC,1,2025-07-24,,True
+1003,Taylor,Miller,Sales Manager,Sales,1,2022-08-01,,True
+1004,Chris,Martinez,BDC Agent,BDC,1,2023-03-19,,True
+1005,Evan,Lopez,Parts Counter,Parts,1,2024-11-01,,True
+1006,Lee,Anderson,F&I Manager,F&I,1,2024-07-10,,True
+1007,Jamie,Brown,Sales Consultant,Sales,2,2025-03-09,,True
+1008,Cameron,Thomas,Service Advisor,Service,2,2025-06-27,,True
+1009,Quinn,Martinez,Sales Consultant,Sales,2,2025-04-15,,True
+1010,Shawn,Wilson,Parts Counter,Parts,2,2024-08-26,,True
+1011,Taylor,Johnson,Technician,Service,1,2024-02-09,,True
+1012,Taylor,Davis,Parts Counter,Parts,1,2023-08-07,,True
+1013,Drew,Harris,Technician,Service,2,2024-10-25,,True
+1014,Cameron,Thomas,Sales Manager,Sales,2,2025-04-30,,True
+1015,Skyler,Garcia,Service Advisor,Service,1,2024-10-24,,True
+1016,Quinn,Jackson,F&I Manager,F&I,1,2023-11-29,,True
+1017,Jordan,Davis,Parts Counter,Parts,1,2023-12-17,,True
+1018,Dana,Lopez,Sales Consultant,Sales,1,2022-07-20,,True
+1019,Jamie,Miller,Technician,Service,2,2023-07-06,,True
+1020,Quinn,Jones,F&I Manager,F&I,1,2024-05-06,,True
+1021,Shawn,Martinez,F&I Manager,F&I,2,2023-06-29,,True
+1022,Cameron,Davis,Sales Manager,Sales,2,2025-03-21,,True
+1023,Jordan,Brown,Sales Manager,Sales,1,2023-05-13,,True
+1024,Skyler,Williams,BDC Agent,BDC,2,2023-02-08,,True
+1025,Devon,Lopez,Service Advisor,Service,1,2025-02-01,,True
+1026,Shawn,Lopez,Parts Counter,Parts,2,2025-02-07,,True
+1027,Morgan,White,Sales Manager,Sales,2,2025-09-17,,True

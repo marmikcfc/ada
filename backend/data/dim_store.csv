@@ -1,0 +1,3 @@
+store_id,rooftop_id,store_name,brand,oem_code,address,city,state,zip,timezone
+1,100,AnyTown Auto East,Multi-Brand,ATN-EAST,101 Main St,Anytown,CA,94105,America/Los_Angeles
+2,100,AnyTown Auto West,Multi-Brand,ATN-WEST,500 Westside Ave,Anytown,CA,94107,America/Los_Angeles
