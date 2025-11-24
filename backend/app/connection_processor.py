@@ -361,12 +361,40 @@ class PerConnectionProcessor:
                     await self._send_to_frontend(response_msg)
             else:
                 # For C1 providers, continue streaming as before
-                for chunk in full_content:
+                # Validate and ensure content is properly wrapped
+                logger.info(f"🔍 C1 Processing - Collected {len(full_content)} chunks from provider")
+                logger.info(f"🔍 C1 Processing - Full content list: {full_content[:5]}")  # Log first 5 chunks
+
+                complete_content = ''.join(full_content)
+                logger.info(f"🔍 C1 Processing - Joined content length: {len(complete_content)} characters")
+                logger.info(f"🔍 C1 Processing - Content preview: '{complete_content[:200]}'")
+
+                # Check if content is already wrapped in <content> tags
+                if not complete_content.strip().startswith('<content>'):
+                    logger.warning(f"⚠️ C1 content not wrapped in <content> tags, wrapping now")
+                    complete_content = f"<content>{complete_content}</content>"
+                elif not complete_content.strip().endswith('</content>'):
+                    # Has opening tag but missing closing tag - add it
+                    logger.warning(f"⚠️ C1 content missing closing </content> tag, adding now")
+                    complete_content = f"{complete_content}</content>"
+                else:
+                    logger.info(f"✅ C1 content already properly wrapped")
+
+                logger.info(f"🔍 C1 Processing - Final content length: {len(complete_content)} characters")
+                logger.info(f"🔍 C1 Processing - Final content preview: '{complete_content[:200]}'")
+
+                # Stream the properly wrapped content
+                # Split back into reasonable chunks for streaming
+                chunk_size = 100  # Characters per chunk
+                for i in range(0, len(complete_content), chunk_size):
+                    chunk = complete_content[i:i+chunk_size]
                     chunk_msg = create_c1_token(id=enhanced_message_id, content=chunk)
                     await self._send_to_frontend(chunk_msg)
                     # Small delay for smooth streaming
                     await asyncio.sleep(0.01)
-                
+
+                logger.info(f"✅ Streamed C1 content with {len(complete_content)} characters")
+
                 # Send completion signal for C1 streaming
                 done_msg = create_chat_done(id=enhanced_message_id)
                 await self._send_to_frontend(done_msg)

@@ -22,10 +22,10 @@ from pipecat.services.cartesia.tts import CartesiaTTSService
 from pipecat.services.deepgram.stt import DeepgramSTTService
 from pipecat.services.openai.llm import OpenAILLMService
 from pipecat.transports.base_transport import TransportParams
-from pipecat.transports.network.small_webrtc import SmallWebRTCTransport
+from pipecat.transports.smallwebrtc.transport import SmallWebRTCTransport
 from pipecat.observers.loggers.llm_log_observer import LLMLogObserver
 from pipecat.processors.transcript_processor import TranscriptProcessor
-from pipecat.transports.network.webrtc_connection import SmallWebRTCConnection
+from pipecat.transports.smallwebrtc.connection import SmallWebRTCConnection
 from pipecat.audio.filters.noisereduce_filter import NoisereduceFilter
 
 import json

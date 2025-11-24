@@ -343,8 +343,10 @@
 
 .chat-content {
   flex: 1;
-  overflow: hidden;
+  overflow: visible;
   background: white;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Responsive Design */

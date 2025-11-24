@@ -84,23 +84,37 @@ class ThesysProvider(VisualizationProvider):
         if not self.client:
             logger.error("Thesys client not initialized")
             return
-            
+
         try:
-            model = self.config.model or "c1-nightly"
-            
+            model = self.config.model or "c1/anthropic/claude-sonnet-4/v-20250915"
+
+            logger.info(f"📤 Thesys API Request - Model: {model}")
+            logger.info(f"📤 Thesys API Request - Messages: {messages}")
+
             stream = await self.client.chat.completions.create(
                 messages=messages,
                 model=model,
                 stream=True,
                 temperature=0.3
             )
-            
+
+            chunk_count = 0
             async for chunk in stream:
+                chunk_count += 1
+                logger.debug(f"📥 Thesys chunk #{chunk_count}: {chunk}")
+
                 if chunk.choices[0].delta and chunk.choices[0].delta.content:
-                    yield chunk.choices[0].delta.content
-                    
+                    content = chunk.choices[0].delta.content
+                    logger.info(f"✅ Thesys yielding content chunk #{chunk_count}: '{content[:100]}...' (length: {len(content)})")
+                    yield content
+                else:
+                    logger.warning(f"⚠️ Thesys chunk #{chunk_count} has no content - delta: {chunk.choices[0].delta if chunk.choices else 'NO CHOICES'}")
+
+            logger.info(f"✅ Thesys stream complete - Total chunks: {chunk_count}")
+
         except Exception as e:
-            logger.error(f"Thesys streaming error: {e}")
+            logger.error(f"❌ Thesys streaming error: {e}")
+            logger.exception("Full Thesys error traceback:")
             return
     
     def get_system_prompt(self) -> str:

@@ -2,6 +2,7 @@ import React from 'react';
 import DOMPurify from 'dompurify';
 import { C1Component } from '@thesysai/genui-sdk';
 import { ThemeProvider } from '@crayonai/react-ui';
+import { crayonDefaultTheme } from '../../theming/defaultTheme';
 
 declare global {
   interface Window {
@@ -157,20 +158,40 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
       
     case 'c1':
       const c1Xml = extractC1Content(content || '');
-      
+
+      // Validation logging for C1 content
+      console.log('[C1Component] Rendering C1 content:', {
+        hasContentTag: (content || '').includes('<content>'),
+        hasClosingTag: (content || '').includes('</content>'),
+        extractedLength: c1Xml.length,
+        isStreaming: isStreaming,
+        rawContentPreview: (content || '').substring(0, 200),
+        extractedPreview: c1Xml.substring(0, 200)
+      });
+
+      // Validate extracted content
+      if (!c1Xml || c1Xml.trim().length === 0) {
+        console.warn('[C1Component] Empty or invalid C1 content extracted');
+        return (
+          <div style={{ padding: '16px', background: '#fff3cd', border: '1px solid #ffc107', borderRadius: '8px', color: '#856404' }}>
+            <p style={{ margin: 0, fontSize: '14px' }}>No C1 content available to render.</p>
+          </div>
+        );
+      }
+
       // Create C1 action handler that sends to backend
       const c1ActionHandler = (action: any) => {
         console.log('C1Component action:', action);
-        
+
         // First, try the custom onC1Action if provided
         if (onC1Action) {
           onC1Action(action);
         }
-        
+
         // If we have sendC1Action and llmFriendlyMessage, send to backend
         if (sendC1Action && action.llmFriendlyMessage) {
           try {
-            sendC1Action({ 
+            sendC1Action({
               llmFriendlyMessage: action.llmFriendlyMessage,
               humanFriendlyMessage: action.humanFriendlyMessage || action.llmFriendlyMessage
             });
@@ -179,16 +200,34 @@ export const FlexibleContentRenderer: React.FC<FlexibleContentRendererProps> = (
           }
         }
       };
-      
-      return (
-        <ThemeProvider theme={crayonTheme || {}}>
-          <C1Component
-            c1Response={c1Xml}
-            onAction={c1ActionHandler}
-            isStreaming={isStreaming}
-          />
-        </ThemeProvider>
-      );
+
+      // Error boundary with fallback UI
+      try {
+        return (
+          <ThemeProvider theme={crayonTheme || crayonDefaultTheme}>
+            <C1Component
+              c1Response={c1Xml}
+              onAction={c1ActionHandler}
+              isStreaming={isStreaming}
+            />
+          </ThemeProvider>
+        );
+      } catch (error) {
+        console.error('[C1Component] Rendering error:', error);
+        console.error('[C1Component] Failed content:', c1Xml);
+        return (
+          <div style={{ padding: '16px', background: '#f8d7da', border: '1px solid #f5c6cb', borderRadius: '8px', color: '#721c24' }}>
+            <h4 style={{ margin: '0 0 8px 0', fontSize: '16px', fontWeight: 'bold' }}>C1Component Rendering Error</h4>
+            <p style={{ margin: '0 0 8px 0', fontSize: '14px' }}>Failed to render C1 content: {(error as Error).message}</p>
+            <details style={{ fontSize: '12px', marginTop: '8px' }}>
+              <summary style={{ cursor: 'pointer', fontWeight: 'bold' }}>Show raw content</summary>
+              <pre style={{ marginTop: '8px', padding: '8px', background: '#fff', border: '1px solid #ddd', borderRadius: '4px', overflow: 'auto', maxHeight: '200px' }}>
+                {c1Xml}
+              </pre>
+            </details>
+          </div>
+        );
+      }
       
     case 'html':
       const html = content || '';
@@ -511,8 +550,32 @@ export const ContentRenderer: React.FC<{
   // Auto-detect content type for backward compatibility
   const detectLegacyContentType = (): 'c1' | 'html' | 'text' => {
     if (!content) return 'text';
+
+    // Check for explicit <content> wrapper (C1 format)
     if (content.includes('<content>')) return 'c1';
+
+    // Check for C1-specific component tags (before generic HTML detection)
+    const c1ComponentTags = [
+      'Card', 'TextContent', 'Button', 'Input', 'Select', 'Textarea',
+      'Callout', 'Table', 'List', 'Grid', 'Flex', 'Stack', 'Chart',
+      'Form', 'Label', 'Checkbox', 'Radio', 'Switch', 'Slider',
+      'Progress', 'Badge', 'Tag', 'Avatar', 'Image', 'Icon',
+      'Modal', 'Dialog', 'Drawer', 'Popover', 'Tooltip', 'Alert'
+    ];
+
+    // Check if content contains any C1-specific tags
+    const hasC1Tags = c1ComponentTags.some(tag =>
+      content.includes(`<${tag}`) || content.includes(`<${tag.toLowerCase()}`)
+    );
+
+    if (hasC1Tags) {
+      console.log('[FlexibleContentRenderer] Detected C1 content without <content> wrapper');
+      return 'c1';
+    }
+
+    // Check for generic HTML tags (standard HTML elements)
     if (/<[a-zA-Z][\s\S]*>/i.test(content)) return 'html';
+
     return 'text';
   };
   
