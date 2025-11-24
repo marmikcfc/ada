@@ -71,7 +71,7 @@ class ModelSettings(SettingsBase):
     """LLM model configurations"""
     agent_model: str = Field(default="gpt-4o-mini", alias="AGENT_MODEL")
     enhancement_model: str = Field(default="gpt-4o-mini", alias="ENHANCEMENT_MODEL")
-    thesys_model: str = Field(default="c1/anthropic/claude-sonnet-4/v-20250915", alias="THESYS_MODEL")
+    thesys_model: str = Field(default="c1-nightly", alias="THESYS_MODEL")
     temperature: float = Field(default=0.3, alias="MODEL_TEMPERATURE")
     
 class DatabaseSettings(SettingsBase):

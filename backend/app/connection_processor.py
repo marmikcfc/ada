@@ -320,24 +320,24 @@ class PerConnectionProcessor:
             # Determine provider type for content handling
             provider_type = self.context.visualization_provider.provider_type.lower()
             content_type = get_content_type_for_provider(provider_type)
-            
-            # Collect all chunks first
-            async for chunk in self.context.visualization_provider.stream_response(messages):
-                chunk_count += 1
-                full_content.append(chunk)
-            
+
             # Handle based on content type
             if content_type == "html":
-                # For HTML providers, send complete content in one message (no streaming)
+                # For HTML providers, collect all chunks first (HTML needs complete content)
+                async for chunk in self.context.visualization_provider.stream_response(messages):
+                    chunk_count += 1
+                    full_content.append(chunk)
+
+                # Send complete content in one message (no streaming)
                 if full_content:
                     # Determine framework
                     framework = "tailwind"  # Default framework
-                    if (hasattr(self.context, 'config') and 
-                        self.context.config and 
-                        hasattr(self.context.config, 'preferences') and 
+                    if (hasattr(self.context, 'config') and
+                        self.context.config and
+                        hasattr(self.context.config, 'preferences') and
                         self.context.config.preferences):
                         framework = self.context.config.preferences.get('ui_framework', 'tailwind')
-                    
+
                     # Create appropriate response based on source
                     if source == "voice-agent":
                         # For voice sources, create a voice_response with the complete HTML
@@ -358,19 +358,30 @@ class PerConnectionProcessor:
                             thread_id=thread_id
                         )
                         response_msg["id"] = enhanced_message_id
-                    
+
                     await self._send_to_frontend(response_msg)
             else:
-                # For C1 providers, continue streaming as before
-                for chunk in full_content:
+                # For C1 providers, implement TRUE STREAMING
+                logger.info(f"Starting C1 streaming for message {enhanced_message_id}")
+
+                # Stream chunks immediately as they arrive from Thesys
+                async for chunk in self.context.visualization_provider.stream_response(messages):
+                    chunk_count += 1
+                    full_content.append(chunk)  # Still collect for history
+
+                    # Send c1_token immediately (no buffering, no artificial delay!)
                     chunk_msg = create_c1_token(id=enhanced_message_id, content=chunk)
                     await self._send_to_frontend(chunk_msg)
-                    # Small delay for smooth streaming
-                    await asyncio.sleep(0.01)
-                
+
+                    # Log progress periodically
+                    if chunk_count % 10 == 0:
+                        logger.debug(f"Streamed {chunk_count} C1 chunks")
+
                 # Send completion signal for C1 streaming
                 done_msg = create_chat_done(id=enhanced_message_id)
                 await self._send_to_frontend(done_msg)
+
+                logger.info(f"C1 streaming complete: {chunk_count} chunks sent")
             
             logger.info(f"Streamed {chunk_count} chunks for connection {self.connection_id}")
             

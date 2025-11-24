@@ -86,12 +86,13 @@ class ThesysProvider(VisualizationProvider):
             return
 
         try:
-            model = self.config.model or "c1/anthropic/claude-sonnet-4/v-20250915"
+            # Use c1-nightly for visualization endpoint
+            model = self.config.model or "c1-nightly"
 
             logger.info(f"Thesys API request - Model: {model}")
             logger.debug(f"Thesys API request - Messages: {messages}")
 
-            stream = await self.client.chat.completions.create(
+            stream = await self.client.beta.chat.completions.create(
                 messages=messages,
                 model=model,
                 stream=True,
@@ -110,6 +111,25 @@ class ThesysProvider(VisualizationProvider):
 
             logger.info(f"Thesys streaming completed - Chunks: {chunk_count}, Total length: {len(total_content)} chars")
             logger.debug(f"Thesys response preview: {total_content[:200]}...")
+
+        except AttributeError as e:
+            # Fallback if runTools is not available in beta namespace
+            logger.warning(f"runTools method not available, trying create method: {e}")
+            try:
+                stream = await self.client.chat.completions.create(
+                    messages=messages,
+                    model=model,
+                    stream=True,
+                    temperature=0.3
+                )
+
+                async for chunk in stream:
+                    if chunk.choices[0].delta and chunk.choices[0].delta.content:
+                        yield chunk.choices[0].delta.content
+
+            except Exception as fallback_error:
+                logger.error(f"Fallback to create method also failed: {fallback_error}")
+                return
 
         except Exception as e:
             logger.error(f"Thesys streaming error: {e}")
