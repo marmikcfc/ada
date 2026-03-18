@@ -1,6 +1,6 @@
-# Configurable Connection Example
+# GeUI Demo
 
-A standalone example demonstrating how to configure WebSocket and WebRTC connections with the GeUI SDK for different environments and use cases.
+A comprehensive demo showcasing the GeUI SDK with configurable visualization libraries (C1, Tailwind, Shadcn), LLM providers, and MCP servers.
 
 ## Features Demonstrated
 

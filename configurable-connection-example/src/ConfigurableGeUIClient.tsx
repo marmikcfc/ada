@@ -2,10 +2,11 @@ import React, { useState, useEffect, useCallback } from 'react';
 import GeUI from '../../packages/geui-sdk/src/components/GeUI';
 import type { GeUIProps } from '../../packages/geui-sdk/src/types';
 
-interface MCPServerConfig {
+export interface MCPServerConfig {
   name: string;
   url: string;
   transport: 'http';
+  description?: string;
   headers?: Record<string, string>;
 }
 
@@ -143,4 +144,4 @@ export const ConfigurableGeUIClient: React.FC<ConfigurableGeUIClientProps> = ({
   );
 };
 
-export type { MCPServerConfig, ConnectionConfig };
+export type { ConnectionConfig };

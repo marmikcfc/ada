@@ -230,6 +230,17 @@ body {
   font-weight: 600;
 }
 
+.server-description {
+  background: #f3f4f6;
+  color: #4b5563;
+  padding: 0.5rem 0.75rem;
+  border-radius: 4px;
+  margin-bottom: 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.4;
+  font-style: italic;
+}
+
 .remove-btn {
   background-color: #fee2e2;
   color: #991b1b;

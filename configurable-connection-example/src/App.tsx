@@ -91,7 +91,7 @@ function App() {
   const addMcpServer = () => {
     setCustomMcpServers([
       ...customMcpServers,
-      { name: '', url: '', transport: 'http', headers: {} }
+      { name: '', url: '', transport: 'http', description: '', headers: {} }
     ]);
   };
 
@@ -113,8 +113,24 @@ function App() {
     setCustomMcpServers(customMcpServers.filter((_, i) => i !== index));
   };
 
-  const addPresetServer = (type: 'perplexity' | 'weather' | 'filesystem') => {
+  const addPresetServer = (type: 'rube' | 'search' | 'perplexity' | 'weather' | 'filesystem') => {
     const presets = {
+      rube: {
+        name: 'rube',
+        url: 'https://rube.app/mcp',
+        transport: 'http' as const,
+        description: 'A simple server of important tools like notion, gmail, github, etc.',
+        headers: {
+          'Authorization': 'Bearer eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOiJ1c2VyXzAxSzNKSkhLNDBIS0tFMkM1UjU4V0M5RkNTIiwib3JnSWQiOiJvcmdfMDFLM0pKSFJQNE03WlFKNVNQUEpDSkYwSjQiLCJpYXQiOjE3NjM5OTY1NzN9.mEeTUztREufm6dvwpmXn3Hh5MtnPyWsjevD4o5K6FJk'
+        }
+      },
+      search: {
+        name: 'search',
+        url: 'https://server.smithery.ai/composio_search/mcp?api_key=54b8c43d-cdda-4503-bda0-29be49a2b664&profile=tense-raven-Zw05Xc',
+        transport: 'http' as const,
+        description: 'A simple server for searching web text and images',
+        headers: {}
+      },
       perplexity: {
         name: 'perplexity-search',
         url: 'http://localhost:3001',
@@ -142,7 +158,7 @@ function App() {
       {/* Header */}
       <header className="app-header">
         <div className="header-content">
-          <h1>🔧 Configurable Connection Example</h1>
+          <h1>🔧 GeUI demo</h1>
           <p>Configure visualization library, LLM, and MCP servers</p>
         </div>
       </header>
@@ -268,6 +284,12 @@ function App() {
                     <div className="preset-buttons">
                       <div className="preset-label">Quick Add Presets:</div>
                       <div className="button-group">
+                        <button onClick={() => addPresetServer('rube')} className="preset-btn">
+                          + Rube Tools
+                        </button>
+                        <button onClick={() => addPresetServer('search')} className="preset-btn">
+                          + Web Search
+                        </button>
                         <button onClick={() => addPresetServer('perplexity')} className="preset-btn">
                           + Perplexity
                         </button>
@@ -286,7 +308,7 @@ function App() {
                     {customMcpServers.map((server, index) => (
                       <div key={index} className="server-card">
                         <div className="server-header">
-                          <span>Server {index + 1}</span>
+                          <span>Server {index + 1}: {server.name || 'Unnamed'}</span>
                           <button onClick={() => removeMcpServer(index)} className="remove-btn">
                             Remove
                           </button>
@@ -311,6 +333,16 @@ function App() {
                               placeholder="http://localhost:3001"
                             />
                           </div>
+                        </div>
+
+                        <div className="field">
+                          <label>Description (optional):</label>
+                          <input
+                            type="text"
+                            value={server.description || ''}
+                            onChange={(e) => updateMcpServer(index, 'description', e.target.value)}
+                            placeholder="What does this server do?"
+                          />
                         </div>
 
                         <div className="field">
@@ -456,8 +488,8 @@ function App() {
                 disableVoice={!enableVoice}
                 allowFullScreen={true}
                 options={{
-                  agentName: `${selectedLibrary.toUpperCase()} Assistant`,
-                  welcomeMessage: `Connected with ${selectedLibrary} library using ${activeConfig.llm_config.provider} (${activeConfig.llm_config.model}). You have ${activeConfig.mcp_config.servers.length} MCP server(s) configured.`,
+                  agentName: "GeUI Assistant",
+                  welcomeMessage: `Connected with ${selectedLibrary} library using ${activeConfig.llm_config.provider} (${activeConfig.llm_config.model}). You have ${activeConfig.mcp_config.servers.length} MCP server(s) configured.`
                 }}
               />
             </div>

@@ -55,7 +55,7 @@ class EnhancedMCPClient:
         self.max_tool_calls = max_tool_calls
         
         # Add built-in tools to available tools
-        self._add_builtin_tools()
+       # self._add_builtin_tools()
         
     async def initialize(self):
         """Initialize the MCP client with configuration from JSON file."""

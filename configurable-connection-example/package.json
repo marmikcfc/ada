@@ -1,9 +1,9 @@
 {
-  "name": "configurable-connection-example",
+  "name": "geui-demo",
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "description": "Standalone example demonstrating configurable WebSocket and WebRTC connections with the GeUI SDK",
+  "description": "GeUI SDK demo with configurable visualization libraries, LLM providers, and MCP servers",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
